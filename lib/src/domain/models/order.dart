@@ -1,4 +1,4 @@
-import '../local/outbox/outbox_status.dart';
+import '../../data/local/outbox/outbox_status.dart';
 
 class Order {
   Order({

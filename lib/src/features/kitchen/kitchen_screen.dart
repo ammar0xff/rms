@@ -1,16 +1,245 @@
 import 'package:flutter/material.dart';
 
-import '../common/placeholder_screen.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_text.dart';
+import '../../core/widgets/buttons.dart';
+import '../../core/widgets/page.dart';
+import '../../core/widgets/primitives.dart';
+import '../../core/widgets/status.dart';
+import '../../core/widgets/surface_card.dart';
+import '../../data/mock/mock_data.dart';
+import '../common/format.dart';
 
-class KitchenScreen extends StatelessWidget {
+class KitchenScreen extends StatefulWidget {
   const KitchenScreen({super.key});
 
   @override
+  State<KitchenScreen> createState() => _KitchenScreenState();
+}
+
+class _KitchenScreenState extends State<KitchenScreen> {
+  String _station = 'All';
+
+  List<String> get _stations =>
+      ['All', ...{for (final t in MockData.tickets) t.station}];
+
+  @override
   Widget build(BuildContext context) {
-    return const PlaceholderScreen(
-      title: 'Kitchen',
-      subtitle: 'Local ticket queue that survives restarts.',
-      icon: Icons.kitchen,
+    final tickets = _station == 'All'
+        ? MockData.tickets
+        : MockData.tickets.where((t) => t.station == _station).toList();
+
+    final columns = {
+      TicketState.queued: tickets.where((t) => t.state == TicketState.queued).toList(),
+      TicketState.preparing: tickets.where((t) => t.state == TicketState.preparing).toList(),
+      TicketState.ready: tickets.where((t) => t.state == TicketState.ready).toList(),
+    };
+
+    return PageBody(
+      scrollable: false,
+      children: [
+        Row(
+          children: [
+            const SectionHeader(
+              title: 'Kitchen display',
+              subtitle: 'Tickets survive restarts · printing independent of sync',
+            ),
+            const Spacer(),
+            SizedBox(height: 30, child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s))),
+            const SizedBox(width: 12),
+            const RmsButton(label: 'Recall last', icon: Icons.replay, onPressed: null),
+          ],
+        ),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final state in [TicketState.queued, TicketState.preparing, TicketState.ready])
+                Expanded(
+                  child: _KdsColumn(
+                    state: state,
+                    tickets: columns[state]!,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StationFilter extends StatelessWidget {
+  const _StationFilter({required this.stations, required this.selected, required this.onSelect});
+
+  final List<String> stations;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      children: [
+        for (final s in stations)
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: GestureDetector(
+              onTap: () => onSelect(s),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: s == selected ? AppColors.brandSoft : Colors.transparent,
+                  border: Border.all(color: s == selected ? AppColors.brandLine : AppColors.borderStrong),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                ),
+                child: Center(
+                  child: Text(s,
+                      style: AppText.caption.copyWith(
+                        fontSize: 11,
+                        color: s == selected ? AppColors.brand : AppColors.fgMuted,
+                      )),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _KdsColumn extends StatelessWidget {
+  const _KdsColumn({required this.state, required this.tickets});
+
+  final TicketState state;
+  final List<KitchenTicket> tickets;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, tone) = ticketStateView(state);
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                StatusDot(tone: tone),
+                const SizedBox(width: 8),
+                Text(label, style: AppText.sectionHeading),
+                const Spacer(),
+                Text('${tickets.length}', style: AppText.caption),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSunken.withValues(alpha: 0.5),
+                border: Border.all(color: AppColors.borderFaint),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: ListView(
+                children: [
+                  for (final t in tickets) _TicketCard(ticket: t),
+                  if (tickets.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Text('Empty', style: AppText.caption),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TicketCard extends StatelessWidget {
+  const _TicketCard({required this.ticket});
+
+  final KitchenTicket ticket;
+
+  Color get _ageColor {
+    if (ticket.ageMinutes >= 12) return AppColors.negative;
+    if (ticket.ageMinutes >= 8) return AppColors.warning;
+    return AppColors.fgMuted;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (stateLabel, _) = ticketStateView(ticket.state);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SurfaceCard(
+        level: SurfaceLevel.content,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(ticket.id, style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(width: 8),
+                Tag(label: ticket.station, tone: StatusTone.neutral),
+                const Spacer(),
+                if (ticket.provisional)
+                  const Tag(label: 'LOCAL', tone: StatusTone.warning),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Text(ticket.orderRef, style: AppText.caption),
+                const Spacer(),
+                Row(
+                  children: [
+                    Icon(Icons.schedule, size: 11, color: _ageColor),
+                    const SizedBox(width: 3),
+                    Text('${ticket.ageMinutes}m', style: AppText.caption.copyWith(color: _ageColor)),
+                  ],
+                ),
+              ],
+            ),
+            const Divider(height: 16, color: AppColors.borderSubtle),
+            for (final item in ticket.items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text('•  $item', style: AppText.tableCell.copyWith(color: AppColors.fgSecondary)),
+              ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(stateLabel, style: AppText.caption),
+                ),
+                if (ticket.state != TicketState.ready)
+                  RmsButton(
+                    label: ticket.state == TicketState.queued ? 'Start' : 'Mark ready',
+                    icon: Icons.play_arrow_rounded,
+                    variant: BtnVariant.secondary,
+                    onPressed: () {},
+                  )
+                else
+                  RmsButton(
+                    label: 'Served',
+                    icon: Icons.check_rounded,
+                    variant: BtnVariant.primary,
+                    onPressed: () {},
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
