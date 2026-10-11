@@ -148,9 +148,15 @@ class _FooterStat extends StatelessWidget {
     return Expanded(
       child: Row(
         children: [
-          Text(label, style: AppText.caption),
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: AppText.caption)),
           const SizedBox(width: 6),
-          Text(value, style: AppText.caption.copyWith(color: AppColors.fgSecondary, fontWeight: FontWeight.w500)),
+          Flexible(
+            child: Text(
+              value,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: AppColors.fgSecondary, fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );
@@ -195,7 +201,9 @@ class _RecentOrders extends StatelessWidget {
                 [
                   Row(
                     children: [
-                      Text(o.number, style: AppText.tableCellPrimary),
+                      Flexible(
+                        child: Text(o.number, overflow: TextOverflow.ellipsis, style: AppText.tableCellPrimary),
+                      ),
                       if (o.provisional) ...[
                         const SizedBox(width: 6),
                         const Tag(label: 'PROV', tone: StatusTone.neutral),

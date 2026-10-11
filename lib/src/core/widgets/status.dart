@@ -46,7 +46,13 @@ class StatusText extends StatelessWidget {
       children: [
         StatusDot(tone: tone),
         const SizedBox(width: 6),
-        Text(label, style: AppText.caption.copyWith(color: AppColors.fgSecondary)),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: AppColors.fgSecondary),
+          ),
+        ),
       ],
     );
   }
@@ -83,6 +89,7 @@ class Tag extends StatelessWidget {
           ],
           Text(
             label,
+            overflow: TextOverflow.ellipsis,
             style: AppText.label.copyWith(
               color: color,
               letterSpacing: 0.2,
