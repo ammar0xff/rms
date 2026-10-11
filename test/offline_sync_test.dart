@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_io.dart';
 
 import 'package:rms/src/data/local/local_database.dart';
