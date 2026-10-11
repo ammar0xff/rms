@@ -7,4 +7,7 @@ abstract final class LocalStores {
 
   static final StoreRef<String, Map<String, Object?>> outbox =
       stringMapStoreFactory.store('outbox');
+
+  static final StoreRef<String, Map<String, Object?>> menu =
+      stringMapStoreFactory.store('menu');
 }

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../config/firebase_config.dart';
 import '../../data/local/local_database.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/menu_repository.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/sync/sync_service.dart';
 
@@ -15,6 +16,7 @@ class AppServices {
     this.database,
     this.orders,
     this.sync,
+    this.menu,
   });
 
   final FirebaseConfig config;
@@ -28,6 +30,9 @@ class AppServices {
 
   /// Local-first order access, or null when the store is unavailable.
   final OrderRepository? orders;
+
+  /// Menu cache repository (offline-first read), or null when store unavailable.
+  final MenuRepository? menu;
 
   /// Connectivity-driven sync loop, or null when there is no backend/store.
   final SyncService? sync;

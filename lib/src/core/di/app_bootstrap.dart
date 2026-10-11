@@ -9,7 +9,10 @@ import '../../data/local/local_database.dart';
 import '../../data/local/outbox/outbox_store.dart';
 import '../../data/repositories/demo_auth_repository.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
+import '../../data/repositories/local_menu_repository.dart';
 import '../../data/repositories/local_order_repository.dart';
+import '../../domain/models/menu_item.dart';
+import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
 import '../../data/sync/firestore_sync_transport.dart';
 import '../../data/sync/sync_coordinator.dart';
@@ -37,6 +40,8 @@ Future<AppServices> _resolveAuth(
   final orders = (database == null || outbox == null)
       ? null
       : LocalOrderRepository(database, outbox: outbox);
+  final menu = database == null ? null : LocalMenuRepository(database);
+  await _primeMenuCache(menu);
 
   if (!config.isConfigured) {
     AppLogger.warn(
@@ -48,6 +53,7 @@ Future<AppServices> _resolveAuth(
       firebaseReady: false,
       database: database,
       orders: orders,
+      menu: menu,
     );
   }
 
@@ -63,6 +69,7 @@ Future<AppServices> _resolveAuth(
       database: database,
       orders: orders,
       sync: sync,
+      menu: menu,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -76,6 +83,7 @@ Future<AppServices> _resolveAuth(
       firebaseReady: false,
       database: database,
       orders: orders,
+      menu: menu,
     );
   }
 }
@@ -110,5 +118,27 @@ Future<LocalDatabase?> _openLocalDatabase() async {
       AppLogger.error('In-memory store unavailable; persistence disabled.', memoryError);
       return null;
     }
+  }
+}
+
+Future<void> _primeMenuCache(LocalMenuRepository? menu) async {
+  if (menu == null) return;
+  try {
+    final cached = await menu.listMenu();
+    if (cached.isNotEmpty) return;
+    await menu.cacheMenu(
+      mock.MockData.menu.map((m) {
+        return MenuItemModel(
+          id: m.name,
+          name: m.name,
+          category: m.category,
+          price: m.price,
+          station: m.station,
+          available: m.available,
+        );
+      }).toList(),
+    );
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime menu cache', error, stackTrace);
   }
 }

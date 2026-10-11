@@ -9,6 +9,7 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../data/mock/mock_data.dart';
+import '../../domain/models/menu_item.dart' as menu_model;
 import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
 import '../common/format.dart';
