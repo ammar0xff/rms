@@ -58,10 +58,9 @@ deploy injects `FIREBASE_*` secrets. CI + deploy green; live site shows sign-in 
 Gotchas: `FirebaseOptions.messagingSenderId` is non-nullable `String` (do not pass null);
 `actions/upload-pages-artifact@v5` (NOT v7); checkout@v7 ok. Demo stream uses `Stream.multi` (broadcast
 race). Version now `0.2.0+1`, sdk `>=3.6.0`.
-Next: local persistence + transactional outbox + persisted idempotency with tests proving the offline
-exit criterion; then back Firestore-backed repositories.
+Next: Firestore-backed `SyncTransport` + repositories, then wire the UI to `services.orders`.
 
-## Local persistence (Phase 0 — implemented, pending CI)
+## Local persistence (SHIPPED) — CI + Deploy green, live re-verified (0 console errors)
 - Store: **sembast** (schemaless doc store) chosen over PRD's SQLite/Drift to avoid `build_runner`
   codegen (cannot run without a local SDK); works on web via IndexedDB. Deps added: `sembast ^3.8.11`,
   `sembast_web ^2.4.6`, `path ^1.9.1`, `path_provider ^2.1.6`. Flutter stable here = 3.47.7 / Dart 3.13.5
@@ -81,8 +80,12 @@ exit criterion; then back Firestore-backed repositories.
     store independently of Firebase, degrading platform→memory→none.
   - `test/offline_sync_test.dart`: create offline → reopen file (restart) → reconnect → sync → replay
     dedupes; transient-failure retry; failed-transaction rollback.
+  - GOTCHA (cost a CI round-trip): sembast's `StoreRef.find/record` and `RecordRef.get/put` are
+    **extension methods** — a file calling them must `import 'package:sembast/sembast.dart';` directly
+    (importing a file that imports sembast is NOT enough). Also: don't reference the cascade target
+    variable inside a cascade initializer.
   - NOTE: sync is NOT auto-wired in the app yet (no real backend transport); screens still show mock
-    data. Next: Firestore-backed transport + repositories, then wire UI.
+    data. Next: Firestore-backed transport + repositories, then wire UI to `services.orders`.
 
 
 ## Firebase (LIVE)
