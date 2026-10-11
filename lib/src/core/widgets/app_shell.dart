@@ -262,11 +262,14 @@ class _NavTileState extends State<_NavTile> {
                         : AppColors.fgMuted,
               ),
               const SizedBox(width: 10),
-              Text(
-                widget.entry.label,
-                style: AppText.navItem.copyWith(
-                  color: active ? AppColors.fgBright : AppColors.fgMuted,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+              Expanded(
+                child: Text(
+                  widget.entry.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.navItem.copyWith(
+                    color: active ? AppColors.fgBright : AppColors.fgMuted,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
               ),
             ],
