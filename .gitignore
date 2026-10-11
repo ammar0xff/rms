@@ -19,3 +19,4 @@ Thumbs.db
 google-services.json
 GoogleService-Info.plist
 firebase_options.dart
+.playwright-mcp/
