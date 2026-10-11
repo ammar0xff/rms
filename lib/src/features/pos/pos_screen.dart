@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/di/app_services.dart';
 import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -8,6 +9,8 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../data/mock/mock_data.dart';
+import '../../domain/models/order.dart';
+import '../../domain/models/order_draft.dart';
 import '../common/format.dart';
 
 class PosScreen extends StatefulWidget {
@@ -21,6 +24,7 @@ class _PosScreenState extends State<PosScreen> {
   final _cart = <CartLine>[];
   String _category = 'الكل';
   int _orderType = 0;
+  bool _submitting = false;
   static const _orderTypes = ['داخل الصالة', 'الاستلام', 'توصيل'];
 
   List<String> get _categories =>
@@ -52,6 +56,55 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
+  Future<void> _submitOrder() async {
+    final services = AppScope.of(context);
+    final orders = services.orders;
+    final messenger = ScaffoldMessenger.of(context);
+    if (orders == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('تعذر الحفظ: التخزين المحلي غير متاح')),
+      );
+      return;
+    }
+    final items = [
+      for (final line in _cart)
+        OrderItem(
+          productId: line.item.name,
+          name: line.item.name,
+          unitPrice: line.item.price,
+          quantity: line.quantity,
+        ),
+    ];
+    setState(() => _submitting = true);
+    try {
+      final order = await orders.createOrder(
+        OrderDraft(
+          items: items,
+          createdOffline: services.sync?.isOnline == false,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _cart.clear();
+        _submitting = false;
+      });
+      services.sync?.requestSync();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم إنشاء الطلب ${order.provisionalOrderNumber} · يُزامَن عند الاتصال',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('فشل إنشاء الطلب، حاول مرة أخرى')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -71,9 +124,11 @@ class _PosScreenState extends State<PosScreen> {
           subtotal: _subtotal,
           tax: _tax,
           total: _total,
+          submitting: _submitting,
           onType: (i) => setState(() => _orderType = i),
           onAdd: _add,
           onDec: _dec,
+          onSubmit: _submitOrder,
         );
 
         if (narrow) {
@@ -291,9 +346,11 @@ class _CartPane extends StatelessWidget {
     required this.subtotal,
     required this.tax,
     required this.total,
+    required this.submitting,
     required this.onType,
     required this.onAdd,
     required this.onDec,
+    required this.onSubmit,
   });
 
   final List<CartLine> cart;
@@ -302,9 +359,11 @@ class _CartPane extends StatelessWidget {
   final double subtotal;
   final double tax;
   final double total;
+  final bool submitting;
   final ValueChanged<int> onType;
   final ValueChanged<MenuItem> onAdd;
   final ValueChanged<CartLine> onDec;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -406,7 +465,7 @@ class _CartPane extends StatelessWidget {
                         label: 'إرسال للمطبخ',
                         icon: Icons.send_rounded,
                         variant: BtnVariant.secondary,
-                        onPressed: cart.isEmpty ? null : () {},
+                        onPressed: (cart.isEmpty || submitting) ? null : onSubmit,
                         dense: false,
                       ),
                     ),
@@ -417,7 +476,7 @@ class _CartPane extends StatelessWidget {
                   label: 'تحصيل ${money(total)}',
                   icon: Icons.payments_outlined,
                   variant: BtnVariant.primary,
-                  onPressed: cart.isEmpty ? null : () {},
+                  onPressed: (cart.isEmpty || submitting) ? null : onSubmit,
                   dense: false,
                 ),
               ],

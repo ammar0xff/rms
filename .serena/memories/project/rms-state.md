@@ -59,6 +59,7 @@ Gotchas: `FirebaseOptions.messagingSenderId` is non-nullable `String` (do not pa
 `actions/upload-pages-artifact@v5` (NOT v7); checkout@v7 ok. Demo stream uses `Stream.multi` (broadcast
 race). Version now `0.2.0+1`, sdk `>=3.6.0`.
 Next: Firestore-backed `SyncTransport` + repositories, then wire the UI to `services.orders`.
+Now shipped: Firestore transport + connectivity auto-drain + POS order submission (see below).
 
 ## Local persistence (SHIPPED) — CI + Deploy green, live re-verified (0 console errors)
 - Store: **sembast** (schemaless doc store) chosen over PRD's SQLite/Drift to avoid `build_runner`
@@ -110,3 +111,29 @@ Files: `test/order_model_test.dart`, `outbox_test.dart`, `sync_test.dart`, `loca
   redeploys. Config values are public web config (not sensitive), but kept in Secrets. Actions still
   gates deploy; the web key is only restricted by GCP API/referrer rules — add `ammar0xff.github.io`
   referrer restriction in GCP Credentials when hardening.
+
+## Cloud sync — Firestore transport + connectivity auto-drain (SHIPPED)
+- `lib/src/data/sync/firestore_sync_transport.dart` — `FirestoreSyncTransport implements SyncTransport`;
+  writes each entry to `Firestore` collection `sync_operations` with **doc id = `idempotencyKey`** via
+  `set(...)` so replays overwrite (server half of exactly-once). Fields: operationId/entityType/entityId/
+  operationType/payload/schemaVersion/createdAt/`clientPushedAt`=FieldValue.serverTimestamp(). Ctor takes
+  optional `FirebaseFirestore` (uses `.instance` when null) + `collection` name.
+- `lib/src/data/sync/connectivity_monitor.dart` — wraps `connectivity_plus`; `onChanged`→`Stream<bool>`
+  (`.map(hasConnection).distinct()`), `isOnline` via `checkConnectivity()`; `hasConnection(List<ConnectivityResult>)`
+  = any != `none`. Plugin source lazily created; `changes`/`check` injectable for tests.
+- `lib/src/data/sync/sync_service.dart` — `start()` reads `isOnline`, subscribes to `onChanged`, does a
+  catch-up `requestSync()` when online; re-syncs on every reconnect; `isOnline` getter; `dispose()` cancels.
+- Bootstrap: when `firebaseReady && database != null`, builds one `OutboxStore` shared by
+  `LocalOrderRepository` + `SyncEngine(onApplied: orders.applySynced)`, wrapped in `SyncCoordinator` +
+  `SyncService`; `unawaited(sync.start())`. `AppServices.sync` (nullable `SyncService`) added; null in
+  demo mode / no store.
+- POS wiring (`pos_screen.dart`): "إرسال للمطبخ" + "تحصيل" call `_submitOrder()` → `services.orders.createOrder`,
+  clear cart, snackbar with `provisionalOrderNumber`, then `services.sync?.requestSync()`; disabled while
+  submitting; falls back to an error snackbar when `orders==null`. `createdOffline = services.sync?.isOnline == false`.
+  Product id = menu item name (menu has no ids).
+- Tests: `test/connectivity_monitor_test.dart`, `test/sync_service_test.dart` (catch-up on start, offline→connect
+  sync, dispose stops reacting). NOTE: future awaits in most tests must poll via `_until()` — the service uses
+  `unawaited(requestSync())` so one `Duration.zero` yield is not enough.
+- STILL OPEN: Firestore DB may not exist in project `teletunnal` → pushes fail → entries go `retryableFailure`
+  (non-fatal). Server-assigned `canonicalOrderNumber`/`serverId` not yet produced (needs a Cloud Function);
+  `applySynced` already reads them from `entry.payload` if present. `SyncMonitor`/sync chip still hardcoded.

@@ -4,6 +4,7 @@ import '../config/firebase_config.dart';
 import '../../data/local/local_database.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/order_repository.dart';
+import '../../data/sync/sync_service.dart';
 
 /// Process-wide dependencies resolved once at startup.
 class AppServices {
@@ -13,6 +14,7 @@ class AppServices {
     required this.firebaseReady,
     this.database,
     this.orders,
+    this.sync,
   });
 
   final FirebaseConfig config;
@@ -26,6 +28,9 @@ class AppServices {
 
   /// Local-first order access, or null when the store is unavailable.
   final OrderRepository? orders;
+
+  /// Connectivity-driven sync loop, or null when there is no backend/store.
+  final SyncService? sync;
 
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;
