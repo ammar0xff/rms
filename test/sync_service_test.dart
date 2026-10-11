@@ -60,7 +60,10 @@ void main() {
       final service = _service(
         store,
         transport,
-        ConnectivityMonitor(check: () async => [ConnectivityResult.wifi]),
+        ConnectivityMonitor(
+          changes: const Stream<List<ConnectivityResult>>.empty(),
+          check: () async => [ConnectivityResult.wifi],
+        ),
       );
 
       await service.start();
