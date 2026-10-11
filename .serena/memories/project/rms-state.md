@@ -59,4 +59,18 @@ Gotchas: `FirebaseOptions.messagingSenderId` is non-nullable `String` (do not pa
 `actions/upload-pages-artifact@v5` (NOT v7); checkout@v7 ok. Demo stream uses `Stream.multi` (broadcast
 race). Version now `0.2.0+1`, sdk `>=3.6.0`.
 Next: local persistence + transactional outbox + persisted idempotency with tests proving the offline
-exit criterion; activate Firebase Auth/Firestore once the user supplies project config + secrets.
+exit criterion; then back Firestore-backed repositories.
+
+## Firebase (LIVE)
+- Project **`teletunnal`** (pre-existing), web app config supplied by user.
+- GitHub Secrets set for `ammar0xff/rms`: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN
+  (`teletunnal.firebaseapp.com`), FIREBASE_PROJECT_ID (`teletunnal`), FIREBASE_STORAGE_BUCKET
+  (`teletunnal.firebasestorage.app`), FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID. No `FIREBASE_MEASUREMENT_ID`.
+- Console configured by user: Email/Password enabled, authorized domain `ammar0xff.github.io`, a user added.
+- Live site now runs in REAL mode (no more demo line). Verified: valid apiKey, Auth enabled —
+  dummy creds return the mapped "invalid credentials" message (no config errors). Real user login is
+  user-driven (we have no stored creds).
+- NOTE: the deploy build injects secrets only via `--dart-define`; `gh secret set` + workflow_dispatch
+  redeploys. Config values are public web config (not sensitive), but kept in Secrets. Actions still
+  gates deploy; the web key is only restricted by GCP API/referrer rules — add `ammar0xff.github.io`
+  referrer restriction in GCP Credentials when hardening.
