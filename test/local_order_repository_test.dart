@@ -11,18 +11,6 @@ const List<OrderItem> _items = [
   OrderItem(productId: 'p1', name: 'برجر', unitPrice: 45, quantity: 2),
 ];
 
-OutboxEntry _serverEntry(String entityId, {String entityType = 'order'}) =>
-    OutboxEntry(
-      operationId: 'op-$entityId',
-      entityType: entityType,
-      entityId: entityId,
-      operationType: 'createOrder',
-      payload: const {'serverId': 'srv-1', 'canonicalOrderNumber': 'ORD-9'},
-      schemaVersion: 1,
-      idempotencyKey: 'key-$entityId',
-      createdAt: DateTime.utc(2026, 1, 1),
-    );
-
 void main() {
   late LocalDatabase db;
   late LocalOrderRepository repo;
