@@ -1,7 +1,9 @@
 import 'package:flutter/widgets.dart';
 
 import '../config/firebase_config.dart';
+import '../../data/local/local_database.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/order_repository.dart';
 
 /// Process-wide dependencies resolved once at startup.
 class AppServices {
@@ -9,6 +11,8 @@ class AppServices {
     required this.config,
     required this.auth,
     required this.firebaseReady,
+    this.database,
+    this.orders,
   });
 
   final FirebaseConfig config;
@@ -17,8 +21,17 @@ class AppServices {
   /// Whether Firebase initialized successfully this session.
   final bool firebaseReady;
 
+  /// The on-device store, or null when it could not be opened.
+  final LocalDatabase? database;
+
+  /// Local-first order access, or null when the store is unavailable.
+  final OrderRepository? orders;
+
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;
+
+  /// True when local persistence is available this session.
+  bool get hasLocalStore => database != null;
 }
 
 /// Exposes [AppServices] to the widget tree.

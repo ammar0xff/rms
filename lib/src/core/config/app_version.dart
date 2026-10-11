@@ -7,6 +7,7 @@ abstract final class AppVersion {
   static const String number = '0.2.0';
   static const int build = 1;
   static const String localSchema = 'v1';
+  static const int localSchemaVersion = 1;
   static const String apiContract = '2026-10-11';
 
   static String get string => '$number · build $build';

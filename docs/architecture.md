@@ -44,6 +44,16 @@ through an `AppScope` inherited widget.
   `SignInScreen` when signed out.
 - **Version/diagnostics** — `core/config/app_version.dart` and `core/logging/app_logger.dart`
   provide version metadata and non-secret logging; surfaced in Settings.
+- **Local store** — `data/local/local_database.dart` opens a sembast database (file on native via
+  `path_provider`, IndexedDB on web); `platform/db_factory_*.dart` is selected by conditional import
+  and falls back to an in-memory store. Opening is independent of Firebase and never blocks startup.
+- **Order repository** — `data/repositories/local_order_repository.dart` writes an order and its
+  outbox entry in a single transaction and exposes `applySynced` for the sync engine's completion
+  callback.
+
+> Note: the PRD names SQLite/Drift. Phase 0 uses **sembast** to avoid a code-generation step
+> (`build_runner`) that cannot run in this environment; the transactional-outbox contract is
+> unchanged. Swapping the store later only touches `data/local/`.
 
 
 ## Key local entities

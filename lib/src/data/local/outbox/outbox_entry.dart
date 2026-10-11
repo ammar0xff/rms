@@ -36,6 +36,7 @@ class OutboxEntry {
     int? attemptCount,
     DateTime? lastAttemptAt,
     String? lastError,
+    bool clearLastError = false,
   }) {
     return OutboxEntry(
       operationId: operationId,
@@ -49,8 +50,43 @@ class OutboxEntry {
       dependencyIds: dependencyIds,
       attemptCount: attemptCount ?? this.attemptCount,
       lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
-      lastError: lastError ?? this.lastError,
+      lastError: clearLastError ? null : (lastError ?? this.lastError),
       syncStatus: syncStatus ?? this.syncStatus,
     );
   }
+
+  Map<String, Object?> toRecord() => {
+        'operationId': operationId,
+        'entityType': entityType,
+        'entityId': entityId,
+        'operationType': operationType,
+        'payload': payload,
+        'schemaVersion': schemaVersion,
+        'idempotencyKey': idempotencyKey,
+        'createdAt': createdAt.toIso8601String(),
+        'dependencyIds': dependencyIds,
+        'attemptCount': attemptCount,
+        'lastAttemptAt': lastAttemptAt?.toIso8601String(),
+        'lastError': lastError,
+        'syncStatus': syncStatus.name,
+      };
+
+  static OutboxEntry fromRecord(Map<String, Object?> record) => OutboxEntry(
+        operationId: record['operationId'] as String,
+        entityType: record['entityType'] as String,
+        entityId: record['entityId'] as String,
+        operationType: record['operationType'] as String,
+        payload: Map<String, dynamic>.from(record['payload'] as Map),
+        schemaVersion: record['schemaVersion'] as int,
+        idempotencyKey: record['idempotencyKey'] as String,
+        createdAt: DateTime.parse(record['createdAt'] as String),
+        dependencyIds:
+            (record['dependencyIds'] as List?)?.cast<String>() ?? const [],
+        attemptCount: record['attemptCount'] as int? ?? 0,
+        lastAttemptAt: record['lastAttemptAt'] == null
+            ? null
+            : DateTime.parse(record['lastAttemptAt'] as String),
+        lastError: record['lastError'] as String?,
+        syncStatus: OutboxStatus.values.byName(record['syncStatus'] as String),
+      );
 }

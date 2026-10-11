@@ -61,6 +61,30 @@ race). Version now `0.2.0+1`, sdk `>=3.6.0`.
 Next: local persistence + transactional outbox + persisted idempotency with tests proving the offline
 exit criterion; then back Firestore-backed repositories.
 
+## Local persistence (Phase 0 — implemented, pending CI)
+- Store: **sembast** (schemaless doc store) chosen over PRD's SQLite/Drift to avoid `build_runner`
+  codegen (cannot run without a local SDK); works on web via IndexedDB. Deps added: `sembast ^3.8.11`,
+  `sembast_web ^2.4.6`, `path ^1.9.1`, `path_provider ^2.1.6`. Flutter stable here = 3.47.7 / Dart 3.13.5
+  (satisfies deps' `^3.12.0`).
+  - `lib/src/data/local/platform/db_factory{,_stub,_io,_web}.dart` — conditional import
+    (`dart.library.io` / `dart.library.js_interop`) selects file vs IndexedDB; stub uses memory.
+  - `lib/src/data/local/local_database.dart` — wraps sembast `Database`; `openPlatform()`, `memory()`,
+    `fromDatabase()`, `transaction()`. `local_stores.dart` — `orders` + `outbox` stores.
+  - `OutboxEntry.toRecord()/fromRecord()`, `OutboxStore` (append-in-txn, pending/all, markInProgress/
+    markSynced/markRetryable). `OutboxEntry.copyWith(clearLastError:)`.
+  - `lib/src/data/sync/`: `SyncTransport` iface + `SyncEngine.drain()` (markInProgress → push →
+    markSynced + `onApplied` / catch → markRetryable), `InMemorySyncTransport` (dedupes on
+    idempotencyKey), `SyncCoordinator` (re-entrancy guard).
+  - `Order`/`OrderItem` gained `toRecord/fromRecord`; new `OrderDraft`, `OrderRepository` (iface),
+    `LocalOrderRepository` (atomic order+outbox write; `applySynced`).
+  - `AppServices` gained optional `database`/`orders` (+ `hasLocalStore`); `bootstrapApp()` opens the
+    store independently of Firebase, degrading platform→memory→none.
+  - `test/offline_sync_test.dart`: create offline → reopen file (restart) → reconnect → sync → replay
+    dedupes; transient-failure retry; failed-transaction rollback.
+  - NOTE: sync is NOT auto-wired in the app yet (no real backend transport); screens still show mock
+    data. Next: Firestore-backed transport + repositories, then wire UI.
+
+
 ## Firebase (LIVE)
 - Project **`teletunnal`** (pre-existing), web app config supplied by user.
 - GitHub Secrets set for `ammar0xff/rms`: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN

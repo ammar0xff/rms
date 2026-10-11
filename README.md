@@ -8,8 +8,9 @@ Cross-platform, **offline-first** restaurant management system.
 Flutter frontend, Firebase backend, local-first persistence with transactional outbox and idempotent synchronization.
 
 > Status: **Phase 0 — Technical Foundation** (in progress). Flutter architecture, build-time
-> Firebase configuration, authentication, and version/diagnostics foundation are in place; the UI
-> runs on mock data in demo mode until Firebase secrets are supplied. Source of truth for behavior is
+> Firebase configuration, authentication, version/diagnostics, and the **local-first persistence
+> layer (document store + transactional outbox + idempotent sync engine)** are in place; screens
+> still render mock data until repositories are wired to the UI. Source of truth for behavior is
 > `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
@@ -25,7 +26,7 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 | --- | --- | --- |
 | Frontend | Flutter / Dart | implemented |
 | Backend | Firebase Auth, Cloud Firestore | wired, config via `--dart-define` |
-| Local persistence | SQLite via Drift (or equivalent) | planned |
+| Local persistence | sembast document store (IndexedDB on web, file on native) | implemented (Phase 0) |
 | Platforms | Windows, macOS, Linux, Android, iOS, Web | web deployed |
 
 ## Firebase configuration
@@ -47,6 +48,18 @@ The GitHub Pages deploy reads the same keys from repository **Secrets** (`FIREBA
 are set the live site stays in demo mode. Required console setup: enable **Email/Password** auth,
 create a **Firestore** database, and authorize the `ammar0xff.github.io` domain.
 
+
+## Local persistence & sync (Phase 0)
+The PRD specifies SQLite/Drift; this phase uses **sembast** instead — a schemaless document store that
+needs **no code generation** (`build_runner`), so the app builds and tests on any machine and on the
+web (IndexedDB). The outbox/transaction semantics the PRD requires are preserved:
+
+- `LocalOrderRepository.createOrder` commits the order record **and** its outbox entry in one
+  `db.transaction`, so a crash cannot leave an unsynced order without its sync command.
+- `SyncEngine` drains pending outbox entries; `SyncCoordinator` guards against concurrent passes.
+- `InMemorySyncTransport` dedupes on `idempotencyKey`, proving retries never duplicate.
+- `test/offline_sync_test.dart` covers: create offline → restart (reopen the same file) → reconnect →
+  sync → replay without duplicates.
 
 ## Layout
 ```
