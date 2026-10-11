@@ -1,9 +1,15 @@
 # RMS — Restaurant Management System
 
+[![CI](https://github.com/ammar0xff/rms/actions/workflows/ci.yml/badge.svg)](https://github.com/ammar0xff/rms/actions/workflows/ci.yml)
+[![Deploy web](https://github.com/ammar0xff/rms/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/ammar0xff/rms/actions/workflows/deploy-pages.yml)
+[![Live demo](https://img.shields.io/badge/demo-ammar0xff.github.io%2Frms-F5A524)](https://ammar0xff.github.io/rms/)
+
 Cross-platform, **offline-first** restaurant management system.
 Flutter frontend, Firebase backend, local-first persistence with transactional outbox and idempotent synchronization.
 
 > Status: early scaffold (Phase 0). Source of truth for behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
+>
+> **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
 
 ## Docs
 - `docs/Restaurant_Management_System_PRD_v1.1.pdf` — full PRD v1.1
