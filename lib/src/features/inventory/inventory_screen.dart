@@ -20,24 +20,24 @@ class InventoryScreen extends StatelessWidget {
     return PageBody(
       children: [
         GridRow(children: [
-          const StatCard(label: 'Tracked items', value: '6'),
+          const StatCard(label: 'أصناف متتبعة', value: '6'),
           StatCard(
-            label: 'Below reorder',
+            label: 'أقل من حد إعادة الطلب',
             value: '$low',
-            delta: 'action needed',
+            delta: 'مطلوب إجراء',
             deltaTone: low > 0 ? DeltaTone.negative : DeltaTone.positive,
           ),
-          const StatCard(label: 'Offline movements', value: '5', delta: 'queued', deltaTone: DeltaTone.neutral),
-          const StatCard(label: 'Stock conflicts', value: '1', delta: 'review', deltaTone: DeltaTone.negative),
+          const StatCard(label: 'حركات دون اتصال', value: '5', delta: 'في الطابور', deltaTone: DeltaTone.neutral),
+          const StatCard(label: 'تعارضات مخزون', value: '1', delta: 'مراجعة', deltaTone: DeltaTone.negative),
         ]),
         const Row(
           children: [
             SectionHeader(
-              title: 'Stock levels',
-              subtitle: 'Movements are append-only and resolved explicitly on sync',
+              title: 'مستويات المخزون',
+              subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
             ),
             Spacer(),
-            RmsButton(label: 'Receive stock', icon: Icons.add, onPressed: null),
+            RmsButton(label: 'استلام مخزون', icon: Icons.add, onPressed: null),
           ],
         ),
         SurfaceCard(
@@ -45,10 +45,10 @@ class InventoryScreen extends StatelessWidget {
           clip: true,
           child: RmsTable(
             columns: const [
-              RmsColumn('Item', flex: 4),
-              RmsColumn('On hand', flex: 2),
-              RmsColumn('Reorder at', flex: 2),
-              RmsColumn('Status', flex: 3),
+              RmsColumn('الصنف', flex: 4),
+              RmsColumn('الكمية المتاحة', flex: 2),
+              RmsColumn('حد إعادة الطلب', flex: 2),
+              RmsColumn('الحالة', flex: 3),
               RmsColumn('', flex: 2),
             ],
             rows: [
@@ -59,10 +59,10 @@ class InventoryScreen extends StatelessWidget {
                       style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
                   Text('${i.reorderAt} ${i.unit}', style: AppText.tableCell),
                   StatusText(
-                    label: i.low ? 'Below reorder' : 'Healthy',
+                    label: i.low ? 'أقل من حد إعادة الطلب' : 'سليم',
                     tone: i.low ? StatusTone.warning : StatusTone.positive,
                   ),
-                  const RmsButton(label: 'Move', onPressed: null),
+                  const RmsButton(label: 'نقل', onPressed: null),
                 ],
             ],
           ),
@@ -75,7 +75,7 @@ class InventoryScreen extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Concurrent stock movements from disconnected devices are flagged as conflicts and require explicit resolution — never silent last-write-wins.',
+                  'تُعلَّم حركات المخزون المتزامنة من أجهزة معزولة كتعارضات وتتطلب حلاً صريحًا — لا حلّ تلقائي أبدًا.',
                   style: AppText.body,
                 ),
               ),

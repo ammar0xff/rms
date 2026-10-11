@@ -19,14 +19,14 @@ class KitchenScreen extends StatefulWidget {
 }
 
 class _KitchenScreenState extends State<KitchenScreen> {
-  String _station = 'All';
+  String _station = 'الكل';
 
   List<String> get _stations =>
-      ['All', ...{for (final t in MockData.tickets) t.station}];
+      ['الكل', ...{for (final t in MockData.tickets) t.station}];
 
   @override
   Widget build(BuildContext context) {
-    final tickets = _station == 'All'
+    final tickets = _station == 'الكل'
         ? MockData.tickets
         : MockData.tickets.where((t) => t.station == _station).toList();
 
@@ -42,13 +42,13 @@ class _KitchenScreenState extends State<KitchenScreen> {
         Row(
           children: [
             const SectionHeader(
-              title: 'Kitchen display',
-              subtitle: 'Tickets survive restarts · printing independent of sync',
+              title: 'شاشة المطبخ',
+              subtitle: 'التذاكر تنجو من إعادة التشغيل · الطباعة مستقلة عن المزامنة',
             ),
             const Spacer(),
             SizedBox(height: 30, child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s))),
             const SizedBox(width: 12),
-            const RmsButton(label: 'Recall last', icon: Icons.replay, onPressed: null),
+            const RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: null),
           ],
         ),
         Expanded(
@@ -150,7 +150,7 @@ class _KdsColumn extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Center(
-                        child: Text('Empty', style: AppText.caption),
+                        child: Text('فارغ', style: AppText.caption),
                       ),
                     ),
                 ],
@@ -192,7 +192,7 @@ class _TicketCard extends StatelessWidget {
                 Tag(label: ticket.station, tone: StatusTone.neutral),
                 const Spacer(),
                 if (ticket.provisional)
-                  const Tag(label: 'LOCAL', tone: StatusTone.warning),
+                  const Tag(label: 'محلي', tone: StatusTone.warning),
               ],
             ),
             const SizedBox(height: 6),
@@ -204,7 +204,7 @@ class _TicketCard extends StatelessWidget {
                   children: [
                     Icon(Icons.schedule, size: 11, color: _ageColor),
                     const SizedBox(width: 3),
-                    Text('${ticket.ageMinutes}m', style: AppText.caption.copyWith(color: _ageColor)),
+                    Text('${ticket.ageMinutes} د', style: AppText.caption.copyWith(color: _ageColor)),
                   ],
                 ),
               ],
@@ -223,14 +223,14 @@ class _TicketCard extends StatelessWidget {
                 ),
                 if (ticket.state != TicketState.ready)
                   RmsButton(
-                    label: ticket.state == TicketState.queued ? 'Start' : 'Mark ready',
+                    label: ticket.state == TicketState.queued ? 'بدء' : 'تحديد كجاهز',
                     icon: Icons.play_arrow_rounded,
                     variant: BtnVariant.secondary,
                     onPressed: () {},
                   )
                 else
                   RmsButton(
-                    label: 'Served',
+                    label: 'تم التقديم',
                     icon: Icons.check_rounded,
                     variant: BtnVariant.primary,
                     onPressed: () {},

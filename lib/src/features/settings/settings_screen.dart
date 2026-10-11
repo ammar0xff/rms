@@ -17,8 +17,8 @@ class SettingsScreen extends StatelessWidget {
     return PageBody(
       children: [
         const SectionHeader(
-          title: 'Settings & system',
-          subtitle: 'Version visibility, upgrades, flags and offline policy',
+          title: 'الإعدادات والنظام',
+          subtitle: 'إظهار الإصدار والترقيات والمؤشرات وسياسة العمل دون اتصال',
         ),
         const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,16 +51,16 @@ class _VersionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Version visibility', subtitle: 'Authorized admins only'),
+          const SectionHeader(title: 'إظهار الإصدار', subtitle: 'المسؤولون المصرحون فقط'),
           const SizedBox(height: 12),
           for (final (k, v) in const [
-            ('App version', '0.9.4 · build 812'),
-            ('Local schema', 'v7'),
-            ('API contract', '2024-09-01'),
-            ('Backend release', '2024.10.2'),
-            ('Cloud data schema', 'v12'),
-            ('Configuration', 'v24'),
-            ('Device ID', 'dev_a81f…c3'),
+            ('إصدار التطبيق', '0.9.4 · build 812'),
+            ('مخطط البيانات المحلي', 'v7'),
+            ('عقد الـ API', '2024-09-01'),
+            ('إصدار الخادم', '2024.10.2'),
+            ('مخطط بيانات السحابة', 'v12'),
+            ('التهيئة', 'v24'),
+            ('معرّف الجهاز', 'dev_a81f…c3'),
           ])
             KeyValue(label: k, value: v, mono: true),
         ],
@@ -79,16 +79,16 @@ class _UpdateCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionHeader(
-            title: 'Updates',
-            trailing: const Tag(label: 'STABLE', tone: StatusTone.positive),
+            title: 'التحديثات',
+            trailing: const Tag(label: 'مستقر', tone: StatusTone.positive),
           ),
           const SizedBox(height: 12),
           for (final (k, v) in const [
-            ('Release channel', 'stable'),
-            ('Current version', '0.9.4'),
-            ('Minimum supported', '0.9.0'),
-            ('Last release check', '12:40'),
-            ('Rollout cohort', '25%'),
+            ('قناة الإصدار', 'stable'),
+            ('الإصدار الحالي', '0.9.4'),
+            ('الحد الأدنى المدعوم', '0.9.0'),
+            ('آخر فحص للإصدارات', '12:40'),
+            ('مجموعة النشر', '25%'),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
@@ -108,18 +108,18 @@ class _UpdateCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Optional update available · 0.9.5',
+                      Text('تحديث اختياري متاح · 0.9.5',
                           style: AppText.tableCellPrimary.copyWith(color: AppColors.info)),
                       const SizedBox(height: 3),
                       Text(
-                        'Deferral allowed. Pending local transactions are preserved and migrations run transactionally.',
+                        'يُسمح بالتأجيل. تُحفظ المعاملات المحلية المعلقة وتُجرى الترحيلات بشكل متصل.',
                         style: AppText.caption.copyWith(fontSize: 10.5),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 10),
-                const RmsButton(label: 'Update', variant: BtnVariant.primary, onPressed: null),
+                const RmsButton(label: 'تحديث', variant: BtnVariant.primary, onPressed: null),
               ],
             ),
           ),
@@ -139,21 +139,21 @@ class _MigrationCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionHeader(
-            title: 'Local migration',
-            trailing: const StatusText(label: 'Complete', tone: StatusTone.positive),
+            title: 'الترحيل المحلي',
+            trailing: const StatusText(label: 'مكتمل', tone: StatusTone.positive),
           ),
           const SizedBox(height: 12),
           for (final (k, v) in const [
-            ('Status', 'v6 → v7 applied'),
-            ('Completed', '2024-10-08 09:14'),
-            ('Outbox preserved', 'Yes — 0 dropped'),
-            ('Checkpoints', 'intact'),
-            ('Rollback copy', 'retained'),
+            ('الحالة', 'v6 ← v7 مطبق'),
+            ('اكتمل', '2024-10-08 09:14'),
+            ('صندوق الصادر محفوظ', 'نعم — 0 مفقود'),
+            ('نقاط التحقق', 'سليمة'),
+            ('نسخة التراجع', 'محفوظة'),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
           Text(
-            'Migrations run before the new schema is accessed, preserve outbox entries and idempotency keys, and only advance the version on success.',
+            'تُجرى الترحيلات قبل الوصول إلى المخطط الجديد، وتحافظ على إدخالات صندوق الصادر ومفاتيح التكرار، ولا تتقدم بالإصدار إلا عند النجاح.',
             style: AppText.caption,
           ),
         ],
@@ -171,14 +171,14 @@ class _OfflinePolicyCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Offline policy'),
+          const SectionHeader(title: 'سياسة العمل دون اتصال'),
           const SizedBox(height: 12),
           for (final (k, v) in const [
-            ('Allowed offline duration', '24h'),
-            ('Menu cache max age', '12h'),
-            ('Stale-policy behavior', 'Warn cashier'),
-            ('High-risk ops offline', 'Blocked'),
-            ('Print reprint on reconnect', 'Manual only'),
+            ('المدة المسموحة دون اتصال', '24 ساعة'),
+            ('أقصى عمر لنسخة القائمة', '12 ساعة'),
+            ('سلوك النسخة القديمة', 'تحذير الكاشير'),
+            ('العمليات عالية الخطورة دون اتصال', 'محظورة'),
+            ('إعادة الطباعة عند الاتصال', 'يدوية فقط'),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
@@ -190,7 +190,7 @@ class _OfflinePolicyCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Text(
-              'A disconnected device cannot know a mandatory update exists. The last valid release policy is cached, its age tracked, and unsynchronized records are never discarded.',
+              'لا يمكن للجهاز المنفصل معرفة وجود تحديث إلزامي. تُخزَّن سياسة آخر إصدار صالح، ويتتبع التطبيق عمرها، ولا تُهمل السجلات غير المتزامنة أبدًا.',
               style: AppText.caption.copyWith(fontSize: 10.5, height: 1.5),
             ),
           ),
@@ -204,11 +204,11 @@ class _FlagsCard extends StatelessWidget {
   const _FlagsCard();
 
   static const _flags = [
-    ('New POS layout', 'Global · on', true),
-    ('Auto delivery assignment', 'Cohort 25%', false),
-    ('Settlement workflow v2', 'Branch · off', false),
-    ('Ticket format compact', 'Role · kitchen', true),
-    ('Inventory engine v2', 'Global · off', false),
+    ('تخطيط نقطة البيع الجديد', 'عام · مفعّل', true),
+    ('الإسناد التلقائي للتوصيل', 'مجموعة 25%', false),
+    ('سير عمل التسوية v2', 'الفرع · متوقف', false),
+    ('تنسيق تذكرة مضغوط', 'الدور · المطبخ', true),
+    ('محرك المخزون v2', 'عام · متوقف', false),
   ];
 
   @override
@@ -222,8 +222,8 @@ class _FlagsCard extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 14, 20, 4),
             child: SectionHeader(
-              title: 'Feature flags',
-              subtitle: 'Server-managed · never a replacement for backend authorization',
+              title: 'مؤشرات الميزات',
+              subtitle: 'تُدار من الخادم · ليست بديلاً عن صلاحية الواجهة الخلفية',
             ),
           ),
           const SizedBox(height: 8),
@@ -271,7 +271,7 @@ class _FlagRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Align(
-              alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+              alignment: on ? Alignment.centerLeft : Alignment.centerRight,
               child: Container(
                 width: 12,
                 height: 12,

@@ -18,13 +18,13 @@ class SyncChip extends StatelessWidget {
       animation: monitor,
       builder: (context, _) {
         final (label, tone) = monitor.online
-            ? (monitor.pending > 0 ? 'Syncing ${monitor.pending}' : 'Online', StatusTone.positive)
-            : ('Offline · ${monitor.pending} pending', StatusTone.warning);
+            ? (monitor.pending > 0 ? 'جارٍ المزامنة (${monitor.pending})' : 'متصل', StatusTone.positive)
+            : ('غير متصل · ${monitor.pending} قيد الانتظار', StatusTone.warning);
         final color = toneColor(tone);
         return Tooltip(
           message: monitor.online
-              ? 'Connected · last sync ${monitor.sinceLastSync.inMinutes}m ago'
-              : 'Working offline. Changes are queued locally.',
+              ? 'متصل · آخر مزامنة قبل ${monitor.sinceLastSync.inMinutes} د'
+              : 'يعمل دون اتصال. التغييرات محفوظة محليًا.',
           child: InkWell(
             onTap: onTap ?? monitor.toggleConnectivity,
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
@@ -70,15 +70,15 @@ class SyncStatRow extends StatelessWidget {
       builder: (context, _) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _item(context, 'PENDING', '${monitor.pending}', AppColors.fgBright),
+          _item(context, 'قيد الانتظار', '${monitor.pending}', AppColors.fgBright),
           const SizedBox(width: 12),
           Container(width: 1, height: 12, color: AppColors.borderStrong),
           const SizedBox(width: 12),
-          _item(context, 'FAILED', '${monitor.failed}', AppColors.negative),
+          _item(context, 'فشلها', '${monitor.failed}', AppColors.negative),
           const SizedBox(width: 12),
           Container(width: 1, height: 12, color: AppColors.borderStrong),
           const SizedBox(width: 12),
-          _item(context, 'CONFLICTS', '${monitor.conflicts}', AppColors.warning),
+          _item(context, 'تعارضات', '${monitor.conflicts}', AppColors.warning),
         ],
       ),
     );

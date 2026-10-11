@@ -19,14 +19,14 @@ class PosScreen extends StatefulWidget {
 
 class _PosScreenState extends State<PosScreen> {
   final _cart = <CartLine>[];
-  String _category = 'All';
+  String _category = 'الكل';
   int _orderType = 0;
-  static const _orderTypes = ['Dine-in', 'Takeaway', 'Delivery'];
+  static const _orderTypes = ['داخل الصالة', 'الاستلام', 'توصيل'];
 
   List<String> get _categories =>
-      ['All', ...{for (final m in MockData.menu) m.category}];
+      ['الكل', ...{for (final m in MockData.menu) m.category}];
 
-  List<MenuItem> get _visible => _category == 'All'
+  List<MenuItem> get _visible => _category == 'الكل'
       ? MockData.menu
       : MockData.menu.where((m) => m.category == _category).toList();
 
@@ -138,7 +138,7 @@ class _MenuPane extends StatelessWidget {
                     children: [
                       const Icon(Icons.search, size: 14, color: AppColors.fgGhost),
                       const SizedBox(width: 8),
-                      Text('Search menu or scan barcode',
+                      Text('ابحث في القائمة أو امسح الباركود',
                           style: AppText.caption.copyWith(color: AppColors.fgDim)),
                       const Spacer(),
                       Text('F2', style: AppText.caption.copyWith(fontSize: 9)),
@@ -320,9 +320,9 @@ class _CartPane extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text('New order', style: AppText.h2),
+                    Text('طلب جديد', style: AppText.h2),
                     const Spacer(),
-                    const Tag(label: 'PROVISIONAL', tone: StatusTone.neutral),
+                    const Tag(label: 'مؤقت', tone: StatusTone.neutral),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -339,8 +339,8 @@ class _CartPane extends StatelessWidget {
             child: cart.isEmpty
                 ? const EmptyState(
                     icon: Icons.shopping_bag_outlined,
-                    title: 'No items yet',
-                    message: 'Tap a product to add it to the order.',
+                    title: 'لا توجد أصناف بعد',
+                    message: 'اضغط على أي منتج لإضافته إلى الطلب.',
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -366,12 +366,12 @@ class _CartPane extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                KeyValue(label: 'Subtotal', value: money(subtotal)),
-                KeyValue(label: 'Tax (8%)', value: money(tax)),
+                KeyValue(label: 'المجموع الفرعي', value: money(subtotal)),
+                KeyValue(label: 'الضريبة (8%)', value: money(tax)),
                 const Divider(height: 16, color: AppColors.borderSubtle),
                 Row(
                   children: [
-                    Text('Total', style: AppText.bodyStrong),
+                    Text('الإجمالي', style: AppText.bodyStrong),
                     const Spacer(),
                     Text(money(total),
                         style: AppText.h1.copyWith(fontSize: 18)),
@@ -383,7 +383,7 @@ class _CartPane extends StatelessWidget {
                     StatusDot(tone: StatusTone.warning),
                     SizedBox(width: 6),
                     Expanded(
-                      child: Text('Saves locally first, syncs on reconnect',
+                      child: Text('يُحفظ محليًا أولاً ثم تتم المزامنة عند الاتصال',
                           style: TextStyle(fontSize: 10, color: AppColors.fgDim)),
                     ),
                   ],
@@ -393,7 +393,7 @@ class _CartPane extends StatelessWidget {
                   children: [
                     const Expanded(
                       child: RmsButton(
-                        label: 'Hold',
+                        label: 'إيقاف مؤقت',
                         icon: Icons.pause_rounded,
                         onPressed: null,
                         dense: false,
@@ -403,7 +403,7 @@ class _CartPane extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: RmsButton(
-                        label: 'Send to kitchen',
+                        label: 'إرسال للمطبخ',
                         icon: Icons.send_rounded,
                         variant: BtnVariant.secondary,
                         onPressed: cart.isEmpty ? null : () {},
@@ -414,7 +414,7 @@ class _CartPane extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 RmsButton(
-                  label: 'Charge ${money(total)}',
+                  label: 'تحصيل ${money(total)}',
                   icon: Icons.payments_outlined,
                   variant: BtnVariant.primary,
                   onPressed: cart.isEmpty ? null : () {},
@@ -520,7 +520,7 @@ class _OfflineBanner extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Offline mode — using cached menu (synced 2m ago). Orders save locally and sync automatically.',
+                  'وضع العمل دون اتصال — قائمة مخزنة محليًا (آخر مزامنة قبل دقيقتين). تُحفظ الطلبات محليًا وتُزامن تلقائيًا.',
                   style: AppText.caption.copyWith(color: AppColors.warning.withValues(alpha: 0.9)),
                 ),
               ),

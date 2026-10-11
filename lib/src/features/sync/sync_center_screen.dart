@@ -14,12 +14,12 @@ import '../../core/widgets/surface_card.dart';
 import '../../data/mock/mock_data.dart';
 
 (String, StatusTone) _opStatus(String s) => switch (s) {
-      'pending' => ('Pending', StatusTone.warning),
-      'in_progress' => ('In progress', StatusTone.info),
-      'synced' => ('Synced', StatusTone.positive),
-      'conflict' => ('Conflict', StatusTone.negative),
-      'retryable_failure' => ('Retryable', StatusTone.warning),
-      'requires_user_action' => ('Needs action', StatusTone.negative),
+      'pending' => ('قيد الانتظار', StatusTone.warning),
+      'in_progress' => ('قيد الإرسال', StatusTone.info),
+      'synced' => ('تمت المزامنة', StatusTone.positive),
+      'conflict' => ('تعارض', StatusTone.negative),
+      'retryable_failure' => ('قابل لإعادة المحاولة', StatusTone.warning),
+      'requires_user_action' => ('يتطلب إجراء', StatusTone.negative),
       _ => (s, StatusTone.neutral),
     };
 
@@ -33,11 +33,11 @@ class SyncCenterScreen extends StatelessWidget {
         Row(
           children: [
             const SectionHeader(
-              title: 'Synchronization center',
-              subtitle: 'Outbox · dependency-ordered · idempotent retries',
+              title: 'مركز المزامنة',
+              subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
             ),
             const Spacer(),
-            const RmsButton(label: 'Reconnect & sync now', icon: Icons.sync, onPressed: null, dense: false),
+            const RmsButton(label: 'إعادة الاتصال والمزامنة الآن', icon: Icons.sync, onPressed: null, dense: false),
           ],
         ),
         AnimatedBuilder(
@@ -45,19 +45,19 @@ class SyncCenterScreen extends StatelessWidget {
           builder: (context, _) {
             final m = SyncMonitor.instance;
             return GridRow(children: [
-              StatCard(label: 'Pending', value: '${m.pending}', tone: AppColors.fgBright),
-              const StatCard(label: 'In progress', value: '1', delta: 'submitting'),
+              StatCard(label: 'قيد الانتظار', value: '${m.pending}', tone: AppColors.fgBright),
+              const StatCard(label: 'قيد الإرسال', value: '1', delta: 'جارٍ الإرسال'),
               StatCard(
-                label: 'Failed',
+                label: 'فشل',
                 value: '${m.failed}',
-                delta: 'retryable',
+                delta: 'قابل لإعادة المحاولة',
                 deltaTone: DeltaTone.negative,
                 tone: m.failed > 0 ? AppColors.negative : null,
               ),
               StatCard(
-                label: 'Conflicts',
+                label: 'تعارضات',
                 value: '${m.conflicts}',
-                delta: 'review',
+                delta: 'مراجعة',
                 deltaTone: DeltaTone.negative,
                 tone: m.conflicts > 0 ? AppColors.warning : null,
               ),
@@ -76,15 +76,15 @@ class SyncCenterScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: _PolicyCard(
-              title: 'Idempotency',
+              title: 'التكرار الآمن',
               icon: Icons.fingerprint,
-              body: 'Every command carries a stable idempotency key. The backend persists operation receipts and returns the existing result for duplicates — applied to orders, payments, refunds, tickets, assignments, collections, settlements and inventory.',
+              body: 'يحمل كل أمر مفتاح تكرار آمن ثابت. يحتفظ الخادم بإيصالات العمليات ويعيد النتيجة القائمة للطلبات المكررة — يطبَّق على الطلبات والمدفوعات والاستردادات والتذاكر والإسنادات والتحصيلات والمخزون.',
             )),
             SizedBox(width: AppSpacing.lg),
             Expanded(child: _PolicyCard(
-              title: 'Retry policy',
+              title: 'سياسة إعادة المحاولة',
               icon: Icons.replay,
-              body: 'Transient failures retry with exponential backoff and jitter. Permanent errors are not retried indefinitely, and blocked operations stay visible with actionable reasons instead of being discarded.',
+              body: 'الفشل العابر يُعاد بمهلة تصاعدية مع تشتيت. الأخطاء الدائمة لا تُعاد إلى ما لا نهاية، وتبقى العمليات المحظورة مرئية مع أسباب قابلة للتنفيذ بدلاً من إهمالها.',
             )),
           ],
         ),
@@ -107,17 +107,17 @@ class _OutboxTable extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
-              title: 'Outbox operations',
-              trailing: const StatusText(label: 'processing', tone: StatusTone.info),
+              title: 'عمليات صندوق الصادر',
+              trailing: const StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
             ),
           ),
           RmsTable(
             columns: const [
-              RmsColumn('Operation', flex: 2),
-              RmsColumn('Entity', flex: 3),
-              RmsColumn('Type', flex: 3),
-              RmsColumn('Attempts', flex: 2, align: TextAlign.right),
-              RmsColumn('Status', flex: 3),
+              RmsColumn('العملية', flex: 2),
+              RmsColumn('الكيان', flex: 3),
+              RmsColumn('النوع', flex: 3),
+              RmsColumn('المحاولات', flex: 2, align: TextAlign.right),
+              RmsColumn('الحالة', flex: 3),
             ],
             rows: [
               for (final op in MockData.syncOperations)
@@ -147,13 +147,13 @@ class _SequenceCard extends StatelessWidget {
   const _SequenceCard();
 
   static const _steps = [
-    'Create customer if needed',
-    'Submit order',
-    'Synchronize payment records',
-    'Synchronize kitchen events',
-    'Synchronize delivery assignment / status',
-    'Synchronize eligible collection records',
-    'Refresh server-confirmed summaries',
+    'إنشاء العميل عند الحاجة',
+    'إرسال الطلب',
+    'مزامنة سجلات الدفع',
+    'مزامنة أحداث المطبخ',
+    'مزامنة إسناد / حالة التوصيل',
+    'مزامنة سجلات التحصيل المؤهلة',
+    'تحديث الملخصات المؤكدة من الخادم',
   ];
 
   @override
@@ -162,7 +162,7 @@ class _SequenceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Sync order', subtitle: 'Respected dependencies'),
+          const SectionHeader(title: 'ترتيب المزامنة', subtitle: 'يحترم الاعتماديات'),
           const SizedBox(height: 14),
           for (var i = 0; i < _steps.length; i++)
             Padding(

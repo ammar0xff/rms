@@ -21,11 +21,11 @@ class ConflictsScreen extends StatelessWidget {
         Row(
           children: [
             const SectionHeader(
-              title: 'Conflicts',
-              subtitle: 'Detected on sync · financial conflicts require review',
+              title: 'التعارضات',
+              subtitle: 'تُكتشف عند المزامنة · التعارضات المالية تتطلب مراجعة',
             ),
             const Spacer(),
-            const Tag(label: '2 UNRESOLVED', tone: StatusTone.negative),
+            const Tag(label: '2 غير محلولة', tone: StatusTone.negative),
           ],
         ),
         const Row(
@@ -44,7 +44,7 @@ class ConflictsScreen extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Financially significant conflicts are never resolved automatically with last-write-wins. Both snapshots are preserved for investigation until an authorized user resolves them.',
+                  'لا تُحل التعارضات ذات الأهمية المالية تلقائيًا بقاعدة آخر كاتب يفوز. تُحفظ نسختا الحالة للتحقيق حتى يقوم مستخدم مصرح به بالحل.',
                   style: AppText.body,
                 ),
               ),
@@ -69,7 +69,7 @@ class _ConflictList extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
-            child: SectionHeader(title: 'Unresolved'),
+            child: SectionHeader(title: 'غير محلولة'),
           ),
           for (var i = 0; i < MockData.conflicts.length; i++) ...[
             _ConflictTile(row: MockData.conflicts[i]),
@@ -89,9 +89,9 @@ class _ConflictTile extends StatelessWidget {
   final ConflictRow row;
 
   StatusTone get _tone => switch (row.severity) {
-        'Financial' => StatusTone.negative,
-        'Assignment' => StatusTone.warning,
-        'Stock' => StatusTone.warning,
+        'مالي' => StatusTone.negative,
+        'إسناد' => StatusTone.warning,
+        'مخزون' => StatusTone.warning,
         _ => StatusTone.neutral,
       };
 
@@ -116,13 +116,13 @@ class _ConflictTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(row.entity, style: AppText.tableCellPrimary),
-                Text('${row.type} · detected ${row.detectedAt}', style: AppText.caption.copyWith(fontSize: 10)),
+                Text('${row.type} · اكتُشف ${row.detectedAt}', style: AppText.caption.copyWith(fontSize: 10)),
               ],
             ),
           ),
-          const RmsButton(label: 'Compare', onPressed: null),
+          const RmsButton(label: 'مقارنة', onPressed: null),
           const SizedBox(width: 8),
-          const RmsButton(label: 'Resolve', variant: BtnVariant.primary, onPressed: null),
+          const RmsButton(label: 'حل', variant: BtnVariant.primary, onPressed: null),
         ],
       ),
     );
@@ -133,15 +133,15 @@ class _StrategyCard extends StatelessWidget {
   const _StrategyCard();
 
   static const _strategies = [
-    ('Menu configuration', 'Server-authoritative; refresh stale snapshots'),
-    ('Order creation', 'Idempotent creation using stable ID'),
-    ('Order items', 'Revision checks and explicit handling'),
-    ('Kitchen status', 'Validate legal transitions; keep history'),
-    ('Cash payments', 'Append-only with deduplication'),
-    ('Driver collections', 'Append-only + reconciliation'),
-    ('Settlements', 'Trusted validation; never last-write-wins'),
-    ('Inventory', 'Append-only movements; resolve conflicts'),
-    ('Roles & permissions', 'Server-authoritative; no offline mutation'),
+    ('إعدادات القائمة', 'مرجعها الخادم؛ تحديث اللقطات القديمة'),
+    ('إنشاء الطلب', 'إنشاء آمن بمفتاح مستقر'),
+    ('أصناف الطلب', 'فحوصات النسخة والتعامل الصريح'),
+    ('حالة المطبخ', 'التحقق من الانتقالات القانونية؛ الاحتفاظ بالسجل'),
+    ('المدفوعات النقدية', 'إضافة فقط مع إزالة التكرار'),
+    ('تحصيلات السائقين', 'إضافة فقط + مطابقة'),
+    ('التسويات', 'تحقق موثوق؛ لا قاعدة آخر كاتب يفوز'),
+    ('المخزون', 'حركات إضافة فقط؛ حل التعارضات'),
+    ('الأدوار والصلاحيات', 'مرجعها الخادم؛ لا تعديل دون اتصال'),
   ];
 
   @override
@@ -150,12 +150,12 @@ class _StrategyCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Resolution strategy', subtitle: 'Per entity type'),
+          const SectionHeader(title: 'استراتيجية الحل', subtitle: 'حسب نوع الكيان'),
           const SizedBox(height: 12),
           RmsTable(
             columns: const [
-              RmsColumn('Entity', flex: 3),
-              RmsColumn('Strategy', flex: 5),
+              RmsColumn('الكيان', flex: 3),
+              RmsColumn('الاستراتيجية', flex: 5),
             ],
             rows: [
               for (final (entity, strategy) in _strategies)

@@ -33,25 +33,25 @@ class NavGroup {
 }
 
 final navGroups = <NavGroup>[
-  NavGroup('Operations', [
-    NavEntry('dashboard', 'Dashboard', Icons.space_dashboard_outlined,
+  NavGroup('العمليات', [
+    NavEntry('dashboard', 'لوحة التحكم', Icons.space_dashboard_outlined,
         _dashboard),
-    NavEntry('pos', 'Point of Sale', Icons.point_of_sale_outlined, _pos),
-    NavEntry('kitchen', 'Kitchen', Icons.soup_kitchen_outlined, _kitchen),
-    NavEntry('delivery', 'Delivery', Icons.moped_outlined, _delivery),
+    NavEntry('pos', 'نقطة البيع', Icons.point_of_sale_outlined, _pos),
+    NavEntry('kitchen', 'المطبخ', Icons.soup_kitchen_outlined, _kitchen),
+    NavEntry('delivery', 'التوصيل', Icons.moped_outlined, _delivery),
   ]),
-  NavGroup('Management', [
-    NavEntry('menu', 'Menu', Icons.restaurant_menu_outlined, _menu),
-    NavEntry('inventory', 'Inventory', Icons.inventory_2_outlined, _inventory),
-    NavEntry('customers', 'Customers', Icons.people_alt_outlined, _customers),
-    NavEntry('accounting', 'Accounting', Icons.receipt_long_outlined,
+  NavGroup('الإدارة', [
+    NavEntry('menu', 'القائمة', Icons.restaurant_menu_outlined, _menu),
+    NavEntry('inventory', 'المخزون', Icons.inventory_2_outlined, _inventory),
+    NavEntry('customers', 'العملاء', Icons.people_alt_outlined, _customers),
+    NavEntry('accounting', 'المحاسبة', Icons.receipt_long_outlined,
         _accounting),
-    NavEntry('reports', 'Reports', Icons.insights_outlined, _reports),
+    NavEntry('reports', 'التقارير', Icons.insights_outlined, _reports),
   ]),
-  NavGroup('System', [
-    NavEntry('sync', 'Sync Center', Icons.sync_outlined, _sync),
-    NavEntry('conflicts', 'Conflicts', Icons.call_split_outlined, _conflicts),
-    NavEntry('settings', 'Settings', Icons.settings_outlined, _settings),
+  NavGroup('النظام', [
+    NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
+    NavEntry('conflicts', 'التعارضات', Icons.call_split_outlined, _conflicts),
+    NavEntry('settings', 'الإعدادات', Icons.settings_outlined, _settings),
   ]),
 ];
 
@@ -165,7 +165,7 @@ class _Sidebar extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1A1206),
+                        color: Color(0xFFFFFBF2),
                       ),
                     ),
                   ),
@@ -177,7 +177,7 @@ class _Sidebar extends StatelessWidget {
                       children: [
                         Text('RMS',
                             style: AppText.bodyStrong.copyWith(height: 1.1)),
-                        Text('Northgate Branch',
+                        Text('فرع بوابة الشمال',
                             style: AppText.caption.copyWith(fontSize: 9.5)),
                       ],
                     ),
@@ -242,14 +242,14 @@ class _NavTileState extends State<_NavTile> {
           duration: const Duration(milliseconds: 120),
           margin: const EdgeInsets.symmetric(vertical: 1),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: active
-                ? Colors.white.withValues(alpha: 0.06)
-                : _hover
-                    ? Colors.white.withValues(alpha: 0.03)
-                    : null,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          ),
+decoration: BoxDecoration(
+              color: active
+                  ? Colors.black.withValues(alpha: 0.05)
+                  : _hover
+                      ? Colors.black.withValues(alpha: 0.03)
+                      : null,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
           child: Row(
             children: [
               Icon(
@@ -297,15 +297,15 @@ class _UserRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Text('A', style: AppText.caption),
+            child: const Text('أ', style: AppText.caption),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ammar', style: AppText.bodyStrong.copyWith(fontSize: 11.5)),
-                Text('Manager', style: AppText.caption.copyWith(fontSize: 9.5)),
+                Text('أمّار', style: AppText.bodyStrong.copyWith(fontSize: 11.5)),
+                Text('مدير', style: AppText.caption.copyWith(fontSize: 9.5)),
               ],
             ),
           ),
@@ -347,9 +347,9 @@ class _TopBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Text('Branch', style: AppText.caption.copyWith(fontSize: 10)),
+                  Text('الفرع', style: AppText.caption.copyWith(fontSize: 10)),
                   const SizedBox(width: 4),
-                  Text('Northgate',
+                  Text('بوابة الشمال',
                       style: AppText.tableCellPrimary.copyWith(fontSize: 10.5)),
                   const SizedBox(width: 4),
                   const Icon(Icons.unfold_more, size: 12, color: AppColors.fgGhost),
@@ -359,9 +359,9 @@ class _TopBar extends StatelessWidget {
             const Spacer(),
             const SyncChip(),
             const SizedBox(width: 10),
-            const IconBtn(icon: Icons.search, tooltip: 'Search'),
+            const IconBtn(icon: Icons.search, tooltip: 'بحث'),
             const SizedBox(width: 8),
-            const IconBtn(icon: Icons.notifications_none, tooltip: 'Notifications'),
+            const IconBtn(icon: Icons.notifications_none, tooltip: 'الإشعارات'),
           ],
         ),
       ),

@@ -21,10 +21,10 @@ class DeliveryScreen extends StatelessWidget {
     return PageBody(
       children: [
         const GridRow(children: [
-          StatCard(label: 'Active deliveries', value: '4', delta: '1 offline'),
-          StatCard(label: 'Awaiting assignment', value: '1', deltaTone: DeltaTone.neutral, delta: '—'),
-          StatCard(label: 'Offline collections', value: '\$213.50', delta: 'settle pending', deltaTone: DeltaTone.neutral),
-          StatCard(label: 'Avg delivery time', value: '28m', delta: '-3m', deltaTone: DeltaTone.positive),
+          StatCard(label: 'توصيلات نشطة', value: '4', delta: '1 دون اتصال'),
+          StatCard(label: 'بانتظار الإسناد', value: '1', deltaTone: DeltaTone.neutral, delta: '—'),
+          StatCard(label: 'تحصيلات دون اتصال', value: '213.50 ج.م', delta: 'تسوية معلقة', deltaTone: DeltaTone.neutral),
+          StatCard(label: 'متوسط وقت التوصيل', value: '28د', delta: '-3د', deltaTone: DeltaTone.positive),
         ]),
         const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,18 +54,18 @@ class _DeliveryTable extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
-              title: 'Deliveries',
-              trailing: RmsButton(label: 'Assign next', icon: Icons.bolt, onPressed: () {}),
+              title: 'التوصيلات',
+              trailing: RmsButton(label: 'إسناد التالي', icon: Icons.bolt, onPressed: () {}),
             ),
           ),
           RmsTable(
             columns: const [
-              RmsColumn('Job', flex: 2),
-              RmsColumn('Order', flex: 2),
-              RmsColumn('Driver', flex: 2),
-              RmsColumn('Address', flex: 4),
-              RmsColumn('State', flex: 3),
-              RmsColumn('Amount', flex: 2, align: TextAlign.right),
+              RmsColumn('المهمة', flex: 2),
+              RmsColumn('الطلب', flex: 2),
+              RmsColumn('السائق', flex: 2),
+              RmsColumn('العنوان', flex: 4),
+              RmsColumn('الحالة', flex: 3),
+              RmsColumn('المبلغ', flex: 2, align: TextAlign.right),
             ],
             rows: [
               for (final d in MockData.deliveries)
@@ -105,7 +105,7 @@ class _DriversPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Drivers', subtitle: 'Shift · 12:00–20:00'),
+          const SectionHeader(title: 'السائقون', subtitle: 'الوردية · 12:00–20:00'),
           const SizedBox(height: 12),
           for (final d in MockData.drivers) ...[
             Row(
@@ -123,7 +123,7 @@ class _DriversPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(d.name, style: AppText.tableCellPrimary),
-                      Text('${d.active} active', style: AppText.caption.copyWith(fontSize: 10)),
+                      Text('${d.active} نشطة', style: AppText.caption.copyWith(fontSize: 10)),
                     ],
                   ),
                 ),
@@ -142,18 +142,18 @@ class _DriversPanel extends StatelessWidget {
           const Divider(height: 20, color: AppColors.borderSubtle),
           Row(
             children: [
-              Text('Outstanding settlement queue', style: AppText.bodyStrong.copyWith(fontSize: 12)),
+              Text('قائمة تسوية التحصيلات المعلقة', style: AppText.bodyStrong.copyWith(fontSize: 12)),
               const Spacer(),
-              const Tag(label: '3 DRAFTS', tone: StatusTone.warning),
+              const Tag(label: '3 مسودات', tone: StatusTone.warning),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            'Locally recorded collections cannot finalize settlement without server validation.',
+            'لا يمكن إنهاء تحصيلات المسجلة محليًا بدون تحقق من الخادم.',
             style: AppText.caption,
           ),
           const SizedBox(height: 12),
-          const RmsButton(label: 'Open settlement queue', icon: Icons.arrow_forward, onPressed: null, dense: false),
+          const RmsButton(label: 'فتح قائمة التسوية', icon: Icons.arrow_forward, onPressed: null, dense: false),
         ],
       ),
     );
@@ -176,9 +176,9 @@ class _OfflineCollectionNotice extends StatelessWidget {
               text: TextSpan(
                 style: AppText.body,
                 children: const [
-                  TextSpan(text: 'A locally recorded collection is a claim, not proof of receipt. '),
+                  TextSpan(text: 'التحصيل المسجل محليًا هو مطالبة وليس دليلاً على الاستلام. '),
                   TextSpan(
-                    text: 'Reconciliation and settlement approval require server validation.',
+                    text: 'المطابقة واعتماد التسوية يتطلبان تحققًا من الخادم.',
                     style: TextStyle(color: AppColors.fgBright, fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -186,7 +186,7 @@ class _OfflineCollectionNotice extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const StatusText(label: 'Reconciliation pending', tone: StatusTone.warning),
+          const StatusText(label: 'مطابقة معلقة', tone: StatusTone.warning),
         ],
       ),
     );

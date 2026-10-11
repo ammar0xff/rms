@@ -23,17 +23,17 @@ class DashboardScreen extends StatelessWidget {
     return PageBody(
       children: [
         const HeroKpi(
-          label: 'Net sales today',
-          value: '\$8,412.50',
+          label: 'صافي مبيعات اليوم',
+          value: '8,412.50 ج.م',
           delta: '+12.4%',
           deltaTone: DeltaTone.positive,
-          subtext: 'vs 14-day average',
+          subtext: 'مقارنة بمتوسط 14 يومًا',
           spark: MockData.salesTrend,
         ),
         const GridRow(children: [
-          StatCard(label: 'Orders', value: '312', delta: '+8.1%'),
-          StatCard(label: 'Avg ticket', value: '\$26.96', delta: '+2.3%'),
-          StatCard(label: 'Offline ops today', value: '37', delta: '24 pending', deltaTone: DeltaTone.neutral),
+          StatCard(label: 'الطلبات', value: '312', delta: '+8.1%'),
+          StatCard(label: 'متوسط الفاتورة', value: '26.96 ج.م', delta: '+2.3%'),
+          StatCard(label: 'عمليات دون اتصال اليوم', value: '37', delta: '24 قيد الانتظار', deltaTone: DeltaTone.neutral),
         ]),
         const _SalesCard(),
         const Row(
@@ -61,7 +61,7 @@ class _SalesCard extends StatelessWidget {
   const _SalesCard();
 
   static const _hours = [
-    '10a', '11a', '12p', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p',
+    '10ص', '11ص', '12م', '1م', '2م', '3م', '4م', '5م', '6م', '7م', '8م', '9م',
   ];
 
   static String _fmtTick(double v) {
@@ -74,7 +74,7 @@ class _SalesCard extends StatelessWidget {
 
   static String _peakTime(int index) {
     final h = 10 + index;
-    final amPm = h < 12 ? 'AM' : 'PM';
+    final amPm = h < 12 ? 'ص' : 'م';
     final h12 = h == 12 ? 12 : h % 12;
     return '$h12:00 $amPm';
   }
@@ -98,9 +98,9 @@ class _SalesCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: SectionHeader(
-              title: 'Sales by hour',
-              subtitle: 'Today · updated 12:45',
-              trailing: const Tag(label: 'LIVE', tone: StatusTone.positive),
+              title: 'المبيعات بالساعة',
+              subtitle: 'اليوم · آخر تحديث 12:45',
+              trailing: const Tag(label: 'مباشر', tone: StatusTone.positive),
             ),
           ),
           Padding(
@@ -151,11 +151,11 @@ class _SalesCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                _FooterStat(label: 'Peak hour', value: _peakTime(peak)),
+                _FooterStat(label: 'ساعة الذروة', value: _peakTime(peak)),
                 const _VDivider(),
-                _FooterStat(label: 'Orders', value: '312'),
+                _FooterStat(label: 'الطلبات', value: '312'),
                 const _VDivider(),
-                _FooterStat(label: 'Dine-in / Delivery', value: '198 / 74'),
+                _FooterStat(label: 'داخل الصالة / توصيل', value: '198 / 74'),
               ],
             ),
           ),
@@ -211,17 +211,17 @@ class _RecentOrders extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
-              title: 'Recent orders',
-              trailing: RmsButton(label: 'View all', variant: BtnVariant.ghost, onPressed: () {}),
+              title: 'آخر الطلبات',
+              trailing: RmsButton(label: 'عرض الكل', variant: BtnVariant.ghost, onPressed: () {}),
             ),
           ),
           RmsTable(
             columns: const [
-              RmsColumn('Order', flex: 3),
-              RmsColumn('Type', flex: 2),
-              RmsColumn('Status', flex: 3),
-              RmsColumn('Sync', flex: 3),
-              RmsColumn('Total', flex: 2, align: TextAlign.right),
+              RmsColumn('الطلب', flex: 3),
+              RmsColumn('النوع', flex: 2),
+              RmsColumn('الحالة', flex: 3),
+              RmsColumn('المزامنة', flex: 3),
+              RmsColumn('الإجمالي', flex: 2, align: TextAlign.right),
             ],
             rows: [
               for (final o in MockData.orders)
@@ -233,7 +233,7 @@ class _RecentOrders extends StatelessWidget {
                       ),
                       if (o.provisional) ...[
                         const SizedBox(width: 6),
-                        const Tag(label: 'PROV', tone: StatusTone.neutral),
+                        const Tag(label: 'مؤقت', tone: StatusTone.neutral),
                       ],
                     ],
                   ),
@@ -260,7 +260,7 @@ class _AlertsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Alerts'),
+          const SectionHeader(title: 'التنبيهات'),
           const SizedBox(height: 12),
           for (final item in lowStock) ...[
             Row(
@@ -268,7 +268,7 @@ class _AlertsPanel extends StatelessWidget {
                 const StatusDot(tone: StatusTone.warning),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('${item.item} below reorder', style: AppText.tableCellPrimary),
+                  child: Text('${item.item} أقل من حد إعادة الطلب', style: AppText.tableCellPrimary),
                 ),
                 Text('${item.onHand}${item.unit}', style: AppText.caption),
               ],
@@ -280,7 +280,7 @@ class _AlertsPanel extends StatelessWidget {
             children: [
               const StatusDot(tone: StatusTone.negative),
               const SizedBox(width: 8),
-              Expanded(child: Text('2 unresolved conflicts', style: AppText.tableCellPrimary)),
+              Expanded(child: Text('2 تعارضات غير محلولة', style: AppText.tableCellPrimary)),
               const Icon(Icons.chevron_right, size: 14, color: AppColors.fgGhost),
             ],
           ),
@@ -289,8 +289,8 @@ class _AlertsPanel extends StatelessWidget {
             children: [
               const StatusDot(tone: StatusTone.info),
               const SizedBox(width: 8),
-              Expanded(child: Text('Menu sync: fresh', style: AppText.tableCellPrimary)),
-              Text('2m ago', style: AppText.caption),
+              Expanded(child: Text('مزامنة القائمة: حديثة', style: AppText.tableCellPrimary)),
+              Text('قبل دقيقتين', style: AppText.caption),
             ],
           ),
         ],
@@ -309,7 +309,7 @@ class _SyncHealthCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionHeader(
-            title: 'Sync health',
+            title: 'صحة المزامنة',
             trailing: const SyncChip(),
           ),
           const SizedBox(height: 14),
@@ -318,7 +318,7 @@ class _SyncHealthCard extends StatelessWidget {
           ProgressBar(value: 0.86, color: AppColors.positive),
           const SizedBox(height: 8),
           Text(
-            '86% of today\'s operations synced. Working offline — 24 queued locally.',
+            'تمت مزامنة 86% من عمليات اليوم. العمل دون اتصال — 24 عملية في طابور محلي.',
             style: AppText.caption,
           ),
         ],
@@ -336,14 +336,14 @@ class _BranchCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Branch status'),
+          const SectionHeader(title: 'حالة الفرع'),
           const SizedBox(height: 12),
           for (final (k, v) in const [
-            ('Register Z-Report', 'Open · 12:00'),
-            ('Cash drawer', '\$1,204.50'),
-            ('Active staff', '9 on shift'),
-            ('App version', '0.9.4 (build 812)'),
-            ('Schema version', 'v7'),
+            ('تقرير الكاشير (Z)', 'مفتوح · 12:00'),
+            ('درج النقدية', '1,204.50 ج.م'),
+            ('الموظفون النشطون', '9 في الوردية'),
+            ('إصدار التطبيق', '0.9.4 (build 812)'),
+            ('إصدار المخطط', 'v7'),
           ])
             KeyValue(label: k, value: v),
         ],

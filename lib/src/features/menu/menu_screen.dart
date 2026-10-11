@@ -20,14 +20,14 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  String _category = 'All';
+  String _category = 'الكل';
 
   List<String> get _categories =>
-      ['All', ...{for (final m in MockData.menu) m.category}];
+      ['الكل', ...{for (final m in MockData.menu) m.category}];
 
   @override
   Widget build(BuildContext context) {
-    final items = _category == 'All'
+    final items = _category == 'الكل'
         ? MockData.menu
         : MockData.menu.where((m) => m.category == _category).toList();
 
@@ -36,15 +36,15 @@ class _MenuScreenState extends State<MenuScreen> {
         Row(
           children: [
             const SectionHeader(
-              title: 'Menu & pricing',
-              subtitle: 'Cached snapshot · server-authoritative, refreshed on sync',
+              title: 'القائمة والأسعار',
+              subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
             ),
             const Spacer(),
-            const Tag(label: 'CONFIG v24', tone: StatusTone.neutral),
+            const Tag(label: 'الإعدادات v24', tone: StatusTone.neutral),
             const SizedBox(width: 8),
-            const StatusText(label: 'Synced 2m ago', tone: StatusTone.positive),
+            const StatusText(label: 'مزامنة قبل دقيقتين', tone: StatusTone.positive),
             const SizedBox(width: 12),
-            RmsButton(label: 'New item', icon: Icons.add, onPressed: () {}),
+            RmsButton(label: 'صنف جديد', icon: Icons.add, onPressed: () {}),
           ],
         ),
         SizedBox(
@@ -84,11 +84,11 @@ class _MenuScreenState extends State<MenuScreen> {
           clip: true,
           child: RmsTable(
             columns: const [
-              RmsColumn('Item', flex: 4),
-              RmsColumn('Category', flex: 2),
-              RmsColumn('Station', flex: 2),
-              RmsColumn('Availability', flex: 2),
-              RmsColumn('Price', flex: 2, align: TextAlign.right),
+              RmsColumn('الصنف', flex: 4),
+              RmsColumn('الفئة', flex: 2),
+              RmsColumn('المحطة', flex: 2),
+              RmsColumn('التوفر', flex: 2),
+              RmsColumn('السعر', flex: 2, align: TextAlign.right),
             ],
             rows: [
               for (final m in items)
@@ -97,7 +97,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   Text(m.category, style: AppText.tableCell),
                   Text(m.station, style: AppText.tableCell),
                   StatusText(
-                    label: m.available ? 'Available' : 'Sold out',
+                    label: m.available ? 'متاح' : 'نفد المخزون',
                     tone: m.available ? StatusTone.positive : StatusTone.negative,
                   ),
                   Text(money(m.price),
@@ -114,7 +114,7 @@ class _MenuScreenState extends State<MenuScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Menu changes require an authorized online workflow. Offline devices keep selling from the last synchronized snapshot; the app warns when the cache exceeds its maximum age.',
+                  'تُتطلب مسارات عمل مصرح بها عبر الإنترنت لتعديل القائمة. تستمر الأجهزة دون اتصال في البيع من آخر نسخة مزامنة؛ ويحذر التطبيق عندما يتجاوز عمر النسخة الحد الأقصى.',
                   style: AppText.body,
                 ),
               ),

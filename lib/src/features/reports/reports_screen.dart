@@ -21,27 +21,27 @@ class ReportsScreen extends StatelessWidget {
         Row(
           children: [
             const SectionHeader(
-              title: 'Reports',
-              subtitle: 'Refreshed from authoritative aggregates on sync',
+              title: 'التقارير',
+              subtitle: 'تُحدَّث من البيانات المجمعة المعتمدة عند المزامنة',
             ),
             const Spacer(),
-            const StatusText(label: 'Data as of 12:45 · last sync 2m ago', tone: StatusTone.positive),
+            const StatusText(label: 'بيانات حتى 12:45 · آخر مزامنة قبل دقيقتين', tone: StatusTone.positive),
             const SizedBox(width: 12),
-            RmsButton(label: 'Export CSV', icon: Icons.download, onPressed: () {}),
+            RmsButton(label: 'تصدير CSV', icon: Icons.download, onPressed: () {}),
           ],
         ),
         const HeroKpi(
-          label: 'Gross sales this week',
-          value: '\$42,980',
+          label: 'إجمالي المبيعات هذا الأسبوع',
+          value: '42,980 ج.م',
           delta: '+9.8%',
-          subtext: 'vs previous week',
+          subtext: 'مقارنة بالأسبوع الماضي',
           spark: <double>[620, 700, 660, 810, 760, 880, 940, 870, 1020, 990, 1080, 1150],
         ),
         const GridRow(children: [
-          StatCard(label: 'Orders', value: '1,842', delta: '+5.4%'),
-          StatCard(label: 'Avg ticket', value: '\$23.33', delta: '+1.9%'),
-          StatCard(label: 'Delivery share', value: '31%', delta: '+2.1%'),
-          StatCard(label: 'Repeat rate', value: '48%', delta: '+0.8%'),
+          StatCard(label: 'الطلبات', value: '1,842', delta: '+5.4%'),
+          StatCard(label: 'متوسط الفاتورة', value: '23.33 ج.م', delta: '+1.9%'),
+          StatCard(label: 'حصة التوصيل', value: '31%', delta: '+2.1%'),
+          StatCard(label: 'نسبة التكرار', value: '48%', delta: '+0.8%'),
         ]),
         const _TrendCard(),
         const Row(
@@ -62,7 +62,7 @@ class _TrendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const days = ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
     return SurfaceCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -70,7 +70,7 @@ class _TrendCard extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: const SectionHeader(title: 'Sales trend', subtitle: 'Last 7 days'),
+            child: const SectionHeader(title: 'اتجاه المبيعات', subtitle: 'آخر 7 أيام'),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -86,7 +86,7 @@ class _TrendCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        for (final v in ['8k', '6k', '4k', '2k', '0'])
+                        for (final v in ['10k', '7.5k', '5k', '2.5k', '0'])
                           Text(v, style: AppText.caption.copyWith(fontSize: 9)),
                       ],
                     ),
@@ -120,11 +120,11 @@ class _TrendCard extends StatelessWidget {
             ),
             child: Row(
               children: const [
-                _FooterStat(label: 'Best day', value: 'Saturday'),
+                _FooterStat(label: 'أفضل يوم', value: 'السبت'),
                 _VDivider(),
-                _FooterStat(label: 'Weekly total', value: '\$42,980'),
+                _FooterStat(label: 'إجمالي الأسبوع', value: '42,980 ج.م'),
                 _VDivider(),
-                _FooterStat(label: 'Avg / day', value: '\$6,140'),
+                _FooterStat(label: 'المتوسط / اليوم', value: '6,140 ج.م'),
               ],
             ),
           ),
@@ -166,17 +166,17 @@ class _CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const data = [
-      ('Pizza', 0.34, AppColors.brand),
-      ('Pasta', 0.24, AppColors.info),
-      ('Sides', 0.18, AppColors.positive),
-      ('Salads', 0.12, AppColors.purple),
-      ('Drinks', 0.12, AppColors.warning),
+      ('بيتزا', 0.34, AppColors.brand),
+      ('باستا', 0.24, AppColors.info),
+      ('مقبلات', 0.18, AppColors.positive),
+      ('سلطات', 0.12, AppColors.purple),
+      ('مشروبات', 0.12, AppColors.warning),
     ];
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Sales by category'),
+          const SectionHeader(title: 'المبيعات حسب الفئة'),
           const SizedBox(height: 16),
           for (final (name, value, color) in data) ...[
             Row(
@@ -205,20 +205,20 @@ class _PaymentMixCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'Payment mix'),
+          const SectionHeader(title: 'خليط الدفع'),
           const SizedBox(height: 16),
-          const _MixRow(label: 'Card', value: '\$26,648', pct: '62%', color: AppColors.info),
-          const _MixRow(label: 'Cash', value: '\$13,324', pct: '31%', color: AppColors.positive),
-          const _MixRow(label: 'Online / other', value: '\$3,008', pct: '7%', color: AppColors.purple),
+          const _MixRow(label: 'بطاقة', value: '26,648 ج.م', pct: '62%', color: AppColors.info),
+          const _MixRow(label: 'نقدي', value: '13,324 ج.م', pct: '31%', color: AppColors.positive),
+          const _MixRow(label: 'أونلاين / أخرى', value: '3,008 ج.م', pct: '7%', color: AppColors.purple),
           const Divider(height: 24, color: AppColors.borderSubtle),
           Row(
             children: [
               const StatusDot(tone: StatusTone.warning),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('Offline cash pending settlement', style: AppText.tableCell),
+                child: Text('نقدي دون اتصال بانتظار التسوية', style: AppText.tableCell),
               ),
-              Text('\$213.50', style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
+              Text('213.50 ج.م', style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
         ],

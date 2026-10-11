@@ -2,6 +2,11 @@
 
 ## Repo / remote
 - GitHub: https://github.com/ammar0xff/rms — PUBLIC, branch `main`.
+- Design references used well: styles.refero.design (Refero Styles), uupm.cc (UI/UX Pro Max),
+  21st.dev + framer.com via design-mcp. Rules documented in `docs/DESIGN.md` (each rule cites its source).
+- Deploy gotcha: after deploy, GitHub Pages CDN may briefly serve the previous `main.dart.js`
+  (no version query in flutter_bootstrap.js load). Verify with `curl` + grep for a new-only string;
+  it self-heals within ~a minute.
 - Local repo root: `/home/ammar/PIE` (folder name differs from repo name).
 - Git identity is not global; commits use inline `-c user.name="ammar0xff" -c user.email="ammar0xff@users.noreply.github.com"`.
 - `gh` at `/home/ammar/.local/bin/gh`, authenticated (scopes: gist, read:org, repo, workflow).
@@ -39,5 +44,9 @@ tabular numerals, tiny type, dot statuses, warm amber accent #F5A524.
 - flutter analyze counts style infos as exit 1 -> CI uses --no-fatal-infos.
 
 ## Current state
-All 12 screens built and pushed. CI + Pages deploy both green at commit 4411b11 (README badges added).
+Design pass applied on top of the 12 screens and shipped: `00df9d7` (design) + `ec8582b` (cleanup).
+Changes: AppText tabular/cv02/cv03/cv11 features everywhere; MiniBars gridlines; dashboard chart
+axis/peak computed from data (was hardcoded 1.2k/800/400/0 against max 18 — fixed); ghost/secondary
+button borders use control token #1E1E22; `docs/DESIGN.md` added. CI + deploy green; live site verified
+showing new 20/10/5/0 axis, 12 hour labels, "Peak hour 5:00 PM". `.playwright-mcp/` gitignored.
 Next: real local persistence/outbox, or refine screens against the PRD.

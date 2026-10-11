@@ -11,6 +11,6 @@ void main() {
     await tester.pumpWidget(const RmsApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Dashboard'), findsWidgets);
+    expect(find.text('لوحة التحكم'), findsWidgets);
   });
 }

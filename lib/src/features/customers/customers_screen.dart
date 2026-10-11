@@ -20,11 +20,11 @@ class CustomersScreen extends StatelessWidget {
         Row(
           children: [
             const SectionHeader(
-              title: 'Customers',
-              subtitle: 'Cached read with local creation · syncs when reconnected',
+              title: 'العملاء',
+              subtitle: 'قراءة مخزنة مع إنشاء محلي · مزامنة عند الاتصال',
             ),
             const Spacer(),
-            RmsButton(label: 'Add customer', icon: Icons.person_add_alt, onPressed: () {}),
+            RmsButton(label: 'إضافة عميل', icon: Icons.person_add_alt, onPressed: () {}),
           ],
         ),
         SurfaceCard(
@@ -32,11 +32,11 @@ class CustomersScreen extends StatelessWidget {
           clip: true,
           child: RmsTable(
             columns: const [
-              RmsColumn('Name', flex: 3),
-              RmsColumn('Phone', flex: 3),
-              RmsColumn('Orders', flex: 2, align: TextAlign.right),
-              RmsColumn('Lifetime spend', flex: 3, align: TextAlign.right),
-              RmsColumn('Last visit', flex: 2, align: TextAlign.right),
+              RmsColumn('الاسم', flex: 3),
+              RmsColumn('الهاتف', flex: 3),
+              RmsColumn('الطلبات', flex: 2, align: TextAlign.right),
+              RmsColumn('إجمالي الإنفاق', flex: 3, align: TextAlign.right),
+              RmsColumn('آخر زيارة', flex: 2, align: TextAlign.right),
               RmsColumn('', flex: 2),
             ],
             rows: [
@@ -59,7 +59,7 @@ class CustomersScreen extends StatelessWidget {
                   Text('${c.orders}', style: AppText.tableCell),
                   Text(money(c.spend), style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
                   Text(c.lastVisit, style: AppText.caption),
-                  const RmsButton(label: 'View', onPressed: null),
+                  const RmsButton(label: 'عرض', onPressed: null),
                 ],
             ],
           ),
@@ -72,7 +72,7 @@ class CustomersScreen extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Cached personal data is restricted to authorized roles and encrypted at rest. Logging out isolates user-specific caches without destroying pending transactions.',
+                  'البيانات الشخصية المخزنة مقصورة على الأدوار المصرح بها ومشفرة أثناء التخزين. تسجيل الخروج يعزل بيانات المستخدم دون إتلاف المعاملات المعلقة.',
                   style: AppText.body,
                 ),
               ),

@@ -99,7 +99,7 @@ class MiniBars extends StatelessWidget {
     this.height = 120,
     this.highlightIndex,
     this.gridFractions = const [0.25, 0.5],
-    this.gridColor = const Color(0x08FFFFFF),
+    this.gridColor = const Color(0x0F000000),
   });
 
   final List<double> values;

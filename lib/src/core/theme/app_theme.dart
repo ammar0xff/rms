@@ -5,10 +5,10 @@ import 'app_spacing.dart';
 import 'app_text.dart';
 
 abstract final class AppTheme {
-  static ThemeData dark() {
-    const scheme = ColorScheme.dark(
+  static ThemeData light() {
+    const scheme = ColorScheme.light(
       primary: AppColors.brand,
-      onPrimary: Color(0xFF1A1206),
+      onPrimary: Color(0xFFFFFBF2),
       secondary: AppColors.info,
       surface: AppColors.surface,
       onSurface: AppColors.fg,
@@ -17,7 +17,7 @@ abstract final class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.base,
       canvasColor: AppColors.base,
@@ -45,7 +45,7 @@ abstract final class AppTheme {
         iconTheme: IconThemeData(color: AppColors.fgMuted, size: 16),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.surfaceSunken,
+        backgroundColor: AppColors.surfaceSecondary,
         indicatorColor: Colors.transparent,
         elevation: 0,
         height: 60,
@@ -65,17 +65,17 @@ abstract final class AppTheme {
       ),
       iconTheme: const IconThemeData(color: AppColors.fgMuted, size: 16),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(AppColors.borderStrong),
+        thumbColor: WidgetStateProperty.all(AppColors.fgGhost),
         radius: const Radius.circular(8),
         thickness: WidgetStateProperty.all(6),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: AppColors.hover,
+          color: const Color(0xFF1F1F23),
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          border: Border.all(color: AppColors.borderStrong),
+          border: Border.all(color: AppColors.control),
         ),
-        textStyle: AppText.caption.copyWith(color: AppColors.fgBright),
+        textStyle: AppText.caption.copyWith(color: AppColors.fg),
       ),
     );
   }
