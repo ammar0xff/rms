@@ -11,12 +11,17 @@ const List<OrderItem> _items = [
   OrderItem(productId: 'p1', name: 'برجر', unitPrice: 45, quantity: 2),
 ];
 
+int _seq = 0;
+
+Future<LocalDatabase> _memoryDb() =>
+    LocalDatabase.memory('rms_repo_${_seq++}');
+
 void main() {
   late LocalDatabase db;
   late LocalOrderRepository repo;
 
   setUp(() async {
-    db = await LocalDatabase.memory();
+    db = await _memoryDb();
     repo = LocalOrderRepository(db, clock: () => DateTime(2026, 10, 11, 12));
   });
 

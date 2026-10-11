@@ -2,10 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/data/local/local_database.dart';
 import 'package:sembast/sembast.dart';
 
+int _seq = 0;
+
 void main() {
   group('LocalDatabase', () {
     test('commits and reads records inside a transaction', () async {
-      final db = await LocalDatabase.memory();
+      final db = await LocalDatabase.memory('rms_db_${_seq++}');
       final store = stringMapStoreFactory.store('t');
 
       await db.transaction((txn) => store.record('a').put(txn, {'v': 1}));
@@ -15,7 +17,7 @@ void main() {
     });
 
     test('a failing transaction rolls back every write', () async {
-      final db = await LocalDatabase.memory();
+      final db = await LocalDatabase.memory('rms_db_${_seq++}');
       final store = stringMapStoreFactory.store('t');
 
       await expectLater(

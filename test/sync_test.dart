@@ -10,6 +10,11 @@ import 'package:rms/src/data/sync/retry_policy.dart';
 import 'package:rms/src/data/sync/sync_coordinator.dart';
 import 'package:rms/src/data/sync/sync_engine.dart';
 
+int _seq = 0;
+
+Future<LocalDatabase> _memoryDb() =>
+    LocalDatabase.memory('rms_sync_${_seq++}');
+
 OutboxEntry _entry({String key = 'k1'}) => OutboxEntry(
       operationId: 'op-$key',
       entityType: 'order',
@@ -72,7 +77,7 @@ void main() {
     late OutboxStore store;
 
     setUp(() async {
-      db = await LocalDatabase.memory();
+      db = await _memoryDb();
       store = OutboxStore(db);
     });
 
@@ -163,7 +168,7 @@ void main() {
 
   group('SyncCoordinator', () {
     test('runs a pass and reports how many entries were applied', () async {
-      final db = await LocalDatabase.memory();
+      final db = await _memoryDb();
       final store = OutboxStore(db);
       await _seed(db, store);
       final coordinator = SyncCoordinator(
@@ -176,7 +181,7 @@ void main() {
     });
 
     test('ignores concurrent requests while a pass is in flight', () async {
-      final db = await LocalDatabase.memory();
+      final db = await _memoryDb();
       final store = OutboxStore(db);
       await _seed(db, store);
       final transport = _BlockingTransport();

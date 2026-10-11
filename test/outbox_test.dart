@@ -4,6 +4,8 @@ import 'package:rms/src/data/local/outbox/outbox_entry.dart';
 import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/data/local/outbox/outbox_store.dart';
 
+int _seq = 0;
+
 OutboxEntry _entry({String key = 'k1', DateTime? createdAt}) => OutboxEntry(
       operationId: 'op-$key',
       entityType: 'order',
@@ -60,7 +62,7 @@ void main() {
     late OutboxStore store;
 
     setUp(() async {
-      db = await LocalDatabase.memory();
+      db = await LocalDatabase.memory('rms_outbox_${_seq++}');
       store = OutboxStore(db);
     });
 
