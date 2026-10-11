@@ -31,6 +31,21 @@ Local Print Adapter ──> Local / Network Printer
 6. **Conflict-aware** — financial conflicts are reviewed, never last-write-wins.
 7. **Safe migration & rollout** — schema migrations preserve pending transactions; backend ships Expand → Migrate → Contract.
 
+## Bootstrap & configuration
+`main.dart` → `bootstrapApp()` resolves `AppServices` and hands them to `RmsApp`, which exposes them
+through an `AppScope` inherited widget.
+
+- **Config** — `core/config/firebase_config.dart` reads `FIREBASE_*` values from `--dart-define`.
+  No keys are committed. `APP_ENV` selects the environment (dev/prod → separate Firebase projects).
+- **Graceful degradation** — if Firebase is unconfigured or init fails, the app uses
+  `DemoAuthRepository` and mock data so builds, tests and the live demo keep working.
+- **Auth** — `data/repositories/auth_repository.dart` defines the boundary; `FirebaseAuthRepository`
+  (backend) and `DemoAuthRepository` (local) implement it. `AuthGate` gates the shell and shows
+  `SignInScreen` when signed out.
+- **Version/diagnostics** — `core/config/app_version.dart` and `core/logging/app_logger.dart`
+  provide version metadata and non-secret logging; surfaced in Settings.
+
+
 ## Key local entities
 - `localOrders`
 - `outboxOperations`

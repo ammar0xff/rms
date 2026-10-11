@@ -7,7 +7,10 @@
 Cross-platform, **offline-first** restaurant management system.
 Flutter frontend, Firebase backend, local-first persistence with transactional outbox and idempotent synchronization.
 
-> Status: early scaffold (Phase 0). Source of truth for behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
+> Status: **Phase 0 — Technical Foundation** (in progress). Flutter architecture, build-time
+> Firebase configuration, authentication, and version/diagnostics foundation are in place; the UI
+> runs on mock data in demo mode until Firebase secrets are supplied. Source of truth for behavior is
+> `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
 
@@ -18,12 +21,32 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 - `docs/offline-capability-matrix.md` — what works offline
 
 ## Stack
-| Area | Choice |
-| --- | --- |
-| Frontend | Flutter / Dart |
-| Backend | Firebase Auth, Cloud Firestore, Cloud Functions, FCM, Cloud Storage |
-| Local persistence | SQLite via Drift (or equivalent) |
-| Platforms | Windows, macOS, Linux, Android, iOS, Web |
+| Area | Choice | Status |
+| --- | --- | --- |
+| Frontend | Flutter / Dart | implemented |
+| Backend | Firebase Auth, Cloud Firestore | wired, config via `--dart-define` |
+| Local persistence | SQLite via Drift (or equivalent) | planned |
+| Platforms | Windows, macOS, Linux, Android, iOS, Web | web deployed |
+
+## Firebase configuration
+The app never ships committed project keys. Configuration is injected at build time and the app
+falls back to a fully working **demo mode** (mock data + local sessions) when it is absent:
+
+```bash
+flutter run \
+  --dart-define=APP_ENV=dev \
+  --dart-define=FIREBASE_API_KEY=... \
+  --dart-define=FIREBASE_AUTH_DOMAIN=... \
+  --dart-define=FIREBASE_PROJECT_ID=... \
+  --dart-define=FIREBASE_STORAGE_BUCKET=... \
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=... \
+  --dart-define=FIREBASE_APP_ID=...
+```
+
+The GitHub Pages deploy reads the same keys from repository **Secrets** (`FIREBASE_*`); until they
+are set the live site stays in demo mode. Required console setup: enable **Email/Password** auth,
+create a **Firestore** database, and authorize the `ammar0xff.github.io` domain.
+
 
 ## Layout
 ```
@@ -32,18 +55,22 @@ lib/
   src/
     app.dart
     core/
+      config/           # build-time config (Firebase) + version metadata
+      di/               # AppServices container + bootstrap
+      logging/          # structured logger
       state/            # sync monitor
       theme/            # colors, text, spacing, Material theme
       widgets/          # app shell, table, stat cards, charts, primitives
     data/
-      local/            # local DB + transactional outbox (models)
-      mock/             # mock data used by the UI
+      local/            # transactional outbox models
+      mock/             # mock data used by the UI (demo mode)
+      repositories/     # auth repository (Firebase + demo)
       sync/             # sync engine, retry, conflict resolver
     domain/
-      models/           # order, ...
+      models/           # order, app user, ...
       offline/          # offline capability policy
     features/
-      dashboard/ pos/ kitchen/ delivery/
+      auth/ dashboard/ pos/ kitchen/ delivery/
       accounting/ menu/ inventory/ customers/ reports/
       sync/ conflicts/ settings/ common/
 docs/
@@ -76,6 +103,8 @@ Requires the Flutter SDK (not yet installed on this machine; on Garuda/Arch inst
 flutter pub get
 flutter run
 flutter test
+flutter analyze
 ```
 
-Planned dependencies (Phase 0): `drift`, `sqlite3_flutter_libs`, `uuid`, `connectivity_plus`, `firebase_core`, `cloud_firestore`, `firebase_auth`, `flutter_local_notifications` (or platform print adapter).
+Dependencies: `firebase_core`, `firebase_auth`, `cloud_firestore`, `connectivity_plus`, `uuid`.
+Still planned for later phases: `drift` + `sqlite3_flutter_libs` (local persistence), `flutter_local_notifications` (or platform print adapter).

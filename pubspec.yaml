@@ -1,10 +1,10 @@
 name: rms
 description: Cross-platform Restaurant Management System (offline-first Flutter + Firebase).
 publish_to: "none"
-version: 0.0.1+1
+version: 0.2.0+1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.6.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -12,6 +12,11 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+  cloud_firestore: ^6.10.0
+  connectivity_plus: ^7.3.2
+  uuid: ^4.6.0
 
 dev_dependencies:
   flutter_test:

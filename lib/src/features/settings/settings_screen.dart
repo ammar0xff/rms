@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_version.dart';
+import '../../core/di/app_services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
@@ -47,20 +49,20 @@ class _VersionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final services = AppScope.of(context);
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(title: 'إظهار الإصدار', subtitle: 'المسؤولون المصرحون فقط'),
           const SizedBox(height: 12),
-          for (final (k, v) in const [
-            ('إصدار التطبيق', '0.9.4 · build 812'),
-            ('مخطط البيانات المحلي', 'v7'),
-            ('عقد الـ API', '2024-09-01'),
-            ('إصدار الخادم', '2024.10.2'),
-            ('مخطط بيانات السحابة', 'v12'),
-            ('التهيئة', 'v24'),
-            ('معرّف الجهاز', 'dev_a81f…c3'),
+          for (final (k, v) in [
+            ('إصدار التطبيق', AppVersion.string),
+            ('مخطط البيانات المحلي', AppVersion.localSchema),
+            ('عقد الـ API', AppVersion.apiContract),
+            ('الإعدادات', services.config.environment),
+            ('الخلفية', services.firebaseReady ? 'Firebase' : 'محلي (وضع العرض)'),
+            ('حالة Firebase', services.isDemo ? 'غير مهيأة' : 'متصلة'),
           ])
             KeyValue(label: k, value: v, mono: true),
         ],
