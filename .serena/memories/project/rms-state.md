@@ -88,6 +88,15 @@ Next: Firestore-backed `SyncTransport` + repositories, then wire the UI to `serv
     data. Next: Firestore-backed transport + repositories, then wire UI to `services.orders`.
 
 
+## Unit tests (Phase 0) — 46 pass, CI green
+Files: `test/order_model_test.dart`, `outbox_test.dart`, `sync_test.dart`, `local_order_repository_test.dart`,
+`local_database_test.dart`, `app_services_test.dart` (plus existing `auth_repository_test`, `firebase_config_test`,
+`widget_test`, `offline_sync_test`).
+- GOTCHA: `databaseFactoryMemory.openDatabase(path)` **caches the DB instance by path** (sembast
+  `SembastDatabaseFactory._databases`), so reusing the same name across tests leaks state (records persist
+  across open/close). Give each memory DB a unique name (tests use a per-file `_seq` counter → `LocalDatabase.memory('rms_x_${_seq++}')`).
+- GOTCHA: `flutter analyze` fails on **unused private test helpers** (`unused_element` is a warning).
+
 ## Firebase (LIVE)
 - Project **`teletunnal`** (pre-existing), web app config supplied by user.
 - GitHub Secrets set for `ammar0xff/rms`: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN
