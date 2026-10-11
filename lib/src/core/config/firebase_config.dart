@@ -56,7 +56,7 @@ class FirebaseConfig {
         authDomain: authDomain.isEmpty ? null : authDomain,
         projectId: projectId,
         storageBucket: storageBucket.isEmpty ? null : storageBucket,
-        messagingSenderId: messagingSenderId.isEmpty ? null : messagingSenderId,
+        messagingSenderId: messagingSenderId,
         appId: appId,
         measurementId: measurementId.isEmpty ? null : measurementId,
       );
