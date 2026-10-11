@@ -1,3 +1,4 @@
+import 'package:sembast/sembast.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
@@ -82,11 +83,14 @@ class LocalOrderRepository implements OrderRepository {
     final record = LocalStores.orders.record(entry.entityId);
     final existing = await record.get(_db.db);
     if (existing == null) return;
-    final order = Order.fromRecord(existing)
-      ..syncStatus = SyncStatus.synced
-      ..serverId = (entry.payload['serverId'] as String?) ?? order.serverId
-      ..canonicalOrderNumber = (entry.payload['canonicalOrderNumber'] as String?)
-          ?? order.canonicalOrderNumber;
+    final order = Order.fromRecord(existing);
+    order.syncStatus = SyncStatus.synced;
+    final serverId = entry.payload['serverId'] as String?;
+    if (serverId != null) order.serverId = serverId;
+    final canonicalOrderNumber = entry.payload['canonicalOrderNumber'] as String?;
+    if (canonicalOrderNumber != null) {
+      order.canonicalOrderNumber = canonicalOrderNumber;
+    }
     await record.put(_db.db, order.toRecord());
   }
 
