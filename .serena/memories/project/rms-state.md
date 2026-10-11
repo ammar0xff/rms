@@ -22,7 +22,11 @@
 - Pages enabled (build_type=workflow). Live: https://ammar0xff.github.io/rms/ (HTTP 200 verified).
 
 ## App structure
-- Entry: `lib/main.dart` -> `lib/src/app.dart` (themed MaterialApp) -> `AppShell` (`lib/src/core/widgets/app_shell.dart`).
+- Entry: `lib/main.dart` -> `bootstrapApp()` -> `lib/src/app.dart` (`AppScope` + `AuthGate`) -> `AppShell`.
+  Auth gate shows `SignInScreen` when signed out, else `AppShell`.
+- Phase-0 DI/config: `lib/src/core/config/{firebase_config,app_version}.dart`, `lib/src/core/di/`
+  (`AppServices` + `AppScope`), `lib/src/core/logging/app_logger.dart`,
+  `lib/src/data/repositories/` (AuthRepository + Firebase/Demo impls), `lib/src/features/auth/`.
 - Theme tokens: `lib/src/core/theme/{app_colors,app_spacing,app_text,app_theme}.dart`.
 - Core widgets: `lib/src/core/widgets/` (app_shell, surface_card, status, buttons, rms_table, charts, stat_card, primitives, page, sync_chip).
 - State: `lib/src/core/state/sync_monitor.dart` (singleton SyncMonitor.instance).
@@ -32,8 +36,10 @@
 - Docs: `docs/` (PRD pdf/xmind/png, architecture.md, offline-capability-matrix.md).
 
 ## Design direction (locked)
-Dense modern dark dashboard (Vercel/Linear). 3-tier elevation, 1px borders, NO glass/gradient/glow,
-tabular numerals, tiny type, dot statuses, warm amber accent #F5A524.
+Dense modern LIGHT dashboard, Arabic-only + RTL (locale `ar`, `String`s in Arabic). 3-tier elevation,
+1px borders, NO glass/gradient/glow, tabular numerals, tiny type, dot statuses, brand amber #B45309.
+Light tokens: base #F7F7F8, surface #FFF, fg #09090B, positive #059669, negative #DC2626,
+warning #D97706, info #2563EB. `money()` suffix `ج.م`; chart ticks `10k/7.5k/5k/2.5k/0`; time `ص/م`.
 
 ## Gotchas learned
 - GridRow (page.dart) wraps its Row in IntrinsicHeight; Row+CrossAxisAlignment.stretch inside a vertical
@@ -44,9 +50,13 @@ tabular numerals, tiny type, dot statuses, warm amber accent #F5A524.
 - flutter analyze counts style infos as exit 1 -> CI uses --no-fatal-infos.
 
 ## Current state
-Design pass applied on top of the 12 screens and shipped: `00df9d7` (design) + `ec8582b` (cleanup).
-Changes: AppText tabular/cv02/cv03/cv11 features everywhere; MiniBars gridlines; dashboard chart
-axis/peak computed from data (was hardcoded 1.2k/800/400/0 against max 18 — fixed); ghost/secondary
-button borders use control token #1E1E22; `docs/DESIGN.md` added. CI + deploy green; live site verified
-showing new 20/10/5/0 axis, 12 hour labels, "Peak hour 5:00 PM". `.playwright-mcp/` gitignored.
-Next: real local persistence/outbox, or refine screens against the PRD.
+Shipped: light + Arabic-only (RTL) across all 12 screens — `7371f44`; live verified.
+Shipped: **Phase 0 foundation** — `df9e987` (on top of `8297dd6`, CI fix `df9e987`): build-time Firebase
+config via `--dart-define` with demo-mode fallback, `AuthRepository` (Firebase + demo), `AuthGate` +
+Arabic `SignInScreen`, `AppServices`/`AppScope` DI, `AppVersion`/`AppLogger` surfaced in Settings,
+deploy injects `FIREBASE_*` secrets. CI + deploy green; live site shows sign-in → dashboard verified.
+Gotchas: `FirebaseOptions.messagingSenderId` is non-nullable `String` (do not pass null);
+`actions/upload-pages-artifact@v5` (NOT v7); checkout@v7 ok. Demo stream uses `Stream.multi` (broadcast
+race). Version now `0.2.0+1`, sdk `>=3.6.0`.
+Next: local persistence + transactional outbox + persisted idempotency with tests proving the offline
+exit criterion; activate Firebase Auth/Firestore once the user supplies project config + secrets.
