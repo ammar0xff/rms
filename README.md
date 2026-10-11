@@ -57,7 +57,10 @@ web (IndexedDB). The outbox/transaction semantics the PRD requires are preserved
 - `LocalOrderRepository.createOrder` commits the order record **and** its outbox entry in one
   `db.transaction`, so a crash cannot leave an unsynced order without its sync command.
 - `SyncEngine` drains pending outbox entries; `SyncCoordinator` guards against concurrent passes.
+- `SyncService` auto-syncs on connectivity changes (reconnect trigger + catch-up on start).
+- `FirestoreSyncTransport` writes to `sync_operations` with **doc id = `idempotencyKey`** for deduplication.
 - `InMemorySyncTransport` dedupes on `idempotencyKey`, proving retries never duplicate.
+- Tests: `offline_sync_test.dart`, `sync_test.dart`, `sync_service_test.dart`, `connectivity_monitor_test.dart`.
 - `test/offline_sync_test.dart` covers: create offline → restart (reopen the same file) → reconnect →
   sync → replay without duplicates.
 
@@ -119,5 +122,5 @@ flutter test
 flutter analyze
 ```
 
-Dependencies: `firebase_core`, `firebase_auth`, `cloud_firestore`, `connectivity_plus`, `uuid`.
-Still planned for later phases: `drift` + `sqlite3_flutter_libs` (local persistence), `flutter_local_notifications` (or platform print adapter).
+Dependencies: `firebase_core`, `firebase_auth`, `cloud_firestore`, `connectivity_plus`, `uuid`, `sembast`, `sembast_web`, `path`, `path_provider`.
+Outbox/sync: `SyncEngine`, `SyncCoordinator`, `SyncService`, `FirestoreSyncTransport`, `InMemorySyncTransport`.
