@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 abstract final class AppText {
-  static const List<FontFeature> _tnum = [FontFeature.tabularFigures()];
+  /// Refero-style OpenType features for Inter-class fonts:
+  /// tabular figures + alternate/diacritic-friendly cv02/cv03/cv11.
+  static const List<FontFeature> _num = [
+    FontFeature.tabularFigures(),
+    FontFeature.enable('cv02'),
+    FontFeature.enable('cv03'),
+    FontFeature.enable('cv11'),
+  ];
 
   static const hero = TextStyle(
     fontSize: 44,
@@ -11,7 +18,7 @@ abstract final class AppText {
     letterSpacing: -1.6,
     height: 1.0,
     color: AppColors.fg,
-    fontFeatures: _tnum,
+    fontFeatures: _num,
   );
 
   static const h1 = TextStyle(
@@ -19,6 +26,7 @@ abstract final class AppText {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.4,
     color: AppColors.fg,
+    fontFeatures: _num,
   );
 
   static const h2 = TextStyle(
@@ -26,6 +34,7 @@ abstract final class AppText {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.2,
     color: AppColors.fg,
+    fontFeatures: _num,
   );
 
   static const pageTitle = TextStyle(
@@ -33,12 +42,14 @@ abstract final class AppText {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.1,
     color: AppColors.fgBright,
+    fontFeatures: _num,
   );
 
   static const sectionHeading = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
     color: AppColors.fgSecondary,
+    fontFeatures: _num,
   );
 
   static const body = TextStyle(
@@ -46,23 +57,27 @@ abstract final class AppText {
     fontWeight: FontWeight.w400,
     height: 1.45,
     color: AppColors.fgSecondary,
+    fontFeatures: _num,
   );
 
   static const bodyStrong = TextStyle(
     fontSize: 12.5,
     fontWeight: FontWeight.w500,
     color: AppColors.fgBright,
+    fontFeatures: _num,
   );
 
   static const tableCell = TextStyle(
     fontSize: 11.5,
     color: AppColors.fgMuted,
+    fontFeatures: _num,
   );
 
   static const tableCellPrimary = TextStyle(
     fontSize: 11.5,
     fontWeight: FontWeight.w500,
     color: AppColors.fgBright,
+    fontFeatures: _num,
   );
 
   static const tableHeader = TextStyle(
@@ -70,6 +85,7 @@ abstract final class AppText {
     fontWeight: FontWeight.w500,
     letterSpacing: 0.8,
     color: AppColors.fgDim,
+    fontFeatures: _num,
   );
 
   static const label = TextStyle(
@@ -77,12 +93,13 @@ abstract final class AppText {
     fontWeight: FontWeight.w500,
     letterSpacing: 0.5,
     color: AppColors.fgMuted,
+    fontFeatures: _num,
   );
 
   static const caption = TextStyle(
     fontSize: 10.5,
     color: AppColors.fgDim,
-    fontFeatures: _tnum,
+    fontFeatures: _num,
   );
 
   static const kpiValue = TextStyle(
@@ -90,12 +107,13 @@ abstract final class AppText {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.4,
     color: AppColors.fgBright,
-    fontFeatures: _tnum,
+    fontFeatures: _num,
   );
 
   static const navItem = TextStyle(
     fontSize: 12.5,
     fontWeight: FontWeight.w500,
+    fontFeatures: _num,
   );
 
   static const mono = TextStyle(

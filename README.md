@@ -66,7 +66,8 @@ test/
 Dense, dark, professional dashboard UI (Vercel/Linear influence):
 three-tier elevation, 1px borders, no glass/gradient/glow, tabular numerals,
 small type scale, dot-based statuses, warm amber accent (domain-matched).
-Tokens live in `lib/src/core/theme/`.
+Tokens live in `lib/src/core/theme/` and every rule is documented, with its
+source reference, in `docs/DESIGN.md`.
 
 ## Getting started
 Requires the Flutter SDK (not yet installed on this machine; on Garuda/Arch install via AUR).

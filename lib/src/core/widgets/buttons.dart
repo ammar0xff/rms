@@ -28,12 +28,12 @@ class RmsButton extends StatelessWidget {
       BtnVariant.primary => (AppColors.fg, Colors.transparent, AppColors.base),
       BtnVariant.secondary => (
           Colors.transparent,
-          AppColors.borderStrong,
+          AppColors.control,
           AppColors.fgSecondary,
         ),
       BtnVariant.ghost => (
           Colors.transparent,
-          Colors.transparent,
+          AppColors.control,
           AppColors.fgMuted,
         ),
     };
@@ -103,7 +103,7 @@ class IconBtn extends StatelessWidget {
           height: 28,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.borderStrong),
+            border: Border.all(color: AppColors.control),
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           ),
           child: Icon(icon, size: 14, color: AppColors.fgMuted),

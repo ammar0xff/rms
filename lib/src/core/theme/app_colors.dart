@@ -10,6 +10,7 @@ abstract final class AppColors {
   static const borderStrong = Color(0xFF1A1A1E);
   static const borderSubtle = Color(0xFF16161A);
   static const borderFaint = Color(0xFF131315);
+  static const control = Color(0xFF1E1E22);
 
   static const fg = Color(0xFFFAFAFA);
   static const fgBright = Color(0xFFE4E4E7);

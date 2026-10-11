@@ -60,9 +60,36 @@ class DashboardScreen extends StatelessWidget {
 class _SalesCard extends StatelessWidget {
   const _SalesCard();
 
+  static const _hours = [
+    '10a', '11a', '12p', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p',
+  ];
+
+  static String _fmtTick(double v) {
+    if (v >= 1000) {
+      final k = v / 1000;
+      return '${k.toStringAsFixed(k == k.roundToDouble() ? 0 : 1)}k';
+    }
+    return v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
+  }
+
+  static String _peakTime(int index) {
+    final h = 10 + index;
+    final amPm = h < 12 ? 'AM' : 'PM';
+    final h12 = h == 12 ? 12 : h % 12;
+    return '$h12:00 $amPm';
+  }
+
   @override
   Widget build(BuildContext context) {
-    const days = ['8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
+    final data = MockData.hourlySales;
+    final rawMax = data.isEmpty ? 1.0 : data.reduce((a, b) => a > b ? a : b);
+    final top = ((rawMax / 5).ceil() * 5).toDouble();
+    final ticks = <double>[top, top / 2, (top / 4).roundToDouble(), 0];
+    var peak = 0;
+    for (var i = 0; i < data.length; i++) {
+      if (data[i] > data[peak]) peak = i;
+    }
+
     return SurfaceCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -90,16 +117,16 @@ class _SalesCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        for (final v in ['1.2k', '800', '400', '0'])
-                          Text(v, style: AppText.caption.copyWith(fontSize: 9)),
+                        for (final v in ticks)
+                          Text(_fmtTick(v), style: AppText.caption.copyWith(fontSize: 9)),
                       ],
                     ),
                   ),
                   Expanded(
                     child: MiniBars(
-                      values: MockData.hourlySales,
+                      values: data,
                       height: 160,
-                      highlightIndex: 7,
+                      highlightIndex: peak,
                       color: AppColors.brand,
                     ),
                   ),
@@ -112,7 +139,7 @@ class _SalesCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                for (final d in days) Text(d, style: AppText.caption.copyWith(fontSize: 9)),
+                for (final d in _hours) Text(d, style: AppText.caption.copyWith(fontSize: 9)),
               ],
             ),
           ),
@@ -123,11 +150,11 @@ class _SalesCard extends StatelessWidget {
               border: Border(top: BorderSide(color: AppColors.borderSubtle)),
             ),
             child: Row(
-              children: const [
-                _FooterStat(label: 'Peak hour', value: '6:00 PM'),
-                _VDivider(),
+              children: [
+                _FooterStat(label: 'Peak hour', value: _peakTime(peak)),
+                const _VDivider(),
                 _FooterStat(label: 'Orders', value: '312'),
-                _VDivider(),
+                const _VDivider(),
                 _FooterStat(label: 'Dine-in / Delivery', value: '198 / 74'),
               ],
             ),

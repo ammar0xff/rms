@@ -98,41 +98,79 @@ class MiniBars extends StatelessWidget {
     this.color = const Color(0xFFB4B4BA),
     this.height = 120,
     this.highlightIndex,
+    this.gridFractions = const [0.25, 0.5],
+    this.gridColor = const Color(0x08FFFFFF),
   });
 
   final List<double> values;
   final Color color;
   final double height;
   final int? highlightIndex;
+  final List<double> gridFractions;
+  final Color gridColor;
 
   @override
   Widget build(BuildContext context) {
     final maxV = values.isEmpty ? 1.0 : values.reduce(math.max);
-    return SizedBox(
-      height: height,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (var i = 0; i < values.length; i++)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: FractionallySizedBox(
-                  heightFactor: (values[i] / maxV).clamp(0.04, 1.0).toDouble(),
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: (highlightIndex == null || highlightIndex == i)
-                          ? color.withValues(alpha: 0.75)
-                          : color.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
+    final bars = Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var i = 0; i < values.length; i++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: FractionallySizedBox(
+                heightFactor: (values[i] / maxV).clamp(0.04, 1.0).toDouble(),
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: (highlightIndex == null || highlightIndex == i)
+                        ? color.withValues(alpha: 0.75)
+                        : color.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
             ),
+          ),
+      ],
+    );
+
+    if (gridFractions.isEmpty) {
+      return SizedBox(height: height, child: bars);
+    }
+
+    return SizedBox(
+      height: height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: _GridPainter(gridFractions, gridColor)),
+          bars,
         ],
       ),
     );
   }
+}
+
+class _GridPainter extends CustomPainter {
+  _GridPainter(this.fractions, this.color);
+
+  final List<double> fractions;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+    for (final f in fractions) {
+      final y = size.height * (1 - f);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GridPainter old) =>
+      old.fractions != fractions || old.color != color;
 }
