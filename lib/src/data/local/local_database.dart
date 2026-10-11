@@ -1,4 +1,3 @@
-import 'package:sembast/sembast.dart';
 import 'package:sembast/sembast_memory.dart';
 
 import 'platform/db_factory.dart';
