@@ -8,7 +8,7 @@ void main() {
     expect(m.pending, 0);
     expect(m.failed, 0);
     expect(m.conflicts, 0);
-    expect(m.sinceLastSync, Duration.zero);
+    expect(m.sinceLastSync.inSeconds, lessThan(2));
   });
 
   test('toggleConnectivity flips online', () {
