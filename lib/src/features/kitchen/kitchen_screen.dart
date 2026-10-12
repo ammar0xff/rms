@@ -73,7 +73,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
             const Spacer(),
             SizedBox(height: 30, child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s))),
             const SizedBox(width: 12),
-            const RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: null),
+            RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: _load),
           ],
         ),
         Expanded(
