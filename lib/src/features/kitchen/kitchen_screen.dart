@@ -10,7 +10,6 @@ import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/mock/mock_data.dart';
 import '../common/format.dart';
-import '../../domain/models/kitchen_ticket.dart' as k;
 
 class KitchenScreen extends StatefulWidget {
   const KitchenScreen({super.key});
