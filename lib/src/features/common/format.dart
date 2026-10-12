@@ -20,4 +20,5 @@ String money(double value, {String symbol = 'ج.م'}) {
       TicketState.queued => ('في الانتظار', StatusTone.info),
       TicketState.preparing => ('قيد التحضير', StatusTone.warning),
       TicketState.ready => ('جاهز', StatusTone.positive),
+      TicketState.completed => ('مكتمل', StatusTone.neutral),
     };

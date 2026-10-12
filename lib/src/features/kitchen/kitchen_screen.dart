@@ -55,8 +55,13 @@ class _KitchenScreenState extends State<KitchenScreen> {
     await _load();
   }
 
-  List<String> get _stations =>
-      ['الكل', ...{for (final t in _tickets) t.station}];
+  List<String> get _stations => [
+        'الكل',
+        ...{
+          for (final t in _tickets)
+            if (t.state != TicketState.completed) t.station
+        },
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -300,7 +305,8 @@ class _TicketCard extends StatelessWidget {
                         label: 'تم التقديم',
                         icon: Icons.check_rounded,
                         variant: BtnVariant.primary,
-                        onPressed: () {},
+                        onPressed: () =>
+                            onTransition(ticket, TicketState.completed),
                       ),
                     ],
                   ),

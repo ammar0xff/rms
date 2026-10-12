@@ -60,6 +60,9 @@ class LocalKitchenRepository implements KitchenRepository {
       if (newState == TicketState.ready && readyAt == null) {
         readyAt = time;
       }
+      if (newState == TicketState.completed && completedAt == null) {
+        completedAt = time;
+      }
       ticket = ticket.copyWith(
         state: newState,
         queuedAt: queuedAt,

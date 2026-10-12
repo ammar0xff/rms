@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-enum TicketState { queued, preparing, ready }
+enum TicketState { queued, preparing, ready, completed }
 
 @immutable
 class KitchenTicketModel {
