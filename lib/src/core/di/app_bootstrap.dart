@@ -115,6 +115,11 @@ SyncService? _buildSync(OutboxStore? outbox, LocalOrderRepository? orders) {
   return SyncService(
     coordinator: SyncCoordinator(engine: engine),
     connectivity: ConnectivityMonitor(),
+    onSynced: (_) {
+      try {
+        SyncMonitor.instance.refresh();
+      } catch (_) {}
+    },
   );
 }
 

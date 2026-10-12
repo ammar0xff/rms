@@ -12,11 +12,13 @@ class SyncService {
   SyncService({
     required SyncCoordinator coordinator,
     required ConnectivityMonitor connectivity,
+    this.onSynced,
   })  : _coordinator = coordinator,
         _connectivity = connectivity;
 
   final SyncCoordinator _coordinator;
   final ConnectivityMonitor _connectivity;
+  final void Function(int applied)? onSynced;
 
   StreamSubscription<bool>? _subscription;
   bool _online = true;
@@ -32,7 +34,13 @@ class SyncService {
     }
   }
 
-  Future<int> requestSync() => _coordinator.requestSync();
+  Future<int> requestSync() async {
+    final applied = await _coordinator.requestSync();
+    if (onSynced != null) {
+      onSynced!(applied);
+    }
+    return applied;
+  }
 
   Future<void> dispose() async {
     await _subscription?.cancel();
