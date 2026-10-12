@@ -73,17 +73,17 @@ class SyncCenterScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         const _PrintQueueSection(),
-        Row(
+        const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: 2, child: _OutboxTable()),
-            SizedBox(width: AppSpacing.lg),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(child: _SequenceCard()),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
         const _PrintQueueSection(),
-        Row(
+        const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: _PolicyCard(
@@ -91,7 +91,7 @@ class SyncCenterScreen extends StatelessWidget {
               icon: Icons.fingerprint,
               body: 'يحمل كل أمر مفتاح تكرار آمن ثابت. يحتفظ الخادم بإيصالات العمليات ويعيد النتيجة القائمة للطلبات المكررة — يطبَّق على الطلبات والمدفوعات والاستردادات والتذاكر والإسنادات والتحصيلات والمخزون.',
             )),
-            SizedBox(width: AppSpacing.lg),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(child: _PolicyCard(
               title: 'سياسة إعادة المحاولة',
               icon: Icons.replay,
