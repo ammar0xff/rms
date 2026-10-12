@@ -258,8 +258,8 @@ class _PrintQueueSection extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               if (jobs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(16),
+                const Padding(
+                  padding: EdgeInsets.all(16),
                   child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
                 )
               else
