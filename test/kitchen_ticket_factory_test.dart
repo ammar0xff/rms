@@ -12,7 +12,7 @@ Order _order({List<OrderItem> items = const [], bool createdOffline = false}) =>
     );
 
 void main() {
-  const clock = DateTime(2026, 10, 12, 10, 30);
+  final clock = DateTime(2026, 10, 12, 10, 30);
   KitchenTicketFactory factory() => KitchenTicketFactory(clock: () => clock);
 
   test('returns no tickets for an empty order', () {
