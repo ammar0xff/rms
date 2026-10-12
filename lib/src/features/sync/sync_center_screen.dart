@@ -86,13 +86,13 @@ class SyncCenterScreen extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _PolicyCard(
+            Expanded(child: const _PolicyCard(
               title: 'التكرار الآمن',
               icon: Icons.fingerprint,
               body: 'يحمل كل أمر مفتاح تكرار آمن ثابت. يحتفظ الخادم بإيصالات العمليات ويعيد النتيجة القائمة للطلبات المكررة — يطبَّق على الطلبات والمدفوعات والاستردادات والتذاكر والإسنادات والتحصيلات والمخزون.',
             )),
             const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _PolicyCard(
+            Expanded(child: const _PolicyCard(
               title: 'سياسة إعادة المحاولة',
               icon: Icons.replay,
               body: 'الفشل العابر يُعاد بمهلة تصاعدية مع تشتيت. الأخطاء الدائمة لا تُعاد إلى ما لا نهاية، وتبقى العمليات المحظورة مرئية مع أسباب قابلة للتنفيذ بدلاً من إهمالها.',
