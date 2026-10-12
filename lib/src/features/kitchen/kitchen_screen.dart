@@ -30,7 +30,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
   }
 
   Future<void> _load() async {
-    final kitchen = AppServices.of(context).kitchen;
+    final kitchen = AppScope.of(context).kitchen;
     if (kitchen == null) return;
     final tickets = await kitchen.allTickets();
     if (!mounted) return;
@@ -38,7 +38,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
   }
 
   Future<void> _transition(KitchenTicketModel ticket, TicketState next) async {
-    final kitchen = AppServices.of(context).kitchen;
+    final kitchen = AppScope.of(context).kitchen;
     if (kitchen == null) return;
     await kitchen.transitionTicket(ticket.id, next);
     await _load();
