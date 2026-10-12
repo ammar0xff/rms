@@ -260,7 +260,7 @@ class _PrintQueueSection extends StatelessWidget {
               if (jobs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: const Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
+                  child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
                 )
               else
                 RmsTable(
