@@ -1,5 +1,6 @@
 import '../../core/widgets/status.dart';
 import '../../domain/models/kitchen_ticket.dart';
+import '../../data/mock/mock_data.dart';
 
 String money(double value, {String symbol = 'ج.م'}) {
   final negative = value < 0;
