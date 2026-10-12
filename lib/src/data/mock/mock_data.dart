@@ -14,14 +14,6 @@ class MenuItem {
   final bool available;
 }
 
-class CartLine {
-  CartLine(this.item, {this.quantity = 1, this.note});
-  final MenuItem item;
-  int quantity;
-  String? note;
-  double get total => item.price * quantity;
-}
-
 class PosOrder {
   const PosOrder({
     required this.number,

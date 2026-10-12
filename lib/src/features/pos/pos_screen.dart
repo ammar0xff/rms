@@ -9,9 +9,21 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../data/mock/mock_data.dart';
+import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
 import '../common/format.dart';
+
+/// A line in the POS cart, keyed by the cached menu item identity.
+class CartLine {
+  CartLine(this.item, {this.quantity = 1, this.note});
+
+  final MenuItemModel item;
+  int quantity;
+  String? note;
+
+  double get total => item.price * quantity;
+}
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -25,22 +37,59 @@ class _PosScreenState extends State<PosScreen> {
   String _category = 'الكل';
   int _orderType = 0;
   bool _submitting = false;
+  List<MenuItemModel> _items = const [];
   static const _orderTypes = ['داخل الصالة', 'الاستلام', 'توصيل'];
 
-  List<String> get _categories =>
-      ['الكل', ...{for (final m in MockData.menu) m.category}];
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-  List<MenuItem> get _visible => _category == 'الكل'
-      ? MockData.menu
-      : MockData.menu.where((m) => m.category == _category).toList();
+  /// Reads the cached menu (server is the source of truth) and falls back to
+  /// demo data when the local store is unavailable.
+  Future<void> _load() async {
+    final menu = AppScope.of(context).menu;
+    List<MenuItemModel> loaded = const [];
+    if (menu != null) {
+      try {
+        loaded = await menu.listMenu();
+      } catch (_) {
+        loaded = const [];
+      }
+    }
+    // Never mutate state synchronously from within initState.
+    await Future<void>.value();
+    if (!mounted) return;
+    setState(() => _items = loaded.isEmpty ? _fallbackMenu : loaded);
+  }
+
+  List<MenuItemModel> get _fallbackMenu => [
+        for (final m in MockData.menu)
+          MenuItemModel(
+            id: m.name,
+            name: m.name,
+            category: m.category,
+            price: m.price,
+            station: m.station,
+            available: m.available,
+          ),
+      ];
+
+  List<String> get _categories =>
+      ['الكل', ...{for (final m in _items) m.category}];
+
+  List<MenuItemModel> get _visible => _category == 'الكل'
+      ? _items
+      : _items.where((m) => m.category == _category).toList();
 
   double get _subtotal => _cart.fold(0, (s, l) => s + l.total);
   double get _tax => _subtotal * 0.08;
   double get _total => _subtotal + _tax;
 
-  void _add(MenuItem item) {
+  void _add(MenuItemModel item) {
     setState(() {
-      final existing = _cart.where((l) => l.item.name == item.name).firstOrNull;
+      final existing = _cart.where((l) => l.item.id == item.id).firstOrNull;
       if (existing != null) {
         existing.quantity++;
       } else {
@@ -69,7 +118,7 @@ class _PosScreenState extends State<PosScreen> {
     final items = [
       for (final line in _cart)
         OrderItem(
-          productId: line.item.name,
+          productId: line.item.id,
           name: line.item.name,
           unitPrice: line.item.price,
           quantity: line.quantity,
@@ -166,9 +215,9 @@ class _MenuPane extends StatelessWidget {
 
   final List<String> categories;
   final String selected;
-  final List<MenuItem> items;
+  final List<MenuItemModel> items;
   final ValueChanged<String> onCategory;
-  final ValueChanged<MenuItem> onAdd;
+  final ValueChanged<MenuItemModel> onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -279,7 +328,7 @@ class _CategoryChip extends StatelessWidget {
 class _ProductTile extends StatefulWidget {
   const _ProductTile({required this.item, required this.onTap});
 
-  final MenuItem item;
+  final MenuItemModel item;
   final VoidCallback onTap;
 
   @override
@@ -361,7 +410,7 @@ class _CartPane extends StatelessWidget {
   final double total;
   final bool submitting;
   final ValueChanged<int> onType;
-  final ValueChanged<MenuItem> onAdd;
+  final ValueChanged<MenuItemModel> onAdd;
   final ValueChanged<CartLine> onDec;
   final VoidCallback onSubmit;
 

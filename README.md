@@ -95,11 +95,11 @@ test/
 
 ## Screens
 - **Dashboard** — hero KPI, sales-by-hour, alerts, sync health, branch status
-- **POS** — menu grid, cart, order types, offline banner, local-first save
+- **POS** — menu grid from the local cache, cart, order types, offline banner, local-first save
 - **Kitchen (KDS)** — queued / preparing / ready columns, local tickets
 - **Delivery** — deliveries, drivers, offline collections, settlement queue
 - **Accounting** — cash session, approvals, append-only ledger
-- **Menu / Inventory / Customers** — management tables
+- **Menu** — cached catalog with offline reads · **Inventory / Customers** — management tables
 - **Reports** — sales trend, category breakdown, payment mix
 - **Sync Center** — outbox operations, sync order, idempotency/retry policy
 - **Conflicts** — detected conflicts and per-entity resolution strategy
