@@ -123,7 +123,7 @@ class _OutboxTable extends StatelessWidget {
             ),
           ),
           RmsTable(
-            columns: [
+            columns: const [
               RmsColumn('العملية', flex: 2),
               RmsColumn('الكيان', flex: 3),
               RmsColumn('النوع', flex: 3),
@@ -264,7 +264,7 @@ class _PrintQueueSection extends StatelessWidget {
                 )
               else
                 RmsTable(
-                  columns: [
+                  columns: const [
                     RmsColumn('المعرف'),
                     RmsColumn('النوع'),
                     RmsColumn('المرجع'),
