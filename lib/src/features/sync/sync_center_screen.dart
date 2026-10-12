@@ -72,17 +72,17 @@ class SyncCenterScreen extends StatelessWidget {
           },
         ),
         const SizedBox(height: AppSpacing.xl),
-        _PrintQueueSection(),
+        const _PrintQueueSection(),
         const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: _OutboxTable()),
+            Expanded(flex: 2, child: const _OutboxTable()),
             SizedBox(width: AppSpacing.lg),
-            Expanded(child: _SequenceCard()),
+            Expanded(child: const _SequenceCard()),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
-        _PrintQueueSection(),
+        const _PrintQueueSection(),
         const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -122,8 +122,8 @@ class _OutboxTable extends StatelessWidget {
               trailing: const StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
             ),
           ),
-          RmsTable(
-            columns: const [
+          const RmsTable(
+            columns: [
               RmsColumn('العملية', flex: 2),
               RmsColumn('الكيان', flex: 3),
               RmsColumn('النوع', flex: 3),
@@ -260,11 +260,11 @@ class _PrintQueueSection extends StatelessWidget {
               if (jobs.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(16),
-                  child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
+                  child: const Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
                 )
               else
-                RmsTable(
-                  columns: const [
+                const RmsTable(
+                  columns: [
                     RmsColumn('المعرف'),
                     RmsColumn('النوع'),
                     RmsColumn('المرجع'),
