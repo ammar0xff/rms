@@ -265,10 +265,10 @@ class _PrintQueueSection extends StatelessWidget {
               else
                 RmsTable(
                   columns: const [
-                    RmsColumn(label: 'المعرف'),
-                    RmsColumn(label: 'النوع'),
-                    RmsColumn(label: 'المرجع'),
-                    RmsColumn(label: 'الوقت'),
+                    RmsColumn('المعرف'),
+                    RmsColumn('النوع'),
+                    RmsColumn('المرجع'),
+                    RmsColumn('الوقت'),
                   ],
                   rows: jobs.reversed.take(10).map((j) {
                     final payload = j.payload;
