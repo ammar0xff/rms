@@ -11,6 +11,7 @@ import '../../core/widgets/rms_table.dart';
 import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
+import '../../core/di/app_services.dart';
 import '../../data/mock/mock_data.dart';
 
 (String, StatusTone) _opStatus(String s) => switch (s) {
@@ -37,7 +38,11 @@ class SyncCenterScreen extends StatelessWidget {
               subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
             ),
             const Spacer(),
-            const RmsButton(label: 'إعادة الاتصال والمزامنة الآن', icon: Icons.sync, onPressed: null, dense: false),
+            RmsButton(label: 'إعادة الاتصال والمزامنة الآن', icon: Icons.sync, onPressed: () {
+              final svc = AppScope.of(context).sync;
+              if (svc != null) svc.requestSync();
+              SyncMonitor.instance.refresh();
+            }, dense: false),
           ],
         ),
         AnimatedBuilder(

@@ -13,4 +13,11 @@ class PrintService {
   Future<void> printReceipt(String orderRef, Map<String, dynamic> payload) =>
       _adapter.printReceipt(orderRef, payload);
   Future<void> queueJob(PrintJob job) => _adapter.queueJob(job);
+
+  List<PrintJob> get jobs =>
+      _adapter is LocalPrintAdapter ? (_adapter as LocalPrintAdapter).jobs : const [];
+  Stream<List<PrintJob>> get jobsStream =>
+      _adapter is LocalPrintAdapter
+          ? (_adapter as LocalPrintAdapter).jobsStream
+          : const Stream.empty();
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/kitchen_ticket.dart';
@@ -24,9 +25,22 @@ abstract class PrintAdapter {
 }
 
 class LocalPrintAdapter implements PrintAdapter {
-  LocalPrintAdapter({this.onJobQueued});
+  LocalPrintAdapter({this.onJobQueued, this.maxJobs = 50});
 
   final void Function(PrintJob job)? onJobQueued;
+  final int maxJobs;
+
+  final List<PrintJob> _jobs = [];
+  final StreamController<List<PrintJob>> _controller =
+      StreamController<List<PrintJob>>.broadcast();
+
+  List<PrintJob> get jobs => List.unmodifiable(_jobs);
+  Stream<List<PrintJob>> get jobsStream => _controller.stream;
+
+  void clear() {
+    _jobs.clear();
+    _controller.add(jobs);
+  }
 
   @override
   Future<void> printKitchenTicket(KitchenTicketModel ticket) async {
@@ -59,8 +73,17 @@ class LocalPrintAdapter implements PrintAdapter {
 
   @override
   Future<void> queueJob(PrintJob job) async {
+    _jobs.add(job);
+    if (_jobs.length > maxJobs) {
+      _jobs.removeRange(0, _jobs.length - maxJobs);
+    }
+    _controller.add(jobs);
     if (onJobQueued != null) {
       onJobQueued!(job);
     }
+  }
+
+  void dispose() {
+    _controller.close();
   }
 }
