@@ -72,17 +72,17 @@ class SyncCenterScreen extends StatelessWidget {
           },
         ),
         const SizedBox(height: AppSpacing.xl),
-        const _PrintQueueSection(),
-        Row(
+        _PrintQueueSection(),
+        const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: 2, child: _OutboxTable()),
-            const SizedBox(width: AppSpacing.lg),
+            SizedBox(width: AppSpacing.lg),
             Expanded(child: _SequenceCard()),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
-        const _PrintQueueSection(),
+        _PrintQueueSection(),
         const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -91,7 +91,7 @@ class SyncCenterScreen extends StatelessWidget {
               icon: Icons.fingerprint,
               body: 'يحمل كل أمر مفتاح تكرار آمن ثابت. يحتفظ الخادم بإيصالات العمليات ويعيد النتيجة القائمة للطلبات المكررة — يطبَّق على الطلبات والمدفوعات والاستردادات والتذاكر والإسنادات والتحصيلات والمخزون.',
             )),
-            const SizedBox(width: AppSpacing.lg),
+            SizedBox(width: AppSpacing.lg),
             Expanded(child: _PolicyCard(
               title: 'سياسة إعادة المحاولة',
               icon: Icons.replay,
@@ -115,11 +115,11 @@ class _OutboxTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
               title: 'عمليات صندوق الصادر',
-              trailing: StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
+              trailing: const StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
             ),
           ),
           RmsTable(
@@ -260,7 +260,7 @@ class _PrintQueueSection extends StatelessWidget {
               if (jobs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: const Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
+                  child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
                 )
               else
                 RmsTable(
