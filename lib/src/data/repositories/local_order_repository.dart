@@ -41,6 +41,7 @@ class LocalOrderRepository implements OrderRepository {
       provisionalOrderNumber: _provisionalNumber(now, localId),
       items: draft.items,
       createdOffline: draft.createdOffline,
+      createdAt: now,
       syncStatus: SyncStatus.pendingSync,
     );
     final entry = OutboxEntry(

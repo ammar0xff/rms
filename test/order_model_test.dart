@@ -11,6 +11,7 @@ Order _order() => Order(
         OrderItem(productId: 'p2', name: 'عصير', unitPrice: 15, quantity: 1),
       ],
       createdOffline: true,
+      createdAt: DateTime(2026, 10, 11, 12),
     );
 
 void main() {
@@ -57,6 +58,7 @@ void main() {
       expect(restored.items.first.name, 'برجر');
       expect(restored.items.first.unitPrice, 45);
       expect(restored.createdOffline, isTrue);
+      expect(restored.createdAt, DateTime(2026, 10, 11, 12));
       expect(restored.serverId, 'srv-9');
       expect(restored.canonicalOrderNumber, 'ORD-4821');
       expect(restored.syncStatus, SyncStatus.pendingSync);

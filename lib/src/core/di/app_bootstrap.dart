@@ -49,6 +49,12 @@ Future<AppServices> _resolveAuth(
   await _primeMenuCache(menu);
   await _primeKitchenCache(kitchen);
 
+  // Surface local outbox state even without a backend (demo mode); the
+  // Firebase branch below re-attaches with the sync loop.
+  try {
+    SyncMonitor.instance.attach(outbox: outbox);
+  } catch (_) {}
+
   if (!config.isConfigured) {
     AppLogger.warn(
       'Firebase config not provided (dart-defines missing) — running in demo mode.',

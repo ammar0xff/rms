@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/di/app_services.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
@@ -12,36 +14,106 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../core/widgets/sync_chip.dart';
+import '../../data/local/outbox/outbox_status.dart';
 import '../../data/mock/mock_data.dart';
+import '../../domain/models/order.dart';
 import '../common/format.dart';
+import 'dashboard_metrics.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  List<Order> _orders = const [];
+  bool _hasRepo = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    SyncMonitor.instance.addListener(_load);
+  }
+
+  @override
+  void dispose() {
+    SyncMonitor.instance.removeListener(_load);
+    super.dispose();
+  }
+
+  /// Reads local orders. When no store is available the screen falls back to
+  /// demo figures so the layout is still meaningful.
+  Future<void> _load() async {
+    final orders = AppScope.of(context).orders;
+    if (orders == null) {
+      if (!mounted) return;
+      setState(() => _hasRepo = false);
+      return;
+    }
+    final list = await orders.listOrders();
+    if (!mounted) return;
+    setState(() {
+      _orders = list;
+      _hasRepo = true;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final useMock = !_hasRepo;
+    final metrics = DashboardMetrics.fromOrders(_orders);
+    final monitor = SyncMonitor.instance;
+
     return PageBody(
       children: [
-        const HeroKpi(
+        HeroKpi(
           label: 'صافي مبيعات اليوم',
-          value: '8,412.50 ج.م',
-          delta: '+12.4%',
+          value: useMock ? '8,412.50 ج.م' : money(metrics.todayTotal),
+          delta: useMock ? '+12.4%' : null,
           deltaTone: DeltaTone.positive,
-          subtext: 'مقارنة بمتوسط 14 يومًا',
-          spark: MockData.salesTrend,
+          subtext: useMock
+              ? 'مقارنة بمتوسط 14 يومًا'
+              : 'محليًا على هذا الجهاز · ${metrics.todayOrders} طلب',
+          spark: useMock ? MockData.salesTrend : metrics.hourlySales,
         ),
-        const GridRow(children: [
-          StatCard(label: 'الطلبات', value: '312', delta: '+8.1%'),
-          StatCard(label: 'متوسط الفاتورة', value: '26.96 ج.م', delta: '+2.3%'),
-          StatCard(label: 'عمليات دون اتصال اليوم', value: '37', delta: '24 قيد الانتظار', deltaTone: DeltaTone.neutral),
+        GridRow(children: [
+          StatCard(
+            label: 'الطلبات',
+            value: useMock ? '312' : '${metrics.todayOrders}',
+            delta: useMock ? '+8.1%' : null,
+          ),
+          StatCard(
+            label: 'متوسط الفاتورة',
+            value: useMock ? '26.96 ج.م' : money(metrics.averageTicket),
+            delta: useMock ? '+2.3%' : null,
+          ),
+          StatCard(
+            label: 'عمليات دون اتصال اليوم',
+            value: useMock ? '37' : '${metrics.offlineOrders}',
+            delta: '${monitor.pending} قيد الانتظار',
+            deltaTone: DeltaTone.neutral,
+          ),
         ]),
-        const _SalesCard(),
-        const Row(
+        _SalesCard(
+          data: useMock ? MockData.hourlySales : metrics.hourlySales,
+          subtitle: useMock ? 'اليوم · آخر تحديث 12:45' : 'اليوم · محلي',
+          live: useMock || monitor.online,
+          extraStats: useMock
+              ? const [('الطلبات', '312'), ('داخل الصالة / توصيل', '198 / 74')]
+              : [
+                  ('الطلبات', '${metrics.todayOrders}'),
+                  ('غير متزامنة', '${metrics.unsyncedOrders}'),
+                ],
+        ),
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: _RecentOrders()),
-            SizedBox(width: AppSpacing.lg),
-            Expanded(child: _AlertsPanel()),
+            Expanded(flex: 2, child: _RecentOrders(orders: useMock ? null : _orders)),
+            const SizedBox(width: AppSpacing.lg),
+            const Expanded(child: _AlertsPanel()),
           ],
         ),
         const Row(
@@ -58,7 +130,17 @@ class DashboardScreen extends StatelessWidget {
 }
 
 class _SalesCard extends StatelessWidget {
-  const _SalesCard();
+  const _SalesCard({
+    required this.data,
+    required this.subtitle,
+    required this.extraStats,
+    this.live = true,
+  });
+
+  final List<double> data;
+  final String subtitle;
+  final List<(String, String)> extraStats;
+  final bool live;
 
   static const _hours = [
     '10ص', '11ص', '12م', '1م', '2م', '3م', '4م', '5م', '6م', '7م', '8م', '9م',
@@ -81,7 +163,6 @@ class _SalesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final data = MockData.hourlySales;
     final rawMax = data.isEmpty ? 1.0 : data.reduce((a, b) => a > b ? a : b);
     final top = ((rawMax / 5).ceil() * 5).toDouble();
     final ticks = <double>[top, top / 2, (top / 4).roundToDouble(), 0];
@@ -99,8 +180,11 @@ class _SalesCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: SectionHeader(
               title: 'المبيعات بالساعة',
-              subtitle: 'اليوم · آخر تحديث 12:45',
-              trailing: const Tag(label: 'مباشر', tone: StatusTone.positive),
+              subtitle: subtitle,
+              trailing: Tag(
+                label: live ? 'مباشر' : 'دون اتصال',
+                tone: live ? StatusTone.positive : StatusTone.warning,
+              ),
             ),
           ),
           Padding(
@@ -153,9 +237,10 @@ class _SalesCard extends StatelessWidget {
               children: [
                 _FooterStat(label: 'ساعة الذروة', value: _peakTime(peak)),
                 const _VDivider(),
-                _FooterStat(label: 'الطلبات', value: '312'),
-                const _VDivider(),
-                _FooterStat(label: 'داخل الصالة / توصيل', value: '198 / 74'),
+                for (var i = 0; i < extraStats.length; i++) ...[
+                  _FooterStat(label: extraStats[i].$1, value: extraStats[i].$2),
+                  if (i != extraStats.length - 1) const _VDivider(),
+                ],
               ],
             ),
           ),
@@ -198,7 +283,10 @@ class _VDivider extends StatelessWidget {
 }
 
 class _RecentOrders extends StatelessWidget {
-  const _RecentOrders();
+  const _RecentOrders({this.orders});
+
+  /// Real local orders, or null to fall back to demo rows.
+  final List<Order>? orders;
 
   @override
   Widget build(BuildContext context) {
@@ -215,37 +303,72 @@ class _RecentOrders extends StatelessWidget {
               trailing: RmsButton(label: 'عرض الكل', variant: BtnVariant.ghost, onPressed: () {}),
             ),
           ),
-          RmsTable(
-            columns: const [
-              RmsColumn('الطلب', flex: 3),
-              RmsColumn('النوع', flex: 2),
-              RmsColumn('الحالة', flex: 3),
-              RmsColumn('المزامنة', flex: 3),
-              RmsColumn('الإجمالي', flex: 2, align: TextAlign.right),
-            ],
-            rows: [
-              for (final o in MockData.orders)
-                [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(o.number, overflow: TextOverflow.ellipsis, style: AppText.tableCellPrimary),
-                      ),
-                      if (o.provisional) ...[
-                        const SizedBox(width: 6),
-                        const Tag(label: 'مؤقت', tone: StatusTone.neutral),
-                      ],
-                    ],
-                  ),
-                  Text(o.type, style: AppText.tableCell),
-                  Text(o.status, style: AppText.tableCell),
-                  StatusText(label: syncStateView(o.sync).$1, tone: syncStateView(o.sync).$2),
-                  Text(money(o.total), style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
-                ],
-            ],
-          ),
+          if (orders == null) _mockTable() else _realTable(),
         ],
       ),
+    );
+  }
+
+  Widget _mockTable() {
+    return RmsTable(
+      columns: const [
+        RmsColumn('الطلب', flex: 3),
+        RmsColumn('النوع', flex: 2),
+        RmsColumn('الحالة', flex: 3),
+        RmsColumn('المزامنة', flex: 3),
+        RmsColumn('الإجمالي', flex: 2, align: TextAlign.right),
+      ],
+      rows: [
+        for (final o in MockData.orders)
+          [
+            Row(
+              children: [
+                Flexible(
+                  child: Text(o.number, overflow: TextOverflow.ellipsis, style: AppText.tableCellPrimary),
+                ),
+                if (o.provisional) ...[
+                  const SizedBox(width: 6),
+                  const Tag(label: 'مؤقت', tone: StatusTone.neutral),
+                ],
+              ],
+            ),
+            Text(o.type, style: AppText.tableCell),
+            Text(o.status, style: AppText.tableCell),
+            StatusText(label: syncStateView(o.sync).$1, tone: syncStateView(o.sync).$2),
+            Text(money(o.total), style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
+          ],
+      ],
+    );
+  }
+
+  Widget _realTable() {
+    final recent = [...orders!]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return RmsTable(
+      columns: const [
+        RmsColumn('الطلب', flex: 3),
+        RmsColumn('الأصناف', flex: 2),
+        RmsColumn('المزامنة', flex: 3),
+        RmsColumn('الإجمالي', flex: 2, align: TextAlign.right),
+      ],
+      rows: [
+        for (final o in recent.take(6))
+          [
+            Row(
+              children: [
+                Flexible(
+                  child: Text(o.provisionalOrderNumber, overflow: TextOverflow.ellipsis, style: AppText.tableCellPrimary),
+                ),
+                if (o.syncStatus != SyncStatus.synced) ...[
+                  const SizedBox(width: 6),
+                  const Tag(label: 'محلي', tone: StatusTone.neutral),
+                ],
+              ],
+            ),
+            Text('${o.items.length}', style: AppText.tableCell),
+            StatusText(label: orderSyncView(o.syncStatus).$1, tone: orderSyncView(o.syncStatus).$2),
+            Text(money(o.total), style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
+          ],
+      ],
     );
   }
 }
@@ -255,6 +378,7 @@ class _AlertsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final monitor = SyncMonitor.instance;
     final lowStock = MockData.inventory.where((i) => i.low).toList();
     return SurfaceCard(
       child: Column(
@@ -278,10 +402,18 @@ class _AlertsPanel extends StatelessWidget {
           const Divider(height: 20, color: AppColors.borderSubtle),
           Row(
             children: [
-              const StatusDot(tone: StatusTone.negative),
+              StatusDot(tone: monitor.conflicts > 0 ? StatusTone.negative : StatusTone.positive),
               const SizedBox(width: 8),
-              Expanded(child: Text('2 تعارضات غير محلولة', style: AppText.tableCellPrimary)),
-              const Icon(Icons.chevron_right, size: 14, color: AppColors.fgGhost),
+              Expanded(
+                child: Text(
+                  monitor.conflicts > 0
+                      ? '${monitor.conflicts} تعارضات غير محلولة'
+                      : 'لا توجد تعارضات',
+                  style: AppText.tableCellPrimary,
+                ),
+              ),
+              if (monitor.conflicts > 0)
+                const Icon(Icons.chevron_right, size: 14, color: AppColors.fgGhost),
             ],
           ),
           const SizedBox(height: 10),
@@ -289,13 +421,21 @@ class _AlertsPanel extends StatelessWidget {
             children: [
               const StatusDot(tone: StatusTone.info),
               const SizedBox(width: 8),
-              Expanded(child: Text('مزامنة القائمة: حديثة', style: AppText.tableCellPrimary)),
-              Text('قبل دقيقتين', style: AppText.caption),
+              const Expanded(child: Text('مزامنة القائمة: مخزنة محليًا', style: AppText.tableCellPrimary)),
+              Text(_sinceLabel(monitor), style: AppText.caption),
             ],
           ),
         ],
       ),
     );
+  }
+
+  String _sinceLabel(SyncMonitor monitor) {
+    if (monitor.total == 0) return 'لم تتم المزامنة بعد';
+    final d = monitor.sinceLastSync;
+    if (d.inMinutes < 1) return 'الآن';
+    if (d.inMinutes < 60) return 'قبل ${d.inMinutes} د';
+    return 'قبل ${d.inHours} س';
   }
 }
 
@@ -304,6 +444,11 @@ class _SyncHealthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final monitor = SyncMonitor.instance;
+    final ratio = monitor.total == 0 ? 1.0 : monitor.synced / monitor.total;
+    final percent = (ratio * 100).round();
+    final hasFailures = monitor.failed > 0 || monitor.conflicts > 0;
+
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -315,15 +460,26 @@ class _SyncHealthCard extends StatelessWidget {
           const SizedBox(height: 14),
           const SyncStatRow(),
           const SizedBox(height: 14),
-          ProgressBar(value: 0.86, color: AppColors.positive),
-          const SizedBox(height: 8),
-          Text(
-            'تمت مزامنة 86% من عمليات اليوم. العمل دون اتصال — 24 عملية في طابور محلي.',
-            style: AppText.caption,
+          ProgressBar(
+            value: ratio,
+            color: hasFailures ? AppColors.negative : AppColors.positive,
           ),
+          const SizedBox(height: 8),
+          Text(_explain(monitor, percent), style: AppText.caption),
         ],
       ),
     );
+  }
+
+  String _explain(SyncMonitor monitor, int percent) {
+    if (monitor.total == 0) {
+      return monitor.online
+          ? 'لا توجد عمليات محلية في الطابور. الجهاز متصل بالخادم.'
+          : 'لا توجد عمليات في الطابور المحلي. ستبدأ المزامنة عند استعادة الاتصال.';
+    }
+    final synced = 'تمت مزامنة $percent% من ${monitor.total} عملية على هذا الجهاز.';
+    if (monitor.online) return '$synced الجهاز متصل بالخادم.';
+    return '$synced يعمل دون اتصال — ${monitor.pending} عملية في الطابور المحلي.';
   }
 }
 

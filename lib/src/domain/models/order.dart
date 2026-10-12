@@ -6,6 +6,7 @@ class Order {
     required this.provisionalOrderNumber,
     required this.items,
     required this.createdOffline,
+    required this.createdAt,
     this.serverId,
     this.canonicalOrderNumber,
     this.localRevision = 1,
@@ -17,6 +18,7 @@ class Order {
   final String provisionalOrderNumber;
   final List<OrderItem> items;
   final bool createdOffline;
+  final DateTime createdAt;
 
   String? serverId;
   String? canonicalOrderNumber;
@@ -32,6 +34,7 @@ class Order {
         'provisionalOrderNumber': provisionalOrderNumber,
         'items': items.map((i) => i.toRecord()).toList(),
         'createdOffline': createdOffline,
+        'createdAt': createdAt.toIso8601String(),
         'serverId': serverId,
         'canonicalOrderNumber': canonicalOrderNumber,
         'localRevision': localRevision,
@@ -46,6 +49,9 @@ class Order {
             .map((e) => OrderItem.fromRecord(Map<String, Object?>.from(e as Map)))
             .toList(),
         createdOffline: record['createdOffline'] as bool,
+        createdAt: record['createdAt'] == null
+            ? DateTime.fromMillisecondsSinceEpoch(0)
+            : DateTime.parse(record['createdAt'] as String),
         serverId: record['serverId'] as String?,
         canonicalOrderNumber: record['canonicalOrderNumber'] as String?,
         localRevision: record['localRevision'] as int? ?? 1,

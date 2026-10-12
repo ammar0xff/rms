@@ -9,6 +9,7 @@ Order _order({List<OrderItem> items = const [], bool createdOffline = false}) =>
       provisionalOrderNumber: 'O-20261012-ABC123',
       items: items,
       createdOffline: createdOffline,
+      createdAt: DateTime(2026, 10, 12, 10, 30),
     );
 
 void main() {
