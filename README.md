@@ -9,8 +9,8 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 
 > Status: **Phase 1 — Core Features** (in progress). Flutter architecture, build-time
 > Firebase configuration, authentication, version/diagnostics, and the **local-first persistence
-> layer (document store + transactional outbox + idempotent sync engine)** are in place; screens
-> still render mock data until repositories are wired to the UI. Source of truth for behavior is
+> layer (document store + transactional outbox + idempotent sync engine)** are in place; the POS,
+> menu, and kitchen (KDS) screens now read from the local store. Source of truth for behavior is
 > `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
@@ -96,7 +96,7 @@ test/
 ## Screens
 - **Dashboard** — hero KPI, sales-by-hour, alerts, sync health, branch status
 - **POS** — menu grid from the local cache, cart, order types, offline banner, local-first save
-- **Kitchen (KDS)** — queued / preparing / ready columns, local tickets
+- **Kitchen (KDS)** — queued / preparing / ready columns, local tickets routed from POS orders
 - **Delivery** — deliveries, drivers, offline collections, settlement queue
 - **Accounting** — cash session, approvals, append-only ledger
 - **Menu** — cached catalog with offline reads · **Inventory / Customers** — management tables

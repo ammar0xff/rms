@@ -16,13 +16,22 @@ Order _order() => Order(
 void main() {
   group('OrderItem', () {
     test('round-trips through a record', () {
-      const item =
-          OrderItem(productId: 'p1', name: 'برجر', unitPrice: 45.5, quantity: 2);
+      const item = OrderItem(
+          productId: 'p1', name: 'برجر', unitPrice: 45.5, quantity: 2, station: 'حار');
       final restored = OrderItem.fromRecord(item.toRecord());
       expect(restored.productId, 'p1');
       expect(restored.name, 'برجر');
       expect(restored.unitPrice, 45.5);
       expect(restored.quantity, 2);
+      expect(restored.station, 'حار');
+    });
+
+    test('station defaults to empty and is omitted from the record', () {
+      const item =
+          OrderItem(productId: 'p1', name: 'برجر', unitPrice: 45.5, quantity: 2);
+      expect(item.station, isEmpty);
+      expect(item.toRecord().containsKey('station'), isFalse);
+      expect(OrderItem.fromRecord(item.toRecord()).station, isEmpty);
     });
   });
 

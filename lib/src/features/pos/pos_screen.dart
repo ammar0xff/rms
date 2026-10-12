@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
+import '../../core/logging/app_logger.dart';
 import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -12,6 +15,7 @@ import '../../data/mock/mock_data.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
+import '../../domain/services/kitchen_ticket_factory.dart';
 import '../common/format.dart';
 
 /// A line in the POS cart, keyed by the cached menu item identity.
@@ -122,6 +126,7 @@ class _PosScreenState extends State<PosScreen> {
           name: line.item.name,
           unitPrice: line.item.price,
           quantity: line.quantity,
+          station: line.item.station,
         ),
     ];
     setState(() => _submitting = true);
@@ -133,11 +138,14 @@ class _PosScreenState extends State<PosScreen> {
         ),
       );
       if (!mounted) return;
+      await _dispatchToKitchen(services, order);
+      if (!mounted) return;
       setState(() {
         _cart.clear();
         _submitting = false;
       });
       services.sync?.requestSync();
+      unawaited(SyncMonitor.instance.refresh());
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -152,6 +160,37 @@ class _PosScreenState extends State<PosScreen> {
         const SnackBar(content: Text('فشل إنشاء الطلب، حاول مرة أخرى')),
       );
     }
+  }
+
+  /// Routes a freshly created order to the kitchen display and printer. Best
+  /// effort: a failure here never invalidates the order that was already saved.
+  Future<void> _dispatchToKitchen(AppServices services, Order order) async {
+    final tickets = KitchenTicketFactory().fromOrder(order);
+    try {
+      final kitchen = services.kitchen;
+      if (kitchen != null) {
+        for (final ticket in tickets) {
+          await kitchen.upsertTicket(ticket);
+        }
+      }
+    } catch (error, stackTrace) {
+      AppLogger.error('Failed to queue kitchen tickets', error, stackTrace);
+    }
+    final print = services.print;
+    if (print == null) return;
+    for (final ticket in tickets) {
+      unawaited(print.printKitchenTicket(ticket));
+    }
+    unawaited(print.printReceipt(
+      order.provisionalOrderNumber,
+      {
+        'total': order.total,
+        'items': [
+          for (final item in order.items)
+            {'name': item.name, 'qty': item.quantity, 'price': item.unitPrice},
+        ],
+      },
+    ));
   }
 
   @override
