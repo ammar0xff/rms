@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
@@ -25,10 +26,19 @@ class _KitchenScreenState extends State<KitchenScreen> {
   String _station = 'الكل';
   List<KitchenTicketModel> _tickets = const [];
 
+  StreamSubscription<dynamic>? _syncSub;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _syncSub = SyncMonitor.instance.addListener(_load);
+  }
+
+  @override
+  void dispose() {
+    _syncSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
