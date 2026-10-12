@@ -26,18 +26,17 @@ class _KitchenScreenState extends State<KitchenScreen> {
   String _station = 'الكل';
   List<KitchenTicketModel> _tickets = const [];
 
-  StreamSubscription<dynamic>? _syncSub;
 
   @override
   void initState() {
     super.initState();
     _load();
-    _syncSub = SyncMonitor.instance.addListener(_load);
+    SyncMonitor.instance.addListener(_load);
   }
 
   @override
   void dispose() {
-    _syncSub?.cancel();
+    SyncMonitor.instance.removeListener(_load);
     super.dispose();
   }
 
