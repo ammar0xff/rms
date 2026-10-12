@@ -32,7 +32,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
   Future<void> _load() async {
     final kitchen = AppScope.of(context).kitchen;
     if (kitchen == null) return;
-    final tickets = await kitchen.allTickets();
+    final tickets = await kitchen.listTickets();
     if (!mounted) return;
     setState(() => _tickets = tickets);
   }
@@ -192,7 +192,7 @@ class _KdsColumn extends StatelessWidget {
 class _TicketCard extends StatelessWidget {
   const _TicketCard({required this.ticket, required this.onTransition});
 
-  final ValueChanged<TicketState> onTransition;
+  final void Function(KitchenTicketModel ticket, TicketState next) onTransition;
 
   final KitchenTicketModel ticket;
 
