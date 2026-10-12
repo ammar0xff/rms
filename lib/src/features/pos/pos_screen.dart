@@ -579,7 +579,7 @@ class _OfflineBanner extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'وضع العمل دون اتصال — قائمة مخزنة محليًا (آخر مزامنة قبل دقيقتين). تُحفظ الطلبات محليًا وتُزامن تلقائيًا.',
+                  'وضع العمل دون اتصال — قائمة مخزنة محليًا. تُحفظ الطلبات محليًا وتُزامن تلقائيًا عند استعادة الاتصال.',
                   style: AppText.caption.copyWith(color: AppColors.warning.withValues(alpha: 0.9)),
                 ),
               ),
