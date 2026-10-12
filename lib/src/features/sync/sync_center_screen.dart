@@ -12,7 +12,13 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../core/di/app_services.dart';
+import '../../data/services/print_service.dart';
+import '../../domain/services/print_adapter.dart';
+import '../../data/services/print_service.dart';
+import '../../domain/services/print_adapter.dart';
 import '../../data/mock/mock_data.dart';
+import '../../data/services/print_service.dart';
+import '../../domain/services/print_adapter.dart';
 
 (String, StatusTone) _opStatus(String s) => switch (s) {
       'pending' => ('قيد الانتظار', StatusTone.warning),
@@ -69,6 +75,8 @@ class SyncCenterScreen extends StatelessWidget {
             ]);
           },
         ),
+        const SizedBox(height: AppSpacing.xl),
+        _PrintQueueSection(),
         const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -77,6 +85,8 @@ class SyncCenterScreen extends StatelessWidget {
             Expanded(child: _SequenceCard()),
           ],
         ),
+        const SizedBox(height: AppSpacing.xl),
+        _PrintQueueSection(),
         const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -221,6 +231,62 @@ class _PolicyCard extends StatelessWidget {
           Text(body, style: AppText.body),
         ],
       ),
+    );
+  }
+}
+
+extension _PrintExt on PrintService {
+  List<PrintJob> get recent => jobs.take(10).toList(growable: false);
+}
+
+class _PrintQueueSection extends StatelessWidget {
+  const _PrintQueueSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final printSvc = AppScope.of(context).print ?? PrintService();
+    return StreamBuilder<List<PrintJob>>(
+      stream: printSvc.jobsStream,
+      initialData: printSvc.jobs,
+      builder: (context, snapshot) {
+        final jobs = snapshot.data ?? const [];
+        return SurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.print_rounded, size: 16, color: AppColors.fgMuted),
+                  const SizedBox(width: 6),
+                  Text('طابور الطباعة (محلي)', style: AppText.sectionHeading),
+                  const Spacer(),
+                  Text('${jobs.length}', style: AppText.caption),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (jobs.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
+                )
+              else
+                RmsTable(
+                  columns: const ['المعرف', 'النوع', 'المرجع', 'الوقت'],
+                  rows: jobs.reversed.take(10).map((j) {
+                    final payload = j.payload;
+                    final ref = payload['orderRef'] ?? payload['id'] ?? '-';
+                    return [
+                      j.id,
+                      j.type,
+                      '$ref',
+                      j.createdAt?.toIso8601String().substring(11, 16) ?? '-',
+                    ];
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
