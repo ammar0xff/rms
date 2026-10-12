@@ -83,10 +83,10 @@ class SyncCenterScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         const _PrintQueueSection(),
-        Row(
+        const Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: const _PolicyCard(
+            Expanded(child: _PolicyCard(
               title: 'التكرار الآمن',
               icon: Icons.fingerprint,
               body: 'يحمل كل أمر مفتاح تكرار آمن ثابت. يحتفظ الخادم بإيصالات العمليات ويعيد النتيجة القائمة للطلبات المكررة — يطبَّق على الطلبات والمدفوعات والاستردادات والتذاكر والإسنادات والتحصيلات والمخزون.',
