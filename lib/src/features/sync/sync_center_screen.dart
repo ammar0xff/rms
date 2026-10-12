@@ -14,11 +14,7 @@ import '../../core/widgets/surface_card.dart';
 import '../../core/di/app_services.dart';
 import '../../data/services/print_service.dart';
 import '../../domain/services/print_adapter.dart';
-import '../../data/services/print_service.dart';
-import '../../domain/services/print_adapter.dart';
 import '../../data/mock/mock_data.dart';
-import '../../data/services/print_service.dart';
-import '../../domain/services/print_adapter.dart';
 
 (String, StatusTone) _opStatus(String s) => switch (s) {
       'pending' => ('قيد الانتظار', StatusTone.warning),
@@ -235,9 +231,6 @@ class _PolicyCard extends StatelessWidget {
   }
 }
 
-extension _PrintExt on PrintService {
-  List<PrintJob> get recent => jobs.take(10).toList(growable: false);
-}
 
 class _PrintQueueSection extends StatelessWidget {
   const _PrintQueueSection();
@@ -271,15 +264,20 @@ class _PrintQueueSection extends StatelessWidget {
                 )
               else
                 RmsTable(
-                  columns: const ['المعرف', 'النوع', 'المرجع', 'الوقت'],
+                  columns: const [
+                    RmsColumn(label: 'المعرف'),
+                    RmsColumn(label: 'النوع'),
+                    RmsColumn(label: 'المرجع'),
+                    RmsColumn(label: 'الوقت'),
+                  ],
                   rows: jobs.reversed.take(10).map((j) {
                     final payload = j.payload;
                     final ref = payload['orderRef'] ?? payload['id'] ?? '-';
                     return [
-                      j.id,
-                      j.type,
-                      '$ref',
-                      j.createdAt?.toIso8601String().substring(11, 16) ?? '-',
+                      Text(j.id),
+                      Text(j.type),
+                      Text('$ref'),
+                      Text(j.createdAt?.toIso8601String().substring(11, 16) ?? '-'),
                     ];
                   }).toList(),
                 ),
