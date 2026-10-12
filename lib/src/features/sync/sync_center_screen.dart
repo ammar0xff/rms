@@ -119,7 +119,7 @@ class _OutboxTable extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
               title: 'عمليات صندوق الصادر',
-              trailing: const StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
+              trailing: StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
             ),
           ),
           RmsTable(
