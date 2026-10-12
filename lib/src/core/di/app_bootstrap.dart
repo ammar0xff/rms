@@ -22,7 +22,6 @@ import '../../data/sync/sync_engine.dart';
 import '../../data/sync/sync_service.dart';
 import '../../data/services/print_service.dart';
 import '../state/sync_monitor.dart';
-import '../../data/services/print_service.dart';
 
 /// Resolves the app's dependencies. When Firebase is configured and reachable
 /// the backend repositories are used; otherwise the app degrades to a fully
