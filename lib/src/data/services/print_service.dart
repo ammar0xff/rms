@@ -15,9 +15,9 @@ class PrintService {
   Future<void> queueJob(PrintJob job) => _adapter.queueJob(job);
 
   List<PrintJob> get jobs =>
-      _adapter is LocalPrintAdapter ? (_adapter as LocalPrintAdapter).jobs : const [];
+      _adapter is LocalPrintAdapter ? _adapter.jobs : const [];
   Stream<List<PrintJob>> get jobsStream =>
       _adapter is LocalPrintAdapter
-          ? (_adapter as LocalPrintAdapter).jobsStream
+          ? _adapter.jobsStream
           : const Stream.empty();
 }
