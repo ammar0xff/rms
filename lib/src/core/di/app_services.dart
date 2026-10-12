@@ -7,6 +7,7 @@ import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/sync/sync_service.dart';
+import '../../data/services/print_service.dart';
 
 /// Process-wide dependencies resolved once at startup.
 class AppServices {
@@ -19,6 +20,7 @@ class AppServices {
     this.menu,
     this.kitchen,
     this.sync,
+    this.print,
   });
 
 
@@ -42,6 +44,9 @@ class AppServices {
 
   /// Connectivity-driven sync loop, or null when there is no backend/store.
   final SyncService? sync;
+
+  /// Local print service (stub).
+  final PrintService? print;
 
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;
