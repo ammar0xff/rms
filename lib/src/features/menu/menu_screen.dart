@@ -11,6 +11,12 @@ import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/mock/mock_data.dart';
 import '../common/format.dart';
+import '../../core/di/app_services.dart';
+import '../../domain/models/menu_item.dart';
+import '../../core/di/app_services.dart';
+import '../../domain/models/menu_item.dart';
+import '../../core/di/app_services.dart';
+import '../../domain/models/menu_item.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -21,15 +27,30 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   String _category = 'الكل';
+  List<MenuItemModel> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final menu = AppScope.of(context).menu;
+    if (menu == null) return;
+    final items = await menu.listMenu();
+    if (!mounted) return;
+    setState(() => _items = items);
+  }
 
   List<String> get _categories =>
-      ['الكل', ...{for (final m in MockData.menu) m.category}];
+      ['الكل', ...{for (final m in _items) m.category}];
 
   @override
   Widget build(BuildContext context) {
     final items = _category == 'الكل'
-        ? MockData.menu
-        : MockData.menu.where((m) => m.category == _category).toList();
+        ? _items
+        : _items.where((m) => m.category == _category).toList();
 
     return PageBody(
       children: [
@@ -42,7 +63,7 @@ class _MenuScreenState extends State<MenuScreen> {
             const Spacer(),
             const Tag(label: 'الإعدادات v24', tone: StatusTone.neutral),
             const SizedBox(width: 8),
-            const StatusText(label: 'مزامنة قبل دقيقتين', tone: StatusTone.positive),
+            const StatusText(label: 'آخر مزامنة', tone: StatusTone.positive),
             const SizedBox(width: 12),
             RmsButton(label: 'صنف جديد', icon: Icons.add, onPressed: () {}),
           ],
