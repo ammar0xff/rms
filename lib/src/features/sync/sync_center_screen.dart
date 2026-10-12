@@ -73,17 +73,17 @@ class SyncCenterScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         const _PrintQueueSection(),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: const _OutboxTable()),
+            Expanded(flex: 2, child: _OutboxTable()),
             SizedBox(width: AppSpacing.lg),
-            Expanded(child: const _SequenceCard()),
+            Expanded(child: _SequenceCard()),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
         const _PrintQueueSection(),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: _PolicyCard(
@@ -122,7 +122,7 @@ class _OutboxTable extends StatelessWidget {
               trailing: const StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
             ),
           ),
-          const RmsTable(
+          RmsTable(
             columns: [
               RmsColumn('العملية', flex: 2),
               RmsColumn('الكيان', flex: 3),
@@ -260,10 +260,10 @@ class _PrintQueueSection extends StatelessWidget {
               if (jobs.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(16),
-                  child: const Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
+                  child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
                 )
               else
-                const RmsTable(
+                RmsTable(
                   columns: [
                     RmsColumn('المعرف'),
                     RmsColumn('النوع'),
