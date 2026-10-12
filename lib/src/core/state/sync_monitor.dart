@@ -1,24 +1,69 @@
 import 'package:flutter/foundation.dart';
 
+import '../../data/local/outbox/outbox_entry.dart';
+import '../../data/local/outbox/outbox_status.dart';
+import '../../data/local/outbox/outbox_store.dart';
+import '../../data/sync/sync_service.dart';
+
 class SyncMonitor extends ChangeNotifier {
   SyncMonitor._();
   static final SyncMonitor instance = SyncMonitor._();
 
-  bool online = false;
-  int pending = 24;
-  int failed = 3;
-  int conflicts = 2;
-  Duration sinceLastSync = const Duration(minutes: 12);
+  SyncService? _sync;
+  OutboxStore? _outbox;
+
+  bool _online = false;
+  int _pending = 0;
+  int _failed = 0;
+  int _conflicts = 0;
+  DateTime? _lastSyncAt;
+
+  bool get online => _online;
+  int get pending => _pending;
+  int get failed => _failed;
+  int get conflicts => _conflicts;
+  Duration get sinceLastSync => _lastSyncAt == null
+      ? Duration.zero
+      : DateTime.now().difference(_lastSyncAt!);
+
+  void attach({SyncService? sync, OutboxStore? outbox}) {
+    _sync = sync;
+    _outbox = outbox;
+    refresh();
+  }
+
+  Future<void> refresh() async {
+    _online = _sync?.isOnline ?? false;
+    if (_outbox != null) {
+      final entries = await _outbox!.all();
+      _pending = entries
+          .where((e) =>
+              e.syncStatus == OutboxStatus.pending ||
+              e.syncStatus == OutboxStatus.retryableFailure ||
+              e.syncStatus == OutboxStatus.inProgress)
+          .length;
+      _failed = entries.where((e) => e.syncStatus == OutboxStatus.permanentFailure).length;
+      _conflicts = entries.where((e) => e.syncStatus == OutboxStatus.conflict).length;
+      final synced = entries.where((e) => e.syncStatus == OutboxStatus.synced);
+      if (synced.isNotEmpty) {
+        _lastSyncAt = synced.map((e) => e.lastAttemptAt ?? e.createdAt).reduce((a, b) => a.isAfter(b) ? a : b);
+      } else {
+        _lastSyncAt = null;
+      }
+    }
+    notifyListeners();
+  }
 
   void toggleConnectivity() {
-    online = !online;
+    _online = !_online;
     notifyListeners();
   }
 
   void simulateSync() {
-    pending = 0;
-    failed = 0;
-    sinceLastSync = Duration.zero;
+    _pending = 0;
+    _failed = 0;
+    _conflicts = 0;
+    _lastSyncAt = DateTime.now();
     notifyListeners();
   }
 }

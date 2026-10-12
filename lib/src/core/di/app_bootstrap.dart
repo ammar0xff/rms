@@ -20,6 +20,7 @@ import '../../data/sync/firestore_sync_transport.dart';
 import '../../data/sync/sync_coordinator.dart';
 import '../../data/sync/sync_engine.dart';
 import '../../data/sync/sync_service.dart';
+import '../state/sync_monitor.dart';
 
 /// Resolves the app's dependencies. When Firebase is configured and reachable
 /// the backend repositories are used; otherwise the app degrades to a fully
@@ -67,6 +68,9 @@ Future<AppServices> _resolveAuth(
     AppLogger.info('Firebase initialized (env=${config.environment}).');
     final sync = _buildSync(outbox, orders);
     if (sync != null) unawaited(sync.start());
+    try {
+      SyncMonitor.instance.attach(sync: sync, outbox: outbox);
+    } catch (_) {}
     return AppServices(
       config: config,
       auth: FirebaseAuthRepository(),
