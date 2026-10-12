@@ -25,13 +25,22 @@ class KitchenScreen extends StatefulWidget {
 class _KitchenScreenState extends State<KitchenScreen> {
   String _station = 'الكل';
   List<KitchenTicketModel> _tickets = const [];
-
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
     SyncMonitor.instance.addListener(_load);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // AppScope is an inherited widget, so the first read has to happen here
+    // rather than in initState.
+    if (_initialized) return;
+    _initialized = true;
+    _load();
   }
 
   @override
@@ -41,6 +50,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     final kitchen = AppScope.of(context).kitchen;
     if (kitchen == null) return;
     final tickets = await kitchen.listTickets();

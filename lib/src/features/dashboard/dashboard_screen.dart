@@ -30,12 +30,22 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Order> _orders = const [];
   bool _hasRepo = false;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    _load();
     SyncMonitor.instance.addListener(_load);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // AppScope is an inherited widget, so the first read has to happen here
+    // rather than in initState.
+    if (_initialized) return;
+    _initialized = true;
+    _load();
   }
 
   @override
@@ -47,10 +57,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Reads local orders. When no store is available the screen falls back to
   /// demo figures so the layout is still meaningful.
   Future<void> _load() async {
+    if (!mounted) return;
     final orders = AppScope.of(context).orders;
     if (orders == null) {
-      if (!mounted) return;
-      setState(() => _hasRepo = false);
+      _hasRepo = false;
       return;
     }
     final list = await orders.listOrders();
