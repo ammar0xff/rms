@@ -86,8 +86,10 @@ class _KitchenScreenState extends State<KitchenScreen> {
           ],
         ),
         Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (final state in [TicketState.queued, TicketState.preparing, TicketState.ready])
                 Expanded(
