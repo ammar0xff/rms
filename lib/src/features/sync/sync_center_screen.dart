@@ -73,7 +73,7 @@ class SyncCenterScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         const _PrintQueueSection(),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: 2, child: _OutboxTable()),
@@ -83,7 +83,7 @@ class SyncCenterScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         const _PrintQueueSection(),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: _PolicyCard(
@@ -115,8 +115,8 @@ class _OutboxTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
               title: 'عمليات صندوق الصادر',
               trailing: const StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
@@ -258,8 +258,8 @@ class _PrintQueueSection extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               if (jobs.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(16),
+                Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
                 )
               else
