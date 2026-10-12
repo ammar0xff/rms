@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
@@ -259,19 +261,36 @@ class _TicketCard extends StatelessWidget {
                           ? TicketState.preparing
                           : TicketState.ready;
                       onTransition(ticket, next);
+                      if (ticket.state == TicketState.queued) {
+                        final print = AppScope.of(context).print;
+                        if (print != null) {
+                          unawaited(print.printKitchenTicket(ticket.copyWith(state: next)));
+                        }
+                      }
                     },
                   )
                 else
-                  RmsButton(
-                    label: 'تم التقديم',
-                    icon: Icons.check_rounded,
-                    variant: BtnVariant.primary,
-                    onPressed: () {
-                      final next = ticket.state == TicketState.queued
-                          ? TicketState.preparing
-                          : TicketState.ready;
-                      onTransition(ticket, next);
-                    },
+                  Row(
+                    children: [
+                      RmsButton(
+                        label: 'إعادة طباعة',
+                        icon: Icons.print_rounded,
+                        variant: BtnVariant.ghost,
+                        onPressed: () {
+                          final print = AppScope.of(context).print;
+                          if (print != null) {
+                            print.printKitchenTicket(ticket);
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      RmsButton(
+                        label: 'تم التقديم',
+                        icon: Icons.check_rounded,
+                        variant: BtnVariant.primary,
+                        onPressed: () {},
+                      ),
+                    ],
                   ),
               ],
             ),
