@@ -50,12 +50,16 @@ class OutboxStore {
         (e) => e.copyWith(syncStatus: OutboxStatus.inProgress),
       );
 
-  Future<void> markSynced(String operationId) => _update(
+  Future<void> markSynced(String operationId, {Map<String, dynamic>? ack}) =>
+      _update(
         operationId,
         (e) => e.copyWith(
           syncStatus: OutboxStatus.synced,
           lastAttemptAt: DateTime.now(),
           clearLastError: true,
+          payload: (ack == null || ack.isEmpty)
+              ? null
+              : {...e.payload, ...ack},
         ),
       );
 

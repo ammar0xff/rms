@@ -37,13 +37,14 @@ class OutboxEntry {
     DateTime? lastAttemptAt,
     String? lastError,
     bool clearLastError = false,
+    Map<String, dynamic>? payload,
   }) {
     return OutboxEntry(
       operationId: operationId,
       entityType: entityType,
       entityId: entityId,
       operationType: operationType,
-      payload: payload,
+      payload: payload ?? this.payload,
       schemaVersion: schemaVersion,
       idempotencyKey: idempotencyKey,
       createdAt: createdAt,

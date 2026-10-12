@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../core/di/app_services.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
@@ -9,10 +13,62 @@ import '../../core/widgets/primitives.dart';
 import '../../core/widgets/rms_table.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
-import '../../data/mock/mock_data.dart';
+import '../../data/local/outbox/outbox_entry.dart';
+import '../../data/local/outbox/outbox_status.dart';
 
-class ConflictsScreen extends StatelessWidget {
+class ConflictsScreen extends StatefulWidget {
   const ConflictsScreen({super.key});
+
+  @override
+  State<ConflictsScreen> createState() => _ConflictsScreenState();
+}
+
+class _ConflictsScreenState extends State<ConflictsScreen> {
+  List<OutboxEntry> _conflicts = const [];
+  bool _loaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loaded) return;
+    _loaded = true;
+    _load();
+  }
+
+  Future<void> _load() async {
+    final services = AppScope.of(context);
+    final outbox = services.outbox;
+    final conflicts = outbox == null
+        ? const <OutboxEntry>[]
+        : (await outbox.all())
+            .where((e) =>
+                e.syncStatus == OutboxStatus.conflict ||
+                e.syncStatus == OutboxStatus.requiresUserAction ||
+                e.syncStatus == OutboxStatus.permanentlyRejected)
+            .toList();
+    if (!mounted) return;
+    setState(() => _conflicts = conflicts);
+  }
+
+  /// Re-queues a stalled entry so the next sync pass retries it.
+  Future<void> _resolve(OutboxEntry entry) async {
+    final services = AppScope.of(context);
+    final outbox = services.outbox;
+    final messenger = ScaffoldMessenger.of(context);
+    if (outbox == null) return;
+    await outbox.save(entry.copyWith(
+      syncStatus: OutboxStatus.pending,
+      attemptCount: 0,
+      clearLastError: true,
+    ));
+    await _load();
+    unawaited(SyncMonitor.instance.refresh());
+    services.sync?.requestSync();
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text('أُعيد إدراج العملية ${entry.entityType}/${entry.entityId} للمزامنة')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,15 +81,18 @@ class ConflictsScreen extends StatelessWidget {
               subtitle: 'تُكتشف عند المزامنة · التعارضات المالية تتطلب مراجعة',
             ),
             const Spacer(),
-            const Tag(label: '2 غير محلولة', tone: StatusTone.negative),
+            Tag(
+              label: '${_conflicts.length} غير محلولة',
+              tone: _conflicts.isEmpty ? StatusTone.positive : StatusTone.negative,
+            ),
           ],
         ),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: _ConflictList()),
-            SizedBox(width: AppSpacing.lg),
-            Expanded(child: _StrategyCard()),
+            Expanded(flex: 2, child: _conflictList()),
+            const SizedBox(width: AppSpacing.lg),
+            const Expanded(child: _StrategyCard()),
           ],
         ),
         const SurfaceCard(
@@ -54,13 +113,8 @@ class ConflictsScreen extends StatelessWidget {
       ],
     );
   }
-}
 
-class _ConflictList extends StatelessWidget {
-  const _ConflictList();
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _conflictList() {
     return SurfaceCard(
       padding: EdgeInsets.zero,
       clip: true,
@@ -71,9 +125,14 @@ class _ConflictList extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(title: 'غير محلولة'),
           ),
-          for (var i = 0; i < MockData.conflicts.length; i++) ...[
-            _ConflictTile(row: MockData.conflicts[i]),
-            if (i != MockData.conflicts.length - 1)
+          if (_conflicts.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+              child: Text('لا توجد تعارضات بانتظار الحل.', style: AppText.caption),
+            ),
+          for (var i = 0; i < _conflicts.length; i++) ...[
+            _ConflictTile(entry: _conflicts[i], onResolve: () => _resolve(_conflicts[i])),
+            if (i != _conflicts.length - 1)
               const Divider(height: 1, indent: 20, endIndent: 20, color: AppColors.borderFaint),
           ],
           const SizedBox(height: 8),
@@ -84,15 +143,29 @@ class _ConflictList extends StatelessWidget {
 }
 
 class _ConflictTile extends StatelessWidget {
-  const _ConflictTile({required this.row});
+  const _ConflictTile({required this.entry, required this.onResolve});
 
-  final ConflictRow row;
+  final OutboxEntry entry;
+  final VoidCallback onResolve;
 
-  StatusTone get _tone => switch (row.severity) {
-        'مالي' => StatusTone.negative,
-        'إسناد' => StatusTone.warning,
-        'مخزون' => StatusTone.warning,
-        _ => StatusTone.neutral,
+  StatusTone get _tone {
+    switch (entry.entityType) {
+      case 'payment':
+      case 'order':
+      case 'settlement':
+        return StatusTone.negative;
+      case 'delivery':
+      case 'inventory':
+        return StatusTone.warning;
+      default:
+        return StatusTone.neutral;
+    }
+  }
+
+  String get _severity => switch (_tone) {
+        StatusTone.negative => 'مالي',
+        StatusTone.warning => 'تشغيلي',
+        _ => 'عام',
       };
 
   @override
@@ -109,20 +182,22 @@ class _ConflictTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(row.id, style: AppText.mono.copyWith(fontSize: 10.5)),
+                    Text(entry.entityId, style: AppText.mono.copyWith(fontSize: 10.5)),
                     const SizedBox(width: 8),
-                    Tag(label: row.severity.toUpperCase(), tone: _tone),
+                    Tag(label: _severity, tone: _tone),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(row.entity, style: AppText.tableCellPrimary),
-                Text('${row.type} · اكتُشف ${row.detectedAt}', style: AppText.caption.copyWith(fontSize: 10)),
+                Text('${entry.entityType} · ${entry.operationType}',
+                    style: AppText.tableCellPrimary),
+                Text(
+                  '${entry.lastError ?? 'بانتظار المراجعة'} · ${entry.attemptCount} محاولات',
+                  style: AppText.caption.copyWith(fontSize: 10),
+                ),
               ],
             ),
           ),
-          const RmsButton(label: 'مقارنة', onPressed: null),
-          const SizedBox(width: 8),
-          const RmsButton(label: 'حل', variant: BtnVariant.primary, onPressed: null),
+          RmsButton(label: 'حل', variant: BtnVariant.primary, onPressed: onResolve),
         ],
       ),
     );

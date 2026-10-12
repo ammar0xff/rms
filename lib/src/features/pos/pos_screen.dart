@@ -15,6 +15,8 @@ import '../../data/mock/mock_data.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
+import '../../domain/models/order_type.dart';
+import '../../domain/models/payment.dart';
 import '../../domain/services/kitchen_ticket_factory.dart';
 import '../common/format.dart';
 
@@ -27,6 +29,14 @@ class CartLine {
   String? note;
 
   double get total => item.price * quantity;
+}
+
+/// The result of the POS payment dialog.
+class _PaymentInput {
+  const _PaymentInput({required this.method, this.tendered});
+
+  final PaymentMethod method;
+  final double? tendered;
 }
 
 class PosScreen extends StatefulWidget {
@@ -42,11 +52,14 @@ class _PosScreenState extends State<PosScreen> {
   int _orderType = 0;
   bool _submitting = false;
   List<MenuItemModel> _items = const [];
-  static const _orderTypes = ['داخل الصالة', 'الاستلام', 'توصيل'];
+  bool _loaded = false;
+  static final _orderTypes = [for (final t in OrderType.values) t.label];
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loaded) return;
+    _loaded = true;
     _load();
   }
 
@@ -109,7 +122,17 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
-  Future<void> _submitOrder() async {
+  Future<void> _collect() async {
+    if (_cart.isEmpty || _submitting) return;
+    final input = await showDialog<_PaymentInput>(
+      context: context,
+      builder: (_) => _PaymentDialog(total: _total),
+    );
+    if (input == null) return;
+    await _submitOrder(payment: input);
+  }
+
+  Future<void> _submitOrder({_PaymentInput? payment}) async {
     final services = AppScope.of(context);
     final orders = services.orders;
     final messenger = ScaffoldMessenger.of(context);
@@ -119,6 +142,9 @@ class _PosScreenState extends State<PosScreen> {
       );
       return;
     }
+    final total = _total;
+    final orderType = OrderType.values[_orderType];
+    final offline = services.sync?.isOnline == false;
     final items = [
       for (final line in _cart)
         OrderItem(
@@ -132,11 +158,15 @@ class _PosScreenState extends State<PosScreen> {
     setState(() => _submitting = true);
     try {
       final order = await orders.createOrder(
-        OrderDraft(
-          items: items,
-          createdOffline: services.sync?.isOnline == false,
-        ),
+        OrderDraft(items: items, createdOffline: offline, orderType: orderType),
       );
+      if (!mounted) return;
+      if (payment != null) {
+        await _recordPayment(services, order, payment, total, offline);
+      }
+      if (orderType == OrderType.delivery) {
+        await _createDelivery(services, order, offline);
+      }
       if (!mounted) return;
       await _dispatchToKitchen(services, order);
       if (!mounted) return;
@@ -149,7 +179,9 @@ class _PosScreenState extends State<PosScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'تم إنشاء الطلب ${order.provisionalOrderNumber} · يُزامَن عند الاتصال',
+            payment == null
+                ? 'تم إنشاء الطلب ${order.provisionalOrderNumber} · يُزامَن عند الاتصال'
+                : 'تم تحصيل ${money(total)} (${payment.method.label}) · ${order.provisionalOrderNumber}',
           ),
         ),
       );
@@ -159,6 +191,53 @@ class _PosScreenState extends State<PosScreen> {
       messenger.showSnackBar(
         const SnackBar(content: Text('فشل إنشاء الطلب، حاول مرة أخرى')),
       );
+    }
+  }
+
+  /// Records the collected payment. Best effort: the order is already saved, so
+  /// a payment failure is logged rather than surfaced as an order failure.
+  Future<void> _recordPayment(
+    AppServices services,
+    Order order,
+    _PaymentInput payment,
+    double total,
+    bool offline,
+  ) async {
+    final payments = services.payments;
+    if (payments == null) return;
+    try {
+      await payments.recordPayment(
+        PaymentDraft(
+          orderLocalId: order.localId,
+          orderRef: order.provisionalOrderNumber,
+          amount: total,
+          method: payment.method,
+          tendered: payment.tendered,
+          createdOffline: offline,
+        ),
+      );
+    } catch (error, stackTrace) {
+      AppLogger.error('Failed to record payment', error, stackTrace);
+    }
+  }
+
+  /// Creates the delivery job for a delivery order. Best effort.
+  Future<void> _createDelivery(
+    AppServices services,
+    Order order,
+    bool offline,
+  ) async {
+    final deliveries = services.deliveries;
+    if (deliveries == null) return;
+    try {
+      await deliveries.createDelivery(
+        orderRef: order.provisionalOrderNumber,
+        address: 'يُحدد عند التسليم',
+        amount: order.total,
+        createdOffline: offline,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.error('Failed to create delivery job', error, stackTrace);
     }
   }
 
@@ -216,7 +295,8 @@ class _PosScreenState extends State<PosScreen> {
           onType: (i) => setState(() => _orderType = i),
           onAdd: _add,
           onDec: _dec,
-          onSubmit: _submitOrder,
+          onSend: () => _submitOrder(),
+          onCollect: _collect,
         );
 
         if (narrow) {
@@ -438,7 +518,8 @@ class _CartPane extends StatelessWidget {
     required this.onType,
     required this.onAdd,
     required this.onDec,
-    required this.onSubmit,
+    required this.onSend,
+    required this.onCollect,
   });
 
   final List<CartLine> cart;
@@ -451,7 +532,8 @@ class _CartPane extends StatelessWidget {
   final ValueChanged<int> onType;
   final ValueChanged<MenuItemModel> onAdd;
   final ValueChanged<CartLine> onDec;
-  final VoidCallback onSubmit;
+  final VoidCallback onSend;
+  final VoidCallback onCollect;
 
   @override
   Widget build(BuildContext context) {
@@ -553,7 +635,7 @@ class _CartPane extends StatelessWidget {
                         label: 'إرسال للمطبخ',
                         icon: Icons.send_rounded,
                         variant: BtnVariant.secondary,
-                        onPressed: (cart.isEmpty || submitting) ? null : onSubmit,
+                        onPressed: (cart.isEmpty || submitting) ? null : onSend,
                         dense: false,
                       ),
                     ),
@@ -564,7 +646,7 @@ class _CartPane extends StatelessWidget {
                   label: 'تحصيل ${money(total)}',
                   icon: Icons.payments_outlined,
                   variant: BtnVariant.primary,
-                  onPressed: (cart.isEmpty || submitting) ? null : onSubmit,
+                  onPressed: (cart.isEmpty || submitting) ? null : onCollect,
                   dense: false,
                 ),
               ],
@@ -675,6 +757,136 @@ class _OfflineBanner extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Collects the payment method and (for cash) the amount tendered.
+///
+/// Returns a [_PaymentInput] when confirmed, or null when dismissed.
+class _PaymentDialog extends StatefulWidget {
+  const _PaymentDialog({required this.total});
+
+  final double total;
+
+  @override
+  State<_PaymentDialog> createState() => _PaymentDialogState();
+}
+
+class _PaymentDialogState extends State<_PaymentDialog> {
+  final _tendered = TextEditingController();
+  PaymentMethod _method = PaymentMethod.cash;
+
+  static final _methods = [for (final m in PaymentMethod.values) m.label];
+
+  @override
+  void initState() {
+    super.initState();
+    _tendered.text = widget.total.toStringAsFixed(2);
+  }
+
+  @override
+  void dispose() {
+    _tendered.dispose();
+    super.dispose();
+  }
+
+  double? get _tenderedValue => double.tryParse(_tendered.text.trim());
+
+  double? get _change {
+    if (_method != PaymentMethod.cash) return null;
+    final given = _tenderedValue;
+    if (given == null) return null;
+    final change = given - widget.total;
+    return change < 0 ? null : change;
+  }
+
+  bool get _canConfirm {
+    if (_method != PaymentMethod.cash) return true;
+    final given = _tenderedValue;
+    return given != null && given >= widget.total;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: Text('تحصيل ${money(widget.total)}'),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Segmented(
+              options: _methods,
+              index: PaymentMethod.values.indexOf(_method),
+              onChanged: (i) => setState(() => _method = PaymentMethod.values[i]),
+            ),
+            const SizedBox(height: 16),
+            if (_method == PaymentMethod.cash) ...[
+              TextField(
+                controller: _tendered,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                style: AppText.body.copyWith(color: AppColors.fgBright),
+                decoration: InputDecoration(
+                  labelText: 'المبلغ المستلم',
+                  labelStyle: AppText.caption,
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Expanded(child: Text('الباقي', style: AppText.bodyStrong)),
+                  Text(
+                    _change == null ? '—' : money(_change!),
+                    style: AppText.bodyStrong.copyWith(
+                      color: _change == null ? AppColors.negative : AppColors.positive,
+                    ),
+                  ),
+                ],
+              ),
+              if (_change == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'المبلغ المستلم أقل من الإجمالي',
+                    style: AppText.caption.copyWith(color: AppColors.negative),
+                  ),
+                ),
+            ] else
+              Text(
+                'سيتم تسجيل الدفعة على جهاز نقاط البيع.',
+                style: AppText.caption,
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'تأكيد التحصيل',
+          variant: BtnVariant.primary,
+          icon: Icons.payments_outlined,
+          onPressed: _canConfirm
+              ? () => Navigator.of(context).pop(
+                    _PaymentInput(
+                      method: _method,
+                      tendered: _method == PaymentMethod.cash ? _tenderedValue : null,
+                    ),
+                  )
+              : null,
+        ),
+      ],
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/di/app_services.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
@@ -39,6 +40,7 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
         const _FlagsCard(),
+        const _DiagnosticsCard(),
       ],
     );
   }
@@ -87,7 +89,7 @@ class _UpdateCard extends StatelessWidget {
           const SizedBox(height: 12),
           for (final (k, v) in const [
             ('قناة الإصدار', 'stable'),
-            ('الإصدار الحالي', '0.9.4'),
+            ('الإصدار الحالي', AppVersion.number),
             ('الحد الأدنى المدعوم', '0.9.0'),
             ('آخر فحص للإصدارات', '12:40'),
             ('مجموعة النشر', '25%'),
@@ -283,6 +285,69 @@ class _FlagRow extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Live, device-local diagnostics: store availability, outbox depth and the
+/// print queue. Unlike the server-driven flags, everything here is real.
+class _DiagnosticsCard extends StatelessWidget {
+  const _DiagnosticsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final services = AppScope.of(context);
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionHeader(
+            title: 'تشخيص النظام',
+            subtitle: 'حالة حية من هذا الجهاز · لا تعتمد على الخادم',
+          ),
+          const SizedBox(height: 12),
+          AnimatedBuilder(
+            animation: SyncMonitor.instance,
+            builder: (context, _) {
+              final m = SyncMonitor.instance;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  KeyValue(
+                    label: 'التخزين المحلي',
+                    value: services.hasLocalStore ? 'متاح' : 'غير متاح',
+                    mono: true,
+                  ),
+                  KeyValue(
+                    label: 'صندوق الصادر',
+                    value: services.outbox == null ? 'معطل' : 'نشط',
+                    mono: true,
+                  ),
+                  KeyValue(
+                    label: 'الاتصال',
+                    value: m.online ? 'متصل' : 'دون اتصال',
+                    mono: true,
+                  ),
+                  KeyValue(
+                    label: 'إجمالي عمليات الصادر',
+                    value: '${m.total}',
+                    mono: true,
+                  ),
+                  KeyValue(label: 'قيد الانتظار', value: '${m.pending}', mono: true),
+                  KeyValue(label: 'فشل دائم', value: '${m.failed}', mono: true),
+                  KeyValue(label: 'تعارضات', value: '${m.conflicts}', mono: true),
+                  KeyValue(label: 'تمت مزامنتها', value: '${m.synced}', mono: true),
+                  KeyValue(
+                    label: 'مهام الطباعة في الطابور',
+                    value: '${services.print?.jobs.length ?? 0}',
+                    mono: true,
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

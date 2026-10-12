@@ -13,4 +13,13 @@ abstract final class LocalStores {
 
   static final StoreRef<String, Map<String, Object?>> kitchenTickets =
       stringMapStoreFactory.store('kitchen_tickets');
+
+  static final StoreRef<String, Map<String, Object?>> payments =
+      stringMapStoreFactory.store('payments');
+
+  static final StoreRef<String, Map<String, Object?>> deliveries =
+      stringMapStoreFactory.store('deliveries');
+
+  static final StoreRef<String, Map<String, Object?>> drivers =
+      stringMapStoreFactory.store('drivers');
 }

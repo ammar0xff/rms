@@ -34,9 +34,10 @@ class _BlockingTransport implements SyncTransport {
   int calls = 0;
 
   @override
-  Future<void> push(OutboxEntry entry) async {
+  Future<Map<String, dynamic>> push(OutboxEntry entry) async {
     calls++;
     await _gate.future;
+    return const {};
   }
 
   void release() => _gate.complete();

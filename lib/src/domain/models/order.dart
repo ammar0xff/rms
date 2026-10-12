@@ -1,4 +1,5 @@
 import '../../data/local/outbox/outbox_status.dart';
+import 'order_type.dart';
 
 class Order {
   Order({
@@ -7,6 +8,7 @@ class Order {
     required this.items,
     required this.createdOffline,
     required this.createdAt,
+    this.orderType = OrderType.dineIn,
     this.serverId,
     this.canonicalOrderNumber,
     this.localRevision = 1,
@@ -19,6 +21,7 @@ class Order {
   final List<OrderItem> items;
   final bool createdOffline;
   final DateTime createdAt;
+  final OrderType orderType;
 
   String? serverId;
   String? canonicalOrderNumber;
@@ -35,6 +38,7 @@ class Order {
         'items': items.map((i) => i.toRecord()).toList(),
         'createdOffline': createdOffline,
         'createdAt': createdAt.toIso8601String(),
+        'orderType': orderType.name,
         'serverId': serverId,
         'canonicalOrderNumber': canonicalOrderNumber,
         'localRevision': localRevision,
@@ -52,6 +56,9 @@ class Order {
         createdAt: record['createdAt'] == null
             ? DateTime.fromMillisecondsSinceEpoch(0)
             : DateTime.parse(record['createdAt'] as String),
+        orderType: OrderType.values.byName(
+          record['orderType'] as String? ?? OrderType.dineIn.name,
+        ),
         serverId: record['serverId'] as String?,
         canonicalOrderNumber: record['canonicalOrderNumber'] as String?,
         localRevision: record['localRevision'] as int? ?? 1,

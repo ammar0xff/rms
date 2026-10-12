@@ -42,6 +42,7 @@ class LocalOrderRepository implements OrderRepository {
       items: draft.items,
       createdOffline: draft.createdOffline,
       createdAt: now,
+      orderType: draft.orderType,
       syncStatus: SyncStatus.pendingSync,
     );
     final entry = OutboxEntry(
@@ -52,6 +53,7 @@ class LocalOrderRepository implements OrderRepository {
       payload: {
         'localId': localId,
         'items': order.items.map((i) => i.toRecord()).toList(),
+        'orderType': order.orderType.name,
         'total': order.total,
       },
       schemaVersion: AppVersion.localSchemaVersion,

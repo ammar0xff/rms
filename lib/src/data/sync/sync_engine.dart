@@ -7,8 +7,12 @@ import 'retry_policy.dart';
 ///
 /// Implementations must be idempotent server-side: a repeated
 /// [OutboxEntry.idempotencyKey] must be accepted at most once.
+///
+/// The returned map is any server acknowledgement to fold back into the entry
+/// before it is marked synced, e.g. server-assigned ids such as `serverId` and
+/// `canonicalOrderNumber`. Return an empty map when there is nothing to add.
 abstract class SyncTransport {
-  Future<void> push(OutboxEntry entry);
+  Future<Map<String, dynamic>> push(OutboxEntry entry);
 }
 
 typedef OutboxAppliedHandler = Future<void> Function(OutboxEntry entry);
@@ -44,10 +48,13 @@ class SyncEngine {
       if (!_retryPolicy.shouldRetry(entry.attemptCount)) continue;
       await _outbox.markInProgress(entry.operationId);
       try {
-        await _transport.push(entry);
-        await _outbox.markSynced(entry.operationId);
+        final ack = await _transport.push(entry);
+        await _outbox.markSynced(entry.operationId, ack: ack);
         if (_onApplied != null) {
-          await _onApplied(entry);
+          final synced = ack.isEmpty
+              ? entry
+              : entry.copyWith(payload: {...entry.payload, ...ack});
+          await _onApplied(synced);
         }
         applied++;
       } catch (error) {

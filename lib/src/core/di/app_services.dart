@@ -2,10 +2,13 @@ import 'package:flutter/widgets.dart';
 
 import '../config/firebase_config.dart';
 import '../../data/local/local_database.dart';
+import '../../data/local/outbox/outbox_store.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/delivery_repository.dart';
 import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
 import '../../data/repositories/order_repository.dart';
+import '../../data/repositories/payment_repository.dart';
 import '../../data/sync/sync_service.dart';
 import '../../data/services/print_service.dart';
 
@@ -19,6 +22,9 @@ class AppServices {
     this.orders,
     this.menu,
     this.kitchen,
+    this.payments,
+    this.deliveries,
+    this.outbox,
     this.sync,
     this.print,
   });
@@ -41,6 +47,15 @@ class AppServices {
 
   /// Kitchen queue (KDS) repository, or null when store unavailable.
   final KitchenRepository? kitchen;
+
+  /// Append-only payment log, or null when store unavailable.
+  final PaymentRepository? payments;
+
+  /// Delivery jobs and courier roster, or null when store unavailable.
+  final DeliveryRepository? deliveries;
+
+  /// The transactional outbox, exposed for diagnostics and conflict resolution.
+  final OutboxStore? outbox;
 
   /// Connectivity-driven sync loop, or null when there is no backend/store.
   final SyncService? sync;

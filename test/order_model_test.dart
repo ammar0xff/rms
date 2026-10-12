@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/domain/models/order.dart';
 import 'package:rms/src/domain/models/order_draft.dart';
+import 'package:rms/src/domain/models/order_type.dart';
 
 Order _order() => Order(
       localId: 'local-1',
@@ -45,6 +46,21 @@ void main() {
       expect(_order().syncStatus, SyncStatus.localOnly);
     });
 
+    test('defaults to dine-in and round-trips the order type', () {
+      expect(_order().orderType, OrderType.dineIn);
+      expect(Order.fromRecord(_order().toRecord()).orderType, OrderType.dineIn);
+
+      final delivery = Order(
+        localId: 'local-2',
+        provisionalOrderNumber: 'O-2',
+        items: const [],
+        createdOffline: false,
+        createdAt: DateTime(2026, 10, 11, 12),
+        orderType: OrderType.delivery,
+      );
+      expect(Order.fromRecord(delivery.toRecord()).orderType, OrderType.delivery);
+    });
+
     test('round-trips through a record', () {
       final order = _order()
         ..syncStatus = SyncStatus.pendingSync
@@ -72,6 +88,7 @@ void main() {
       );
       expect(draft.createdOffline, isFalse);
       expect(draft.items, hasLength(1));
+      expect(draft.orderType, OrderType.dineIn);
     });
   });
 }
