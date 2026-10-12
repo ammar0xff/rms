@@ -9,8 +9,10 @@ import '../../data/local/local_database.dart';
 import '../../data/local/outbox/outbox_store.dart';
 import '../../data/repositories/demo_auth_repository.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
+import '../../data/repositories/local_kitchen_repository.dart';
 import '../../data/repositories/local_menu_repository.dart';
 import '../../data/repositories/local_order_repository.dart';
+import '../../domain/models/kitchen_ticket.dart';
 import '../../domain/models/menu_item.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
@@ -41,7 +43,9 @@ Future<AppServices> _resolveAuth(
       ? null
       : LocalOrderRepository(database, outbox: outbox);
   final menu = database == null ? null : LocalMenuRepository(database);
+  final kitchen = database == null ? null : LocalKitchenRepository(database);
   await _primeMenuCache(menu);
+  await _primeKitchenCache(kitchen);
 
   if (!config.isConfigured) {
     AppLogger.warn(
@@ -54,6 +58,7 @@ Future<AppServices> _resolveAuth(
       database: database,
       orders: orders,
       menu: menu,
+      kitchen: kitchen,
     );
   }
 
@@ -70,6 +75,7 @@ Future<AppServices> _resolveAuth(
       orders: orders,
       sync: sync,
       menu: menu,
+      kitchen: kitchen,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -84,6 +90,7 @@ Future<AppServices> _resolveAuth(
       database: database,
       orders: orders,
       menu: menu,
+      kitchen: kitchen,
     );
   }
 }
@@ -140,5 +147,34 @@ Future<void> _primeMenuCache(LocalMenuRepository? menu) async {
     );
   } catch (error, stackTrace) {
     AppLogger.error('Failed to prime menu cache', error, stackTrace);
+  }
+}
+
+Future<void> _primeKitchenCache(LocalKitchenRepository? kitchen) async {
+  if (kitchen == null) return;
+  try {
+    final cached = await kitchen.listTickets();
+    if (cached.isNotEmpty) return;
+    final now = DateTime.now();
+    await kitchen.cacheTickets(
+      mock.MockData.tickets.map((t) {
+        return KitchenTicketModel(
+          id: t.id,
+          orderRef: t.orderRef,
+          station: t.station,
+          items: List<String>.from(t.items),
+          state: switch (t.state) {
+            mock.TicketState.queued => TicketState.queued,
+            mock.TicketState.preparing => TicketState.preparing,
+            mock.TicketState.ready => TicketState.ready,
+          },
+          createdAt: now.subtract(Duration(minutes: t.ageMinutes)),
+          queuedAt: now.subtract(Duration(minutes: t.ageMinutes)),
+          provisional: t.provisional,
+        );
+      }).toList(),
+    );
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime kitchen cache', error, stackTrace);
   }
 }

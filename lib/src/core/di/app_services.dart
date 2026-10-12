@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../config/firebase_config.dart';
 import '../../data/local/local_database.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/sync/sync_service.dart';
@@ -15,9 +16,11 @@ class AppServices {
     required this.firebaseReady,
     this.database,
     this.orders,
-    this.sync,
     this.menu,
+    this.kitchen,
+    this.sync,
   });
+
 
   final FirebaseConfig config;
   final AuthRepository auth;
@@ -33,6 +36,9 @@ class AppServices {
 
   /// Menu cache repository (offline-first read), or null when store unavailable.
   final MenuRepository? menu;
+
+  /// Kitchen queue (KDS) repository, or null when store unavailable.
+  final KitchenRepository? kitchen;
 
   /// Connectivity-driven sync loop, or null when there is no backend/store.
   final SyncService? sync;
