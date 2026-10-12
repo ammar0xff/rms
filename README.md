@@ -7,7 +7,7 @@
 Cross-platform, **offline-first** restaurant management system.
 Flutter frontend, Firebase backend, local-first persistence with transactional outbox and idempotent synchronization.
 
-> Status: **Phase 0 — Technical Foundation** (in progress). Flutter architecture, build-time
+> Status: **Phase 1 — Core Features** (in progress). Flutter architecture, build-time
 > Firebase configuration, authentication, version/diagnostics, and the **local-first persistence
 > layer (document store + transactional outbox + idempotent sync engine)** are in place; screens
 > still render mock data until repositories are wired to the UI. Source of truth for behavior is
