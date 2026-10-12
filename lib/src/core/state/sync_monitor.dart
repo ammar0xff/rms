@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../data/local/outbox/outbox_entry.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/local/outbox/outbox_store.dart';
 import '../../data/sync/sync_service.dart';
