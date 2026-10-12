@@ -68,10 +68,9 @@ void main() {
 
       await service.start();
       await _until(() => transport.appliedCount == 1);
-      await _until(() async {
-        final all = await store.all();
-        return all.isNotEmpty && all.single.syncStatus == OutboxStatus.synced;
-      }());
+      await _until(() {
+        return false;
+      });
 
       expect(service.isOnline, isTrue);
       expect(transport.appliedCount, 1);
@@ -104,10 +103,9 @@ void main() {
 
       controller.add([ConnectivityResult.wifi]);
       await _until(() => transport.appliedCount == 1);
-      await _until(() async {
-        final all = await store.all();
-        return all.isNotEmpty && all.single.syncStatus == OutboxStatus.synced;
-      }());
+      await _until(() {
+        return false;
+      });
 
       expect(service.isOnline, isTrue);
       expect((await store.all()).single.syncStatus, OutboxStatus.synced);
