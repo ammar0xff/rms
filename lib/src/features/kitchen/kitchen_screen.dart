@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/di/app_services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
@@ -8,7 +9,7 @@ import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
-import '../../data/mock/mock_data.dart';
+import '../../domain/models/kitchen_ticket.dart';
 import '../common/format.dart';
 
 class KitchenScreen extends StatefulWidget {
@@ -20,15 +21,37 @@ class KitchenScreen extends StatefulWidget {
 
 class _KitchenScreenState extends State<KitchenScreen> {
   String _station = 'الكل';
+  List<KitchenTicketModel> _tickets = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final kitchen = AppServices.of(context).kitchen;
+    if (kitchen == null) return;
+    final tickets = await kitchen.allTickets();
+    if (!mounted) return;
+    setState(() => _tickets = tickets);
+  }
+
+  Future<void> _transition(KitchenTicketModel ticket, TicketState next) async {
+    final kitchen = AppServices.of(context).kitchen;
+    if (kitchen == null) return;
+    await kitchen.transitionTicket(ticket.id, next);
+    await _load();
+  }
 
   List<String> get _stations =>
-      ['الكل', ...{for (final t in MockData.tickets) t.station}];
+      ['الكل', ...{for (final t in _tickets) t.station}];
 
   @override
   Widget build(BuildContext context) {
     final tickets = _station == 'الكل'
-        ? MockData.tickets
-        : MockData.tickets.where((t) => t.station == _station).toList();
+        ? _tickets
+        : _tickets.where((t) => t.station == _station).toList();
 
     final columns = {
       TicketState.queued: tickets.where((t) => t.state == TicketState.queued).toList(),
@@ -60,6 +83,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
                   child: _KdsColumn(
                     state: state,
                     tickets: columns[state]!,
+                    onTransition: _transition,
                   ),
                 ),
             ],
@@ -110,10 +134,12 @@ class _StationFilter extends StatelessWidget {
 }
 
 class _KdsColumn extends StatelessWidget {
-  const _KdsColumn({required this.state, required this.tickets});
+  const _KdsColumn({required this.state, required this.tickets, required this.onTransition});
+
+  final void Function(KitchenTicketModel ticket, TicketState next) onTransition;
 
   final TicketState state;
-  final List<KitchenTicket> tickets;
+  final List<KitchenTicketModel> tickets;
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +171,7 @@ class _KdsColumn extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               child: ListView(
                 children: [
-                  for (final t in tickets) _TicketCard(ticket: t),
+                  for (final t in tickets) _TicketCard(ticket: t, onTransition: onTransition),
                   if (tickets.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(24),
@@ -164,9 +190,11 @@ class _KdsColumn extends StatelessWidget {
 }
 
 class _TicketCard extends StatelessWidget {
-  const _TicketCard({required this.ticket});
+  const _TicketCard({required this.ticket, required this.onTransition});
 
-  final KitchenTicket ticket;
+  final ValueChanged<TicketState> onTransition;
+
+  final KitchenTicketModel ticket;
 
   Color get _ageColor {
     if (ticket.ageMinutes >= 12) return AppColors.negative;
@@ -226,14 +254,24 @@ class _TicketCard extends StatelessWidget {
                     label: ticket.state == TicketState.queued ? 'بدء' : 'تحديد كجاهز',
                     icon: Icons.play_arrow_rounded,
                     variant: BtnVariant.secondary,
-                    onPressed: () {},
+                    onPressed: () {
+                      final next = ticket.state == TicketState.queued
+                          ? TicketState.preparing
+                          : TicketState.ready;
+                      onTransition(ticket, next);
+                    },
                   )
                 else
                   RmsButton(
                     label: 'تم التقديم',
                     icon: Icons.check_rounded,
                     variant: BtnVariant.primary,
-                    onPressed: () {},
+                    onPressed: () {
+                      final next = ticket.state == TicketState.queued
+                          ? TicketState.preparing
+                          : TicketState.ready;
+                      onTransition(ticket, next);
+                    },
                   ),
               ],
             ),
