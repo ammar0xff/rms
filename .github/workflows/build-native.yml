@@ -1,6 +1,6 @@
 name: Build native artifacts
 
-# Builds the Android APK and the Linux desktop bundle on every push.
+# Builds every desktop and mobile target on every push.
 #
 # These are unsigned builds. Release signing is wired through the secrets below
 # and falls back to the debug key when they are absent, so the pipeline works
@@ -22,6 +22,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  windows:
+    name: Windows desktop
+    # Windows needs the MSVC toolchain and cannot cross-compile from Linux, so
+    # this requires a Windows runner. Nothing about the Windows target is
+    # verified until this job has actually run.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows bundle
+        run: flutter build windows --release
+
+      - name: Upload Windows bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: rms-windows
+          path: build/windows/x64/runner/Release
+          retention-days: 14
+
+  macos:
+    name: macOS desktop
+    # Unsigned: distribution needs an Apple Developer identity that does not
+    # exist yet. The build still proves the target compiles and links.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS bundle
+        run: flutter build macos --release --no-codesign
+
+      - name: Upload macOS bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: rms-macos
+          path: build/macos/Build/Products/Release/rms.app
+          retention-days: 14
+
   android:
     name: Android APK
     runs-on: ubuntu-latest
