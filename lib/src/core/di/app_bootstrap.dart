@@ -120,9 +120,10 @@ Future<AppServices> _resolveAuth(
       database == null ? null : LocalFeatureFlagRepository(database);
   final updates = database == null ? null : LocalUpdateRepository(database);
   final updateAudit = database == null ? null : ReleaseAuditLog(database);
-  final updateStatus = database == null ? null : UpdateStatusStore(database);
+  final updateStatus =
+      database == null ? null : LocalUpdateStatusStore(database);
   final updateAcknowledgement =
-      database == null ? null : UpdateAcknowledgementStore(database);
+      database == null ? null : LocalUpdateAcknowledgementStore(database);
   final inventory = (database == null || outbox == null)
       ? null
       : LocalInventoryRepository(database, outbox: outbox, audit: audit);

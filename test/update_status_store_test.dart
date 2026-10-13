@@ -30,11 +30,11 @@ UpdateManifest _manifest() => UpdateManifest(
 
 void main() {
   late LocalDatabase db;
-  late UpdateStatusStore store;
+  late LocalUpdateStatusStore store;
 
   setUp(() async {
     db = await LocalDatabase.memory('rms_status_${_seq++}');
-    store = UpdateStatusStore(db);
+    store = LocalUpdateStatusStore(db);
   });
 
   tearDown(() async => db.close());
@@ -110,7 +110,7 @@ void main() {
   });
 
   test('a malformed row is treated as absent', () async {
-    await LocalStores.config.record(UpdateStatusStore.statusKey).put(
+    await LocalStores.config.record(LocalUpdateStatusStore.statusKey).put(
           db.db,
           const {'state': 'nonsense'},
         );
@@ -135,6 +135,6 @@ void main() {
   });
 
   test('uses a distinct config key from the manifest', () {
-    expect(UpdateStatusStore.statusKey, isNot(LocalUpdateRepository.manifestKey));
+    expect(LocalUpdateStatusStore.statusKey, isNot(LocalUpdateRepository.manifestKey));
   });
 }

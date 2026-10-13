@@ -4,6 +4,7 @@ import '../../domain/update/release_audit_event.dart';
 import '../../domain/update/update_audit_sink.dart';
 import 'local_database.dart';
 import 'local_stores.dart';
+import 'update_store_contracts.dart';
 
 /// Durable, append-only persistence for the update lifecycle audit trail.
 ///
@@ -12,7 +13,7 @@ import 'local_stores.dart';
 /// entries. Events are written in their own transaction: unlike a financial
 /// audit row, a lifecycle event describes something that already happened
 /// rather than a change that must commit atomically with other state.
-class ReleaseAuditLog implements UpdateAuditSink {
+class ReleaseAuditLog implements UpdateAuditSink, ReleaseAuditTrail {
   ReleaseAuditLog(this._db);
 
   final LocalDatabase _db;
@@ -29,6 +30,7 @@ class ReleaseAuditLog implements UpdateAuditSink {
           );
 
   /// Most recent events first, capped at [limit].
+  @override
   Future<List<ReleaseAuditEvent>> list({int limit = 200}) async {
     final snapshots = await LocalStores.releaseAuditEvents.find(_db.db);
     final events =

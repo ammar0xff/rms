@@ -15,8 +15,7 @@ import '../../data/repositories/inventory_repository.dart';
 import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
 import '../../data/local/release_audit_log.dart';
-import '../../data/local/update_acknowledgement_store.dart';
-import '../../data/local/update_status_store.dart';
+import '../../data/local/update_store_contracts.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
@@ -90,8 +89,8 @@ class AppServices {
   /// Local print service (stub).
   final PrintService? print;
 
-  /// Append-only audit trail of the update lifecycle, or null when unavailable.
-  final ReleaseAuditLog? updateAudit;
+  /// Read side of the update lifecycle audit trail, or null when unavailable.
+  final ReleaseAuditTrail? updateAudit;
 
   /// Last known update status, or null when the store is unavailable.
   final UpdateStatusStore? updateStatus;
