@@ -1,3 +1,5 @@
+import 'package:sembast/sembast.dart';
+
 import '../../local/local_database.dart';
 import '../../local/local_stores.dart';
 import 'local_migration.dart';

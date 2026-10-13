@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sembast/sembast.dart';
 import 'package:rms/src/data/local/local_database.dart';
 import 'package:rms/src/data/local/local_stores.dart';
 import 'package:rms/src/data/local/migrations/local_migration.dart';
