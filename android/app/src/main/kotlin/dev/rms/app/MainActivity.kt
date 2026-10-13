@@ -1,4 +1,4 @@
-package dev.rms.rms
+package dev.rms.app
 
 import io.flutter.embedding.android.FlutterActivity
 
