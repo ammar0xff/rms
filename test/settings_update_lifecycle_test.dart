@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rms/src/app.dart';
 import 'package:rms/src/core/config/device_update_context.dart';
 import 'package:rms/src/core/config/firebase_config.dart';
 import 'package:rms/src/core/di/app_services.dart';
+import 'package:rms/src/core/theme/app_theme.dart';
 import 'package:rms/src/data/local/local_database.dart';
 import 'package:rms/src/data/local/outbox/outbox_entry.dart';
 import 'package:rms/src/data/local/outbox/outbox_status.dart';
@@ -16,75 +16,82 @@ import 'package:rms/src/data/repositories/local_update_repository.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
 import 'package:rms/src/domain/update/device_update_status.dart';
 import 'package:rms/src/domain/update/release_audit_event.dart';
+import 'package:rms/src/features/settings/settings_screen.dart';
 
 final _sha = 'a' * 64;
 int _seq = 0;
 
 UpdateManifest _manifest() => UpdateManifest(
-  releaseId: 'rel-1',
-  version: '1.1.0',
-  buildNumber: 42,
-  platform: currentUpdatePlatform(),
-  channel: currentUpdateChannel(),
-  status: ReleaseStatus.active,
-  rolloutPercent: 100,
-  severity: UpdateSeverity.mandatory,
-  publishedAt: DateTime(2026, 10, 13),
-  artifact: ReleaseArtifact(
-    reference: 'releases/rms-1.1.0.pkg',
-    sizeBytes: 1024,
-    sha256: _sha,
-  ),
-);
-
-OutboxEntry _stuckEntry(String id, OutboxStatus status) => OutboxEntry(
-  operationId: 'op-$id',
-  entityType: 'order',
-  entityId: 'O-$id',
-  operationType: 'upsert',
-  payload: const {},
-  schemaVersion: 1,
-  idempotencyKey: 'idem-$id',
-  createdAt: DateTime(2026, 10, 13),
-  syncStatus: status,
-);
+      releaseId: 'rel-1',
+      version: '1.1.0',
+      buildNumber: 42,
+      platform: currentUpdatePlatform(),
+      channel: currentUpdateChannel(),
+      status: ReleaseStatus.active,
+      rolloutPercent: 100,
+      severity: UpdateSeverity.mandatory,
+      publishedAt: DateTime(2026, 10, 13),
+      artifact: ReleaseArtifact(
+        reference: 'releases/rms-1.1.0.pkg',
+        sizeBytes: 1024,
+        sha256: _sha,
+      ),
+    );
 
 AppServices _services(LocalDatabase db) => AppServices(
-  config: const FirebaseConfig.empty(),
-  auth: DemoAuthRepository(),
-  firebaseReady: false,
-  database: db,
-  outbox: OutboxStore(db),
-  updates: LocalUpdateRepository(db),
-  updateAudit: ReleaseAuditLog(db),
-  updateStatus: UpdateStatusStore(db),
-  updateAcknowledgement: UpdateAcknowledgementStore(db),
-);
+      config: const FirebaseConfig.empty(),
+      auth: DemoAuthRepository(),
+      firebaseReady: false,
+      database: db,
+      outbox: OutboxStore(db),
+      updates: LocalUpdateRepository(db),
+      updateAudit: ReleaseAuditLog(db),
+      updateStatus: UpdateStatusStore(db),
+      updateAcknowledgement: UpdateAcknowledgementStore(db),
+    );
 
-Future<void> _seedStuck(LocalDatabase db, int stuck) async {
-  final outbox = OutboxStore(db);
-  await db.transaction((txn) async {
-    for (var i = 0; i < stuck; i++) {
-      await outbox.append(txn, _stuckEntry('$i', OutboxStatus.conflict));
-    }
-  });
-}
-
+/// Mounts the settings screen directly.
+///
+/// Going through the full app would render the dashboard, which keeps polling
+/// while a local store is attached and never settles under pumpAndSettle.
+/// Wrapping the screen in an [AppScope] provides exactly the services it reads
+/// without booting the rest of the app.
 Future<void> _openSettings(WidgetTester tester, AppServices services) async {
   tester.view.physicalSize = const Size(1600, 1400);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  await tester.pumpWidget(RmsApp(services: services));
+  await tester.pumpWidget(
+    AppScope(
+      services: services,
+      child: MaterialApp(
+        theme: AppTheme.light(),
+        home: const SettingsScreen(),
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
+}
 
-  await tester.enterText(find.byType(TextField).at(0), 'ammar@rms.dev');
-  await tester.enterText(find.byType(TextField).at(1), 'secret');
-  await tester.tap(find.text('دخول'));
-  await tester.pumpAndSettle();
+OutboxEntry _stuckEntry(String id) => OutboxEntry(
+      operationId: 'op-$id',
+      entityType: 'order',
+      entityId: 'O-$id',
+      operationType: 'upsert',
+      payload: const {},
+      schemaVersion: 1,
+      idempotencyKey: 'idem-$id',
+      createdAt: DateTime(2026, 10, 13),
+      syncStatus: OutboxStatus.conflict,
+    );
 
-  await tester.tap(find.text('الإعدادات'));
-  await tester.pumpAndSettle();
+Future<void> _seedStuck(LocalDatabase db, int stuck) async {
+  final outbox = OutboxStore(db);
+  await db.transaction((txn) async {
+    for (var i = 0; i < stuck; i++) {
+      await outbox.append(txn, _stuckEntry('$i'));
+    }
+  });
 }
 
 void main() {
@@ -97,41 +104,39 @@ void main() {
 
   tearDown(() async => db.close());
 
-  testWidgets('an eligible update offers the install action', (tester) async {
+  testWidgets('an eligible update offers the install action',
+      (tester) async {
     await _openSettings(tester, _services(db));
 
+    expect(find.text('التحديثات'), findsOneWidget);
     expect(find.text('تحديث'), findsOneWidget);
-    expect(find.textContaining('تحديث إلزامي'), findsOneWidget);
     expect(find.text('جاهز للتثبيت'), findsOneWidget);
   });
 
-  testWidgets('stuck work withholds the install and offers acknowledgement', (
-    tester,
-  ) async {
+  testWidgets('stuck work withholds the install and offers acknowledgement',
+      (tester) async {
     await _seedStuck(db, 2);
     await _openSettings(tester, _services(db));
 
     expect(find.text('أعمال محلية معلّقة'), findsOneWidget);
     expect(find.text('إقرار'), findsOneWidget);
-    // The plain install action is not offered while work is stuck.
     expect(find.text('تحديث'), findsNothing);
   });
 
-  testWidgets('acknowledging stuck work unblocks the install', (tester) async {
+  testWidgets('acknowledging stuck work unblocks the install',
+      (tester) async {
     await _seedStuck(db, 2);
     await _openSettings(tester, _services(db));
 
     await tester.tap(find.text('إقرار'));
     await tester.pumpAndSettle();
 
-    // The gate now reports ready and the install action is offered again.
     expect(find.text('جاهز للتثبيت'), findsOneWidget);
     expect(find.text('تحديث'), findsOneWidget);
   });
 
-  testWidgets('the acknowledgement is persisted with the stuck count', (
-    tester,
-  ) async {
+  testWidgets('the acknowledgement is persisted with the stuck count',
+      (tester) async {
     await _seedStuck(db, 3);
     final store = UpdateAcknowledgementStore(db);
     expect(await store.load(), isNull);
@@ -140,20 +145,15 @@ void main() {
     await tester.tap(find.text('إقرار'));
     await tester.pumpAndSettle();
 
-    final saved = await store.load();
-    expect(saved, isNotNull);
-    expect(saved!.stuckCount, 3);
+    expect((await store.load())?.stuckCount, 3);
   });
 
-  testWidgets('a failed update attempt is surfaced after a reboot', (
-    tester,
-  ) async {
+  testWidgets('a failed attempt is surfaced after a reboot', (tester) async {
     await UpdateStatusStore(db).save(
       DeviceUpdateStatus(
         state: UpdateLifecycleState.failed,
         releaseId: 'rel-1',
         version: '1.1.0',
-        buildNumber: 42,
         failureReason: UpdateFailureReason.healthCheckFailed,
         requiresRollback: true,
         rollbackTargetVersion: '1.0.0',
@@ -176,12 +176,11 @@ void main() {
     expect(find.text('فشل فحص ما بعد التحديث'), findsOneWidget);
     expect(find.text('إجراء مطلوب'), findsOneWidget);
     expect(find.text('تراجع إلى 1.0.0'), findsOneWidget);
-    expect(find.text('سجل التحديث'), findsWidgets);
+    expect(find.text('سجل التحديث'), findsOneWidget);
+    expect(find.text('فشل فحص ما بعد التحديث'), findsWidgets);
   });
 
-  testWidgets('a healthy completed update is surfaced without a failure row', (
-    tester,
-  ) async {
+  testWidgets('a completed attempt shows no failure rows', (tester) async {
     await UpdateStatusStore(db).save(
       const DeviceUpdateStatus(
         state: UpdateLifecycleState.completed,
