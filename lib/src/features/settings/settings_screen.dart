@@ -14,6 +14,9 @@ import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
 import '../../domain/models/release_manifest.dart';
+import '../../domain/update/device_update_status.dart';
+import '../../domain/update/release_audit_event.dart';
+import '../../domain/update/update_acknowledgement.dart';
 import '../../domain/update/update_decision.dart';
 import '../../domain/update/update_readiness.dart';
 import '../../data/local/outbox/outbox_snapshot.dart';
@@ -29,6 +32,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ReleaseManifest? _manifest;
   UpdateDecision? _decision;
   UpdateReadiness? _readiness;
+  DeviceUpdateStatus? _lastStatus;
+  List<ReleaseAuditEvent> _auditTrail = const [];
   bool _loaded = false;
 
   @override
@@ -59,16 +64,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
       services.outbox,
       online: SyncMonitor.instance.online,
     );
+    final acknowledgement = await services.updateAcknowledgement?.load();
     final readiness = UpdateReadinessEngine.classify(
       decision: decision,
       work: work,
+      acknowledgement: acknowledgement,
     );
+    final lastStatus = await services.updateStatus?.load();
+    final trail = await services.updateAudit?.list(limit: 5) ?? const [];
     if (!mounted) return;
     setState(() {
       _manifest = manifest;
       _decision = decision;
       _readiness = readiness;
+      _lastStatus = lastStatus;
+      _auditTrail = trail;
     });
+  }
+
+  /// Records an operator acknowledgement of the stuck work on hand, then
+  /// re-evaluates the gate against it.
+  Future<void> _acknowledgeStuckWork() async {
+    final services = AppScope.of(context);
+    final readiness = _readiness;
+    if (readiness == null) return;
+    final actor = services.auth.currentUser;
+    await services.updateAcknowledgement?.save(
+          UpdateAcknowledgement(
+            stuckCount: readiness.work.stuck,
+            acknowledgedAt: DateTime.now(),
+            acknowledgedBy: actor?.email ?? '',
+            note: 'تم الإقرار من شاشة الإعدادات',
+          ),
+        );
+    await _load();
   }
 
   @override
@@ -85,7 +114,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(child: _VersionCard(migration: services.migration)),
             const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _UpdateCard(decision: _decision, readiness: _readiness)),
+            Expanded(
+              child: _UpdateCard(
+                decision: _decision,
+                readiness: _readiness,
+                lastStatus: _lastStatus,
+                trail: _auditTrail,
+                onAcknowledge: _acknowledgeStuckWork,
+              ),
+            ),
           ],
         ),
         Row(
@@ -137,10 +174,26 @@ class _VersionCard extends StatelessWidget {
 }
 
 class _UpdateCard extends StatelessWidget {
-  const _UpdateCard({required this.decision, this.readiness});
+  const _UpdateCard({
+    required this.decision,
+    this.readiness,
+    this.lastStatus,
+    this.trail = const [],
+    this.onAcknowledge,
+  });
 
   final UpdateDecision? decision;
   final UpdateReadiness? readiness;
+
+  /// The last update lifecycle this device recorded, so an attempt that
+  /// survived a reboot is still visible.
+  final DeviceUpdateStatus? lastStatus;
+
+  /// The most recent audit events, newest first.
+  final List<ReleaseAuditEvent> trail;
+
+  /// Called when the operator acknowledges the stuck work on hand.
+  final VoidCallback? onAcknowledge;
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +201,8 @@ class _UpdateCard extends StatelessWidget {
     final release = current?.release;
     final (headline, body, tone, icon) = _presentUpdate(current, readiness);
     final color = toneColor(tone);
+    final needsAck =
+        readiness?.status == UpdateReadinessStatus.needsAcknowledgement;
     final canInstall = readiness?.allowsInstall ?? false;
     return SurfaceCard(
       child: Column(
@@ -175,6 +230,15 @@ class _UpdateCard extends StatelessWidget {
             if (current?.requiresMigration ?? false) ('ترحيل محلي مطلوب', 'نعم'),
             if (readiness != null && current?.isUpdate == true)
               ('جاهزية التثبيت', readiness!.status.label),
+            if (lastStatus != null && lastStatus!.releaseId.isNotEmpty)
+              ('آخر محاولة تحديث', lastStatus!.state.label),
+            if (lastStatus?.failureReason != null &&
+                lastStatus!.failureReason != UpdateFailureReason.none)
+              ('سبب الفشل', lastStatus!.failureReason.label),
+            if (lastStatus != null && lastStatus!.requiresRollback)
+              ('إجراء مطلوب', 'تراجع إلى ${lastStatus!.rollbackTargetVersion}'),
+            for (final event in trail.take(3))
+              ('سجل التحديث', event.eventType.label),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
@@ -208,17 +272,19 @@ class _UpdateCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 RmsButton(
-                  label: 'تحديث',
+                  label: needsAck ? 'إقرار' : 'تحديث',
                   variant: BtnVariant.primary,
-                  onPressed: canInstall
-                      ? () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'سيتم تنزيل الحزمة والتحقق من بصمتها قبل التثبيت.',
-                              ),
-                            ),
-                          )
-                      : null,
+                  onPressed: needsAck
+                      ? onAcknowledge
+                      : canInstall
+                          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'التحديث مؤهَّل وجاهز، لكن تنزيل الحزمة وتثبيتها غير مفعّلين على هذه المنصة بعد.',
+                                  ),
+                                ),
+                              )
+                          : null,
                 ),
               ],
             ),

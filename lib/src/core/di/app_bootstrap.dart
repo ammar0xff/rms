@@ -13,6 +13,9 @@ import '../../data/local/migrations/local_migration_registry.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/local/outbox/outbox_store.dart';
+import '../../data/local/release_audit_log.dart';
+import '../../data/local/update_acknowledgement_store.dart';
+import '../../data/local/update_status_store.dart';
 import '../../data/repositories/demo_auth_repository.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
 import '../../data/repositories/local_approval_repository.dart';
@@ -116,6 +119,10 @@ Future<AppServices> _resolveAuth(
   final features =
       database == null ? null : LocalFeatureFlagRepository(database);
   final updates = database == null ? null : LocalUpdateRepository(database);
+  final updateAudit = database == null ? null : ReleaseAuditLog(database);
+  final updateStatus = database == null ? null : UpdateStatusStore(database);
+  final updateAcknowledgement =
+      database == null ? null : UpdateAcknowledgementStore(database);
   final inventory = (database == null || outbox == null)
       ? null
       : LocalInventoryRepository(database, outbox: outbox, audit: audit);
@@ -197,6 +204,9 @@ Future<AppServices> _resolveAuth(
       reports: reports,
       branches: branches,
       updates: updates,
+      updateAudit: updateAudit,
+      updateStatus: updateStatus,
+      updateAcknowledgement: updateAcknowledgement,
     );
   }
 
@@ -233,6 +243,9 @@ Future<AppServices> _resolveAuth(
       reports: reports,
       branches: branches,
       updates: updates,
+      updateAudit: updateAudit,
+      updateStatus: updateStatus,
+      updateAcknowledgement: updateAcknowledgement,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -263,6 +276,9 @@ Future<AppServices> _resolveAuth(
       reports: reports,
       branches: branches,
       updates: updates,
+      updateAudit: updateAudit,
+      updateStatus: updateStatus,
+      updateAcknowledgement: updateAcknowledgement,
     );
   }
 }

@@ -14,6 +14,9 @@ import '../../data/repositories/feature_flag_repository.dart';
 import '../../data/repositories/inventory_repository.dart';
 import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
+import '../../data/local/release_audit_log.dart';
+import '../../data/local/update_acknowledgement_store.dart';
+import '../../data/local/update_status_store.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
@@ -49,6 +52,9 @@ class AppServices {
     this.reports,
     this.branches,
     this.updates,
+    this.updateAudit,
+    this.updateStatus,
+    this.updateAcknowledgement,
   });
 
   final FirebaseConfig config;
@@ -83,6 +89,15 @@ class AppServices {
 
   /// Local print service (stub).
   final PrintService? print;
+
+  /// Append-only audit trail of the update lifecycle, or null when unavailable.
+  final ReleaseAuditLog? updateAudit;
+
+  /// Last known update status, or null when the store is unavailable.
+  final UpdateStatusStore? updateStatus;
+
+  /// Operator acknowledgement of stuck local work, or null when unavailable.
+  final UpdateAcknowledgementStore? updateAcknowledgement;
 
   /// Append-only local audit trail, or null when the store is unavailable.
   final AuditLog? audit;
