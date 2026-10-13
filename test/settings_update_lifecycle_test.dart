@@ -16,7 +16,6 @@ import 'package:rms/src/data/repositories/local_update_repository.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
 import 'package:rms/src/domain/update/device_update_status.dart';
 import 'package:rms/src/domain/update/release_audit_event.dart';
-import 'package:rms/src/domain/update/update_acknowledgement.dart';
 
 final _sha = 'a' * 64;
 int _seq = 0;
