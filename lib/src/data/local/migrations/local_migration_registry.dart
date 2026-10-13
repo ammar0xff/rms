@@ -62,4 +62,30 @@ final List<LocalMigration> defaultLocalMigrations = [
       }
     },
   ),
+
+  /// Introduces suppliers and purchase orders. Stamps the revision/sync
+  /// defaults the repositories read on any pre-existing record.
+  LocalMigration(
+    from: 3,
+    to: 4,
+    id: 'purchasing',
+    description: 'Introduce suppliers and purchase orders.',
+    run: (txn) async {
+      final suppliers = await LocalStores.suppliers.find(txn);
+      for (final snapshot in suppliers) {
+        final record = Map<String, Object?>.from(snapshot.value);
+        record.putIfAbsent('localRevision', () => 1);
+        record.putIfAbsent('syncStatus', () => 'pendingSync');
+        await LocalStores.suppliers.record(snapshot.key).put(txn, record);
+      }
+      final purchases = await LocalStores.purchases.find(txn);
+      for (final snapshot in purchases) {
+        final record = Map<String, Object?>.from(snapshot.value);
+        record.putIfAbsent('localRevision', () => 1);
+        record.putIfAbsent('syncStatus', () => 'pendingSync');
+        record.putIfAbsent('createdOffline', () => false);
+        await LocalStores.purchases.record(snapshot.key).put(txn, record);
+      }
+    },
+  ),
 ];

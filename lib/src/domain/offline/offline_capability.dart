@@ -24,6 +24,8 @@ class OfflinePolicy {
     'customerCollection': OfflineCapability.queueable,
     'driverSettlement': OfflineCapability.restricted,
     'inventory': OfflineCapability.conditional,
+    'purchasing': OfflineCapability.queueable,
+    'suppliers': OfflineCapability.localRecording,
     'reports': OfflineCapability.cachedRead,
     'userManagement': OfflineCapability.onlineOnly,
     'refunds': OfflineCapability.restricted,

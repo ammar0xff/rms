@@ -70,72 +70,101 @@ class LocalInventoryRepository implements InventoryRepository {
     bool createdOffline = false,
   }) async {
     if (delta == 0) {
-      throw ArgumentError.value(delta, 'delta', 'Movement delta must be non-zero');
+      throw ArgumentError.value(
+        delta,
+        'delta',
+        'Movement delta must be non-zero',
+      );
     }
-    final now = _clock();
-    final movementId = _uuid.v4();
     InventoryItemModel? updated;
     await _db.transaction((txn) async {
-      final record = LocalStores.inventory.record(itemId);
-      final existing = await record.get(txn);
-      if (existing == null) return;
-      final item = InventoryItemModel.fromRecord(existing);
-      final baseRevision = item.localRevision;
-      final movement = StockMovementModel(
-        id: movementId,
+      updated = await postMovement(
+        txn,
         itemId: itemId,
         delta: delta,
         reason: reason,
-        at: now,
         reference: reference,
-        baseRevision: baseRevision,
         createdOffline: createdOffline,
       );
-      item.onHand += delta;
-      item.localRevision = baseRevision + 1;
-      item.syncStatus = SyncStatus.pendingSync;
-      await record.put(txn, item.toRecord());
-      await LocalStores.stockMovements
-          .record(movementId)
-          .put(txn, movement.toRecord());
-      await _outbox.append(
-        txn,
-        _entry(
-          entityType: 'stockMovement',
-          entityId: movementId,
-          operationType: 'recordStockMovement',
-          createdAt: now,
-          payload: {
-            'id': movementId,
-            'itemId': itemId,
-            'delta': delta,
-            'reason': reason.name,
-            'baseRevision': baseRevision,
-          },
-        ),
-      );
-      await _audit?.append(
-        txn,
-        AuditEntry(
-          id: _uuid.v4(),
-          action: AuditAction.recordStockMovement,
-          entityType: 'stockMovement',
-          entityId: movementId,
-          summary:
-              '${delta > 0 ? '+' : ''}${delta.toStringAsFixed(2)} · ${item.name} · ${reason.label}',
-          at: now,
-          amount: delta,
-          createdOffline: createdOffline,
-        ),
-      );
-      updated = item;
     });
     final result = updated;
     if (result == null) {
       throw StateError('inventory item $itemId not found');
     }
-    AppLogger.info('Stock movement $movementId recorded for $itemId ($delta).');
     return result;
+  }
+
+  /// Posts a movement using the caller's [txn].
+  ///
+  /// Exposed so composite operations (such as receiving a purchase order) can
+  /// post several movements atomically inside one transaction, instead of
+  /// nesting transactions.
+  Future<InventoryItemModel> postMovement(
+    Transaction txn, {
+    required String itemId,
+    required double delta,
+    required StockMovementReason reason,
+    String? reference,
+    bool createdOffline = false,
+  }) async {
+    final now = _clock();
+    final movementId = _uuid.v4();
+    final record = LocalStores.inventory.record(itemId);
+    final existing = await record.get(txn);
+    if (existing == null) {
+      throw StateError('inventory item $itemId not found');
+    }
+    final item = InventoryItemModel.fromRecord(existing);
+    final baseRevision = item.localRevision;
+    final movement = StockMovementModel(
+      id: movementId,
+      itemId: itemId,
+      delta: delta,
+      reason: reason,
+      at: now,
+      reference: reference,
+      baseRevision: baseRevision,
+      createdOffline: createdOffline,
+    );
+    item.onHand += delta;
+    item.localRevision = baseRevision + 1;
+    item.syncStatus = SyncStatus.pendingSync;
+    await record.put(txn, item.toRecord());
+    await LocalStores.stockMovements
+        .record(movementId)
+        .put(txn, movement.toRecord());
+    await _outbox.append(
+      txn,
+      _entry(
+        entityType: 'stockMovement',
+        entityId: movementId,
+        operationType: 'recordStockMovement',
+        createdAt: now,
+        payload: {
+          'id': movementId,
+          'itemId': itemId,
+          'delta': delta,
+          'reason': reason.name,
+          'baseRevision': baseRevision,
+        },
+      ),
+    );
+    await _audit?.append(
+      txn,
+      AuditEntry(
+        id: _uuid.v4(),
+        action: AuditAction.recordStockMovement,
+        entityType: 'stockMovement',
+        entityId: movementId,
+        summary:
+            '${delta > 0 ? '+' : ''}${delta.toStringAsFixed(2)} · ${item.name} · ${reason.label}',
+        at: now,
+        amount: delta,
+        createdOffline: createdOffline,
+      ),
+    );
+    AppLogger.info('Stock movement $movementId posted for $itemId ($delta).');
+    return item;
   }
 
   @override

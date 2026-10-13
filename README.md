@@ -16,7 +16,8 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 > refund/payment approvals, an append-only audit trail, forward-only local schema migrations, and
 > cached release manifests with server-controlled feature flags. Phase 4 begins with an offline
 > stock ledger: append-only movements whose sum is the on-hand balance, and conflict-aware physical
-> counts that are flagged for review rather than overwriting a newer balance. Source of truth for
+> counts that are flagged for review rather than overwriting a newer balance; purchasing raises and
+> receives supplier orders that post straight into that ledger. Source of truth for
 > behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
@@ -109,10 +110,15 @@ ledger.
   outbox entry, a `stockConflict` audit row) instead of silently overwriting a newer balance.
 - **Sync reconciliation** — on acknowledgement a movement is stamped synced and its item is marked
   synced only once no movements for it remain pending.
-- **Migration v3** (`stock-ledger`) — introduces the ledger and stamps revision/sync defaults on any
-  pre-existing item; pending offline work still survives.
-- Tests: `inventory_repository_test.dart`, plus the v3 cases in `migration_test.dart` and
-  `release_upgrade_test.dart`.
+- **Purchasing** (`LocalPurchaseRepository`) — raise an order against a cached supplier and receive
+  it offline. Receiving posts one `receipt` movement per line through the stock ledger in the **same**
+  transaction that marks the order received, so a retried receive can never double the stock.
+- **Suppliers** (`LocalSupplierRepository`) — local-first directory carrying the running amount owed.
+- **Migrations** — v3 (`stock-ledger`) introduces the ledger; v4 (`purchasing`) introduces suppliers
+  and purchase orders. Each stamps revision/sync defaults on pre-existing records and never touches
+  the outbox, so pending offline work survives the upgrade.
+- Tests: `inventory_repository_test.dart`, `purchasing_repository_test.dart`, plus the v3/v4 cases in
+  `migration_test.dart` and `release_upgrade_test.dart`.
 
 ## Layout
 ```
@@ -137,7 +143,7 @@ lib/
       offline/          # offline capability policy
     features/
       auth/ dashboard/ pos/ kitchen/ delivery/
-      accounting/ menu/ inventory/ customers/ reports/
+      accounting/ menu/ inventory/ purchasing/ customers/ reports/
       sync/ conflicts/ settings/ common/
 docs/
 test/
@@ -150,7 +156,8 @@ test/
 - **Delivery** — deliveries, drivers, offline collections, settlement queue
 - **Accounting** — cash session, approvals, append-only ledger
 - **Menu** — cached catalog with offline reads · **Inventory** — offline stock ledger, movements
-  and conflict-aware counts · **Customers** — management tables
+  and conflict-aware counts · **Purchasing** — suppliers and offline purchase orders that post to the
+  ledger on receipt · **Customers** — management tables
 - **Reports** — sales trend, category breakdown, payment mix
 - **Sync Center** — outbox operations, sync order, idempotency/retry policy
 - **Conflicts** — detected conflicts and per-entity resolution strategy

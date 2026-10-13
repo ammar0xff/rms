@@ -12,6 +12,9 @@ enum AuditAction {
   rejectRequest('رفض طلب مالي'),
   recordStockMovement('تسجيل حركة مخزون'),
   stockConflict('تعارض جرد مخزون'),
+  saveSupplier('حفظ مورد'),
+  createPurchase('إنشاء أمر شراء'),
+  receivePurchase('استلام أمر شراء'),
   schemaMigration('ترحيل المخطط المحلي');
 
   const AuditAction(this.label);

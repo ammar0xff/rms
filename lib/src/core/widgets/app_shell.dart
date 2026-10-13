@@ -12,6 +12,7 @@ import '../../features/inventory/inventory_screen.dart';
 import '../../features/kitchen/kitchen_screen.dart';
 import '../../features/menu/menu_screen.dart';
 import '../../features/pos/pos_screen.dart';
+import '../../features/purchasing/purchasing_screen.dart';
 import '../../features/reports/reports_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/sync/sync_center_screen.dart';
@@ -43,6 +44,8 @@ final navGroups = <NavGroup>[
   NavGroup('الإدارة', [
     NavEntry('menu', 'القائمة', Icons.restaurant_menu_outlined, _menu),
     NavEntry('inventory', 'المخزون', Icons.inventory_2_outlined, _inventory),
+    NavEntry('purchasing', 'المشتريات', Icons.shopping_cart_outlined,
+        _purchasing),
     NavEntry('customers', 'العملاء', Icons.people_alt_outlined, _customers),
     NavEntry('accounting', 'المحاسبة', Icons.receipt_long_outlined,
         _accounting),
@@ -64,6 +67,7 @@ Widget _kitchen(BuildContext c) => const KitchenScreen();
 Widget _delivery(BuildContext c) => const DeliveryScreen();
 Widget _menu(BuildContext c) => const MenuScreen();
 Widget _inventory(BuildContext c) => const InventoryScreen();
+Widget _purchasing(BuildContext c) => const PurchasingScreen();
 Widget _customers(BuildContext c) => const CustomersScreen();
 Widget _accounting(BuildContext c) => const AccountingScreen();
 Widget _reports(BuildContext c) => const ReportsScreen();

@@ -64,7 +64,7 @@ through an `AppScope` inherited widget.
 - `localAppMetadata`
 - `deliveries` / `drivers` / `collections` (Phase 2)
 - `cashSessions` / `approvals` / `audit` / `meta` / `config` (Phase 3)
-- `inventory` / `stockMovements` (Phase 4)
+- `inventory` / `stockMovements` / `suppliers` / `purchases` (Phase 4)
 
 ## Phase 3 — accounting, administration & controlled upgrades
 - **Cash sessions** — `data/repositories/local_cash_session_repository.dart` derives the expected
@@ -91,7 +91,13 @@ through an `AppScope` inherited widget.
   overwrites a newer balance.
 - **Sync reconciliation** — an acknowledged movement is marked synced and its item synced only once
   no movements remain pending.
-- **Migration v3** — `stock-ledger` introduces the ledger and stamps defaults on pre-existing items.
+- **Purchasing** — `data/repositories/local_purchase_repository.dart` receives an order by posting one
+  `receipt` movement per line through the ledger in the same transaction that marks the order
+  received, so a retried receive is idempotent and can never double the stock.
+- **Suppliers** — `data/repositories/local_supplier_repository.dart` is a local-first directory that
+  carries the running amount owed.
+- **Migrations** — v3 `stock-ledger` introduces the ledger; v4 `purchasing` introduces suppliers and
+  purchase orders. Each stamps defaults on pre-existing records and never touches the outbox.
 
 ## Sync engine responsibilities
 - Detect connectivity and confirm reachability.

@@ -159,4 +159,46 @@ void main() {
     expect(record['syncStatus'], 'pendingSync');
     expect(record['onHand'], 4.0);
   });
+
+  test('applies the purchasing step and stamps supplier/purchase defaults',
+      () async {
+    await LocalStores.suppliers.record('SP-1').put(db.db, {
+      'id': 'SP-1',
+      'name': 'مطاحن الشمال',
+      'phone': '',
+      'category': '',
+      'payable': 0.0,
+    });
+    await LocalStores.purchases.record('PO-1').put(db.db, {
+      'id': 'PO-1',
+      'supplierId': 'SP-1',
+      'supplierName': 'مطاحن الشمال',
+      'reference': 'PO-1',
+      'lines': const [],
+      'status': 'ordered',
+      'createdAt': '2026-10-13T10:00:00.000',
+    });
+
+    final runner = LocalMigrationRunner(db, defaultLocalMigrations);
+    final outcome = await runner.run(targetVersion: 4);
+
+    expect(outcome.succeeded, isTrue);
+    expect(outcome.toVersion, 4);
+    expect(outcome.applied, [
+      'baseline',
+      'settlement-split',
+      'stock-ledger',
+      'purchasing',
+    ]);
+    expect(await runner.currentVersion(), 4);
+
+    final supplier = await LocalStores.suppliers.record('SP-1').get(db.db);
+    expect(supplier!['localRevision'], 1);
+    expect(supplier['syncStatus'], 'pendingSync');
+
+    final purchase = await LocalStores.purchases.record('PO-1').get(db.db);
+    expect(purchase!['localRevision'], 1);
+    expect(purchase['syncStatus'], 'pendingSync');
+    expect(purchase['createdOffline'], isFalse);
+  });
 }

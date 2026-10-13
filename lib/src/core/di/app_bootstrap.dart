@@ -23,6 +23,8 @@ import '../../data/repositories/local_kitchen_repository.dart';
 import '../../data/repositories/local_menu_repository.dart';
 import '../../data/repositories/local_order_repository.dart';
 import '../../data/repositories/local_payment_repository.dart';
+import '../../data/repositories/local_purchase_repository.dart';
+import '../../data/repositories/local_supplier_repository.dart';
 import '../../domain/models/approval_request.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/collection.dart';
@@ -31,8 +33,10 @@ import '../../domain/models/inventory_item.dart';
 import '../../domain/models/kitchen_ticket.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/payment.dart';
+import '../../domain/models/purchase_order.dart';
 import '../../domain/models/release_manifest.dart';
 import '../../domain/models/stock_movement.dart';
+import '../../domain/models/supplier.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
 import '../../data/sync/firestore_sync_transport.dart';
@@ -108,6 +112,17 @@ Future<AppServices> _resolveAuth(
   final inventory = (database == null || outbox == null)
       ? null
       : LocalInventoryRepository(database, outbox: outbox, audit: audit);
+  final suppliers = (database == null || outbox == null)
+      ? null
+      : LocalSupplierRepository(database, outbox: outbox, audit: audit);
+  final purchases = (database == null || outbox == null || inventory == null)
+      ? null
+      : LocalPurchaseRepository(
+          database,
+          inventory: inventory,
+          outbox: outbox,
+          audit: audit,
+        );
   await _primeMenuCache(menu);
   await _primeKitchenCache(kitchen);
   await _primeDeliveryData(deliveries);
@@ -116,6 +131,7 @@ Future<AppServices> _resolveAuth(
   await _primeApprovalData(approvals);
   await _primeFeatureFlags(features);
   await _primeInventoryData(inventory);
+  await _primePurchasingData(suppliers, purchases);
 
   // Surface local outbox state even without a backend (demo mode); the
   // Firebase branch below re-attaches with the sync loop.
@@ -145,14 +161,16 @@ Future<AppServices> _resolveAuth(
       features: features,
       migration: migration,
       inventory: inventory,
+      suppliers: suppliers,
+      purchases: purchases,
     );
   }
 
   try {
     await Firebase.initializeApp(options: config.toOptions());
     AppLogger.info('Firebase initialized (env=${config.environment}).');
-    final sync = _buildSync(
-        outbox, orders, payments, deliveries, cashSessions, approvals, inventory);
+    final sync = _buildSync(outbox, orders, payments, deliveries, cashSessions,
+        approvals, inventory, suppliers, purchases);
     if (sync != null) unawaited(sync.start());
     try {
       SyncMonitor.instance.attach(sync: sync, outbox: outbox);
@@ -176,6 +194,8 @@ Future<AppServices> _resolveAuth(
       features: features,
       migration: migration,
       inventory: inventory,
+      suppliers: suppliers,
+      purchases: purchases,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -201,6 +221,8 @@ Future<AppServices> _resolveAuth(
       features: features,
       migration: migration,
       inventory: inventory,
+      suppliers: suppliers,
+      purchases: purchases,
     );
   }
 }
@@ -215,6 +237,8 @@ SyncService? _buildSync(
   LocalCashSessionRepository? cashSessions,
   LocalApprovalRepository? approvals,
   LocalInventoryRepository? inventory,
+  LocalSupplierRepository? suppliers,
+  LocalPurchaseRepository? purchases,
 ) {
   if (outbox == null || orders == null) return null;
   final engine = SyncEngine(
@@ -227,6 +251,8 @@ SyncService? _buildSync(
       await cashSessions?.applySynced(entry);
       await approvals?.applySynced(entry);
       await inventory?.applySynced(entry);
+      await suppliers?.applySynced(entry);
+      await purchases?.applySynced(entry);
     },
   );
   return SyncService(
@@ -503,7 +529,7 @@ Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
     await features.cacheManifest(
       ReleaseManifest(
         channel: 'stable',
-        version: '0.4.0',
+        version: '0.5.0',
         minSupportedVersion: '0.3.0',
         rolloutPercent: 25,
         mandatory: false,
@@ -591,5 +617,92 @@ Future<void> _primeInventoryData(LocalInventoryRepository? inventory) async {
     await inventory.seedMovements(movements);
   } catch (error, stackTrace) {
     AppLogger.error('Failed to prime inventory data', error, stackTrace);
+  }
+}
+
+/// Seeds a supplier directory and a couple of open purchase orders when empty.
+///
+/// The seeded orders are left `ordered` (not received), so demo stock stays
+/// equal to the opening ledger until the user receives an order.
+Future<void> _primePurchasingData(
+  LocalSupplierRepository? suppliers,
+  LocalPurchaseRepository? purchases,
+) async {
+  if (suppliers == null || purchases == null) return;
+  try {
+    final cachedSuppliers = await suppliers.listSuppliers();
+    if (cachedSuppliers.isEmpty) {
+      await suppliers.seedSuppliers([
+        SupplierModel(
+          id: 'SP-001',
+          name: 'مطاحن الشمال',
+          phone: '0100 111 2233',
+          category: 'حبوب ومعكرونة',
+          payable: 1200.0,
+          syncStatus: SyncStatus.synced,
+        ),
+        SupplierModel(
+          id: 'SP-002',
+          name: 'مزارع الوادي',
+          phone: '0100 444 5566',
+          category: 'خضروات وألبان',
+          syncStatus: SyncStatus.synced,
+        ),
+        SupplierModel(
+          id: 'SP-003',
+          name: 'شركة الألبان',
+          phone: '0100 777 8899',
+          category: 'أجبان وألبان',
+          payable: 480.0,
+          syncStatus: SyncStatus.synced,
+        ),
+      ]);
+    }
+    final cachedPurchases = await purchases.listPurchases();
+    if (cachedPurchases.isEmpty) {
+      final now = DateTime.now();
+      await purchases.seedPurchases([
+        PurchaseOrderModel(
+          id: 'PO-0001',
+          supplierId: 'SP-001',
+          supplierName: 'مطاحن الشمال',
+          reference: 'PO-2026-0001',
+          createdAt: now.subtract(const Duration(days: 2)),
+          lines: const [
+            PurchaseOrderLine(
+              itemId: 'INV-003',
+              name: 'باستا (بيني)',
+              quantity: 10.0,
+              unitCost: 42.0,
+            ),
+            PurchaseOrderLine(
+              itemId: 'INV-002',
+              name: 'صلصة الطماطم',
+              quantity: 12.0,
+              unitCost: 18.0,
+            ),
+          ],
+          syncStatus: SyncStatus.synced,
+        ),
+        PurchaseOrderModel(
+          id: 'PO-0002',
+          supplierId: 'SP-003',
+          supplierName: 'شركة الألبان',
+          reference: 'PO-2026-0002',
+          createdAt: now.subtract(const Duration(hours: 20)),
+          lines: const [
+            PurchaseOrderLine(
+              itemId: 'INV-001',
+              name: 'موزاريلا',
+              quantity: 6.0,
+              unitCost: 120.0,
+            ),
+          ],
+          syncStatus: SyncStatus.synced,
+        ),
+      ]);
+    }
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime purchasing data', error, stackTrace);
   }
 }

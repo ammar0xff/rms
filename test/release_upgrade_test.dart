@@ -47,9 +47,9 @@ void main() {
 
     // A new release runs its local migrations on first launch.
     final outcome = await LocalMigrationRunner(db, defaultLocalMigrations)
-        .run(targetVersion: 3);
+        .run(targetVersion: 4);
     expect(outcome.succeeded, isTrue);
-    expect(outcome.toVersion, 3);
+    expect(outcome.toVersion, 4);
 
     // Every pending command is untouched and still drainable.
     final after = await outbox.all();

@@ -16,6 +16,8 @@ Maintained as a versioned policy (see `lib/src/domain/offline/offline_capability
 | Customer collection | Queueable w/ safeguards | Financial confirmation stays pending |
 | Driver settlement | Restricted | Draft offline; final needs validation |
 | Inventory | Conditional | Local movements, flag conflicts |
+| Purchasing | Queueable | Raise/receive orders offline; stock posts locally |
+| Suppliers | Cached read / local creation | Sync new/updated records later |
 | Reports | Cached / limited | Show freshness + last sync |
 | User management | Online only | No offline permission changes |
 | Refunds | Restricted | Online workflow unless authorized |

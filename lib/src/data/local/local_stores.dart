@@ -51,4 +51,12 @@ abstract final class LocalStores {
   /// Append-only stock ledger (the source of truth for on-hand).
   static final StoreRef<String, Map<String, Object?>> stockMovements =
       stringMapStoreFactory.store('stock_movements');
+
+  /// Vendors stock is purchased from.
+  static final StoreRef<String, Map<String, Object?>> suppliers =
+      stringMapStoreFactory.store('suppliers');
+
+  /// Purchase orders raised against suppliers.
+  static final StoreRef<String, Map<String, Object?>> purchases =
+      stringMapStoreFactory.store('purchases');
 }

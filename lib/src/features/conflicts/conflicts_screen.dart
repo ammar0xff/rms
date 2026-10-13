@@ -156,6 +156,8 @@ class _ConflictTile extends StatelessWidget {
         return StatusTone.negative;
       case 'delivery':
       case 'inventory':
+      case 'supplier':
+      case 'purchase':
         return StatusTone.warning;
       default:
         return StatusTone.neutral;

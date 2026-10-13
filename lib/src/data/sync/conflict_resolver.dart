@@ -26,6 +26,8 @@ class ConflictResolver {
       case 'cashPayment':
       case 'driverCollection':
       case 'inventoryMovement':
+      case 'supplier':
+      case 'purchase':
         return ConflictStrategy.appendOnly;
       case 'settlement':
         return ConflictStrategy.trustedValidation;
