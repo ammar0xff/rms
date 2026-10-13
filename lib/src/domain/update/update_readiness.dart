@@ -1,58 +1,10 @@
+import 'local_work_snapshot.dart';
+import 'update_acknowledgement.dart';
 import 'update_decision.dart';
 
-/// The unsynced local work an install must never drop (AC-35).
-///
-/// Counts arrive as plain integers so the gate stays pure and can be evaluated
-/// offline. The data layer derives them from the transactional outbox — orders,
-/// payments, kitchen, delivery and settlement changes all queue there — which
-/// keeps this contract free of any storage dependency.
-class LocalWorkSnapshot {
-  const LocalWorkSnapshot({
-    this.pending = 0,
-    this.inProgress = 0,
-    this.retryableFailure = 0,
-    this.conflict = 0,
-    this.requiresUserAction = 0,
-    this.permanentlyRejected = 0,
-    this.synced = 0,
-    this.online = false,
-  });
-
-  /// Operations queued but not yet pushed.
-  final int pending;
-
-  /// Operations a push has claimed but not yet acknowledged. A crash mid-flight
-  /// leaves them here, so they are still owed to the backend.
-  final int inProgress;
-
-  /// Operations that failed transiently and will be retried.
-  final int retryableFailure;
-
-  /// Operations the backend rejected as conflicting with newer data.
-  final int conflict;
-
-  /// Operations parked until a human resolves them.
-  final int requiresUserAction;
-
-  /// Operations the backend permanently rejected; they will never sync.
-  final int permanentlyRejected;
-
-  /// Operations already acknowledged by the backend.
-  final int synced;
-
-  /// Whether the device can currently reach the backend.
-  final bool online;
-
-  /// Work still owed to the backend that a sync can still deliver.
-  int get unsynced => pending + inProgress + retryableFailure;
-
-  /// Work a sync cannot resolve on its own and that needs a human decision.
-  int get stuck => conflict + requiresUserAction + permanentlyRejected;
-
-  bool get hasUnsynced => unsynced > 0;
-
-  bool get hasStuck => stuck > 0;
-}
+// Re-exported so existing consumers keep importing the snapshot from here while
+// the type itself lives in a dependency-free library.
+export 'local_work_snapshot.dart';
 
 /// Whether installing the offered release would risk unsynced local work.
 enum UpdateReadinessStatus {
@@ -115,6 +67,7 @@ abstract final class UpdateReadinessEngine {
     required UpdateDecision decision,
     required LocalWorkSnapshot work,
     bool workAcknowledged = false,
+    UpdateAcknowledgement? acknowledgement,
   }) {
     UpdateReadiness result(UpdateReadinessStatus status) =>
         UpdateReadiness(status: status, decision: decision, work: work);
@@ -129,7 +82,12 @@ abstract final class UpdateReadinessEngine {
             : UpdateReadinessStatus.offlineBacklog,
       );
     }
-    if (work.hasStuck && !workAcknowledged) {
+    // An explicit acknowledgement only counts while it still covers the work on
+    // hand. A blanket [workAcknowledged] flag remains available for callers that
+    // already evaluated the situation elsewhere.
+    final acknowledged =
+        workAcknowledged || (acknowledgement?.covers(work) ?? false);
+    if (work.hasStuck && !acknowledged) {
       return result(UpdateReadinessStatus.needsAcknowledgement);
     }
     return result(UpdateReadinessStatus.ready);
