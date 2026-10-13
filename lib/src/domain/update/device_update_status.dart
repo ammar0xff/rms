@@ -84,6 +84,17 @@ class DeviceUpdateStatus {
   final bool requiresRollback;
   final DateTime? lastAppliedAt;
 
+  bool get isActive =>
+      this == UpdateLifecycleState.installing ||
+      this == UpdateLifecycleState.migrating ||
+      this == UpdateLifecycleState.healthCheck ||
+      this == UpdateLifecycleState.rebooting;
+
+  bool get isTerminal =>
+      this == UpdateLifecycleState.completed ||
+      this == UpdateLifecycleState.failed ||
+      this == UpdateLifecycleState.rolledBack;
+
   DeviceUpdateStatus copyWith({
     UpdateLifecycleState? state,
     DateTime? statusAt,
