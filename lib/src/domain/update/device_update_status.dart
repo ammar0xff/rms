@@ -15,12 +15,15 @@ enum UpdateLifecycleState {
   final String label;
 
   bool get isActive =>
-      this == installing ||
-      this == migrating ||
-      this == healthCheck ||
-      this == rebooting;
+      this == UpdateLifecycleState.installing ||
+      this == UpdateLifecycleState.migrating ||
+      this == UpdateLifecycleState.healthCheck ||
+      this == UpdateLifecycleState.rebooting;
 
-  bool get isTerminal => this == completed || this == failed || this == rolledBack;
+  bool get isTerminal =>
+      this == UpdateLifecycleState.completed ||
+      this == UpdateLifecycleState.failed ||
+      this == UpdateLifecycleState.rolledBack;
 }
 
 /// The result of a health-check after applying an update.
