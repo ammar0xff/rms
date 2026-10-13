@@ -239,7 +239,7 @@ class _UpdateCard extends StatelessWidget {
       ),
     UpdateDecisionStatus.ineligible => (
         'لا يتوفر تحديث لهذا الجهاز',
-        decision?.blockReason?.label ?? 'التحديث معلّق لهذا الجهاز.',
+        'الإصدار غير متاح لهذا الجهاز؛ السبب موضّح في التفاصيل أعلاه.',
         StatusTone.neutral,
         Icons.block,
       ),
