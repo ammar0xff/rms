@@ -67,4 +67,9 @@ abstract final class LocalStores {
   /// Cached per-branch rollups used to consolidate while offline.
   static final StoreRef<String, Map<String, Object?>> branchAggregates =
       stringMapStoreFactory.store('branch_aggregates');
+
+  /// Append-only audit trail of the update lifecycle (install, migrate,
+  /// health-check, acknowledgement and rollback outcomes).
+  static final StoreRef<String, Map<String, Object?>> releaseAuditEvents =
+      stringMapStoreFactory.store('release_audit_events');
 }
