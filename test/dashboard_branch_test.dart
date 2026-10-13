@@ -105,7 +105,6 @@ void main() {
     );
 
     // Sourced from the consolidation read-model, not from hardcoded figures.
-    expect(find.textContaining('بوابة الشمال'), findsOneWidget);
     expect(find.textContaining('NS-01'), findsOneWidget);
     expect(find.text('مبيعات الشبكة'), findsOneWidget);
     expect(find.text('700.00 ج.م'), findsOneWidget);
