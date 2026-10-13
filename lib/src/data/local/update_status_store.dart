@@ -1,3 +1,5 @@
+import 'package:sembast/sembast.dart';
+
 import '../../domain/update/device_update_status.dart';
 import 'local_database.dart';
 import 'local_stores.dart';
