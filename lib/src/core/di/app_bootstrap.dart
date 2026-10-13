@@ -552,7 +552,7 @@ Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
     await features.cacheManifest(
       ReleaseManifest(
         channel: 'stable',
-        version: '0.6.0',
+        version: '0.7.0',
         minSupportedVersion: '0.3.0',
         rolloutPercent: 25,
         mandatory: false,
@@ -568,8 +568,8 @@ Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
           FeatureFlag(
             key: 'delivery_auto_assign',
             label: 'الإسناد التلقائي للتوصيل',
-            enabled: false,
-            scope: 'مجموعة 25%',
+            enabled: true,
+            scope: 'مجموعة 25% · مفعّل',
           ),
           FeatureFlag(
             key: 'settlement_v2',

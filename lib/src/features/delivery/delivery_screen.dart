@@ -15,6 +15,7 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/repositories/delivery_repository.dart';
+import '../../domain/assignment/delivery_assignment.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import '../common/format.dart';
@@ -37,6 +38,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   List<DeliveryModel> _deliveries = const [];
   List<DriverModel> _drivers = const [];
   List<CollectionModel> _collections = const [];
+  bool _autoAssignEnabled = false;
   bool _loaded = false;
 
   @override
@@ -48,16 +50,24 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   }
 
   Future<void> _load() async {
-    final repo = AppScope.of(context).deliveries;
+    final services = AppScope.of(context);
+    final repo = services.deliveries;
     if (repo == null) return;
     final deliveries = await repo.listDeliveries();
     final drivers = await repo.listDrivers();
     final collections = await repo.listCollections();
+    // Auto-assignment is only permitted while the server flag is on; the cached
+    // manifest keeps that permission available offline.
+    final features = services.features;
+    final autoAssign = features == null
+        ? false
+        : await features.isEnabled(DeliveryAssignmentPolicy.autoAssignFlagKey);
     if (!mounted) return;
     setState(() {
       _deliveries = deliveries;
       _drivers = drivers;
       _collections = collections;
+      _autoAssignEnabled = autoAssign;
     });
   }
 
@@ -102,15 +112,18 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       );
       return;
     }
-    if (_drivers.isEmpty) {
+    final driver = DeliveryAssignmentPolicy.pickDriver(
+      deliveries: _deliveries,
+      drivers: _drivers,
+    );
+    if (driver == null) {
       messenger.showSnackBar(
         const SnackBar(content: Text('لا يوجد سائقون متاحون')),
       );
       return;
     }
-    final driver = _leastLoadedDriver();
     final outcome =
-        await repo.assignDriver(waiting.id, driver.name, baseDriver: waiting.driver);
+        await repo.assignDriver(waiting.id, driver, baseDriver: waiting.driver);
     await _load();
     _refreshMonitor();
     if (!mounted) return;
@@ -119,7 +132,30 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         content: Text(
           outcome == AssignmentOutcome.conflict
               ? 'تعارض إسناد على ${waiting.id}: طلب المراجعة'
-              : 'أُسندت المهمة ${waiting.id} إلى ${driver.name}',
+              : 'أُسندت المهمة ${waiting.id} إلى $driver',
+        ),
+      ),
+    );
+  }
+
+  /// Assigns every waiting job to the least-loaded available driver in one shot.
+  ///
+  /// Only offered when the server flag permits provisional local assignment; the
+  /// batch is applied atomically by the repository and reconciled later.
+  Future<void> _autoAssignAll() async {
+    final repo = AppScope.of(context).deliveries;
+    final messenger = ScaffoldMessenger.of(context);
+    if (repo == null) return;
+    final results = await repo.autoAssignWaiting();
+    await _load();
+    _refreshMonitor();
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          results.isEmpty
+              ? 'لا توجد مهام بانتظار الإسناد'
+              : 'أُسندت ${results.length} مهمة تلقائيًا',
         ),
       ),
     );
@@ -130,16 +166,19 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     final messenger = ScaffoldMessenger.of(context);
     if (repo == null) return;
     if (delivery.state != DeliveryState.waiting) return;
-    if (_drivers.isEmpty) {
+    final driver = DeliveryAssignmentPolicy.pickDriver(
+      deliveries: _deliveries,
+      drivers: _drivers,
+    );
+    if (driver == null) {
       messenger.showSnackBar(
         const SnackBar(content: Text('لا يوجد سائقون متاحون')),
       );
       return;
     }
-    final driver = _leastLoadedDriver();
     final outcome = await repo.assignDriver(
       delivery.id,
-      driver.name,
+      driver,
       baseDriver: delivery.driver,
     );
     await _load();
@@ -150,7 +189,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         content: Text(
           outcome == AssignmentOutcome.conflict
               ? 'تعارض إسناد على ${delivery.id}: طلب المراجعة'
-              : 'أُسندت المهمة ${delivery.id} إلى ${driver.name}',
+              : 'أُسندت المهمة ${delivery.id} إلى $driver',
         ),
       ),
     );
@@ -212,15 +251,6 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     messenger.showSnackBar(
       const SnackBar(content: Text('أُرسل طلب التسوية للخادم · الاعتماد بعد التحقق')),
     );
-  }
-
-  DriverModel _leastLoadedDriver() {
-    final open = _open;
-    return _drivers.reduce((a, b) {
-      final loadA = open.where((d) => d.driver == a.name).length;
-      final loadB = open.where((d) => d.driver == b.name).length;
-      return loadB < loadA ? b : a;
-    });
   }
 
   /// Brings the "something changed" bus up to date for the dashboard badge.
@@ -289,7 +319,27 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
               title: 'التوصيلات',
-              trailing: RmsButton(label: 'إسناد التالي', icon: Icons.bolt, onPressed: _assignNext),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_autoAssignEnabled) ...[
+                    RmsButton(
+                      label: 'إسناد تلقائي',
+                      icon: Icons.auto_awesome,
+                      variant: BtnVariant.primary,
+                      onPressed: _waiting.isEmpty || _drivers.isEmpty
+                          ? null
+                          : _autoAssignAll,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  RmsButton(
+                    label: 'إسناد التالي',
+                    icon: Icons.bolt,
+                    onPressed: _assignNext,
+                  ),
+                ],
+              ),
             ),
           ),
           RmsTable(
@@ -379,7 +429,16 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'السائقون', subtitle: 'الوردية · 12:00–20:00'),
+          SectionHeader(
+            title: 'السائقون',
+            subtitle: 'الوردية · 12:00–20:00',
+            trailing: Tag(
+              label: _autoAssignEnabled
+                  ? 'إسناد تلقائي مُفعّل'
+                  : 'إسناد تلقائي متوقف',
+              tone: _autoAssignEnabled ? StatusTone.info : StatusTone.neutral,
+            ),
+          ),
           const SizedBox(height: 12),
           for (final driver in _drivers) ...[
             _DriverRow(

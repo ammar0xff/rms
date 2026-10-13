@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
+import '../../domain/assignment/delivery_assignment.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
@@ -126,70 +127,130 @@ class LocalDeliveryRepository implements DeliveryRepository {
       final record = LocalStores.deliveries.record(deliveryId);
       final existing = await record.get(txn);
       if (existing == null) return;
-      final delivery = DeliveryModel.fromRecord(existing);
+      outcome = await _applyAssignment(
+        txn,
+        DeliveryModel.fromRecord(existing),
+        driver,
+        now,
+        baseDriver: baseDriver,
+      );
+    });
+    return outcome;
+  }
 
-      // Conflict-aware reassignment: the caller's snapshot is stale when the
-      // stored job already has a *different, non-empty* driver.
-      final stale = baseDriver != null &&
-          baseDriver != delivery.driver &&
-          !delivery.isUnassigned;
-      if (stale) {
-        outcome = AssignmentOutcome.conflict;
-        delivery.localRevision += 1;
-        delivery.syncStatus = SyncStatus.conflict;
-        await record.put(txn, delivery.toRecord());
-        await _outbox.append(
-          txn,
-          _entry(
-            entityId: deliveryId,
-            operationType: 'reassignDeliveryConflict',
-            createdAt: now,
-            status: OutboxStatus.conflict,
-            payload: {
-              'id': deliveryId,
-              'orderRef': delivery.orderRef,
-              'baseDriver': baseDriver,
-              'currentDriver': delivery.driver,
-              'attemptedDriver': driver,
-            },
+  @override
+  Future<List<DeliveryAssignmentResult>> autoAssignWaiting() async {
+    final now = _clock();
+    final results = <DeliveryAssignmentResult>[];
+    await _db.transaction((txn) async {
+      final deliveries = (await LocalStores.deliveries.find(txn))
+          .map((s) => DeliveryModel.fromRecord(s.value))
+          .toList();
+      final drivers = (await LocalStores.drivers.find(txn))
+          .map((s) => DriverModel.fromRecord(s.value))
+          .toList();
+
+      final plan = DeliveryAssignmentPolicy.plan(
+        deliveries: deliveries,
+        drivers: drivers,
+      );
+      if (plan.isEmpty) return;
+
+      final byId = {for (final delivery in deliveries) delivery.id: delivery};
+      for (final planned in plan) {
+        final delivery = byId[planned.deliveryId];
+        // Re-check the state in case the plan is applied against a snapshot that
+        // already assigned the job; never stomp a non-waiting job.
+        if (delivery == null || delivery.state != DeliveryState.waiting) continue;
+        final outcome =
+            await _applyAssignment(txn, delivery, planned.driver, now);
+        results.add(
+          DeliveryAssignmentResult(
+            deliveryId: planned.deliveryId,
+            driver: planned.driver,
+            outcome: outcome,
           ),
         );
-        await _audit?.append(
-          txn,
-          AuditEntry(
-            id: _uuid.v4(),
-            action: AuditAction.reassignConflict,
-            entityType: 'delivery',
-            entityId: deliveryId,
-            summary: 'تعارض إسناد: الحالي ${delivery.driver} مقابل $driver',
-            at: now,
-            createdOffline: true,
-          ),
-        );
-        return;
       }
+    });
+    return results;
+  }
 
-      delivery.driver = driver;
-      delivery.state = DeliveryState.assigned;
+  /// Applies one provisional assignment and queues its outbox command.
+  ///
+  /// Shared by the single-job [assignDriver] and the batch
+  /// [autoAssignWaiting] so both honour the same conflict-aware rule: when the
+  /// caller's [baseDriver] no longer matches a job that already has a driver,
+  /// the reassignment is recorded as a conflict instead of overwriting it.
+  Future<AssignmentOutcome> _applyAssignment(
+    Transaction txn,
+    DeliveryModel delivery,
+    String driver,
+    DateTime now, {
+    String? baseDriver,
+  }) async {
+    final record = LocalStores.deliveries.record(delivery.id);
+
+    // Conflict-aware reassignment: the caller's snapshot is stale when the
+    // stored job already has a *different, non-empty* driver.
+    final stale = baseDriver != null &&
+        baseDriver != delivery.driver &&
+        !delivery.isUnassigned;
+    if (stale) {
       delivery.localRevision += 1;
-      delivery.syncStatus = SyncStatus.pendingSync;
+      delivery.syncStatus = SyncStatus.conflict;
       await record.put(txn, delivery.toRecord());
       await _outbox.append(
         txn,
         _entry(
-          entityId: deliveryId,
-          operationType: 'assignDriver',
+          entityId: delivery.id,
+          operationType: 'reassignDeliveryConflict',
           createdAt: now,
+          status: OutboxStatus.conflict,
           payload: {
-            'id': deliveryId,
+            'id': delivery.id,
             'orderRef': delivery.orderRef,
-            'driver': driver,
-            'state': delivery.state.name,
+            'baseDriver': baseDriver,
+            'currentDriver': delivery.driver,
+            'attemptedDriver': driver,
           },
         ),
       );
-    });
-    return outcome;
+      await _audit?.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.reassignConflict,
+          entityType: 'delivery',
+          entityId: delivery.id,
+          summary: 'تعارض إسناد: الحالي ${delivery.driver} مقابل $driver',
+          at: now,
+          createdOffline: true,
+        ),
+      );
+      return AssignmentOutcome.conflict;
+    }
+
+    delivery.driver = driver;
+    delivery.state = DeliveryState.assigned;
+    delivery.localRevision += 1;
+    delivery.syncStatus = SyncStatus.pendingSync;
+    await record.put(txn, delivery.toRecord());
+    await _outbox.append(
+      txn,
+      _entry(
+        entityId: delivery.id,
+        operationType: 'assignDriver',
+        createdAt: now,
+        payload: {
+          'id': delivery.id,
+          'orderRef': delivery.orderRef,
+          'driver': driver,
+          'state': delivery.state.name,
+        },
+      ),
+    );
+    return AssignmentOutcome.assigned;
   }
 
   @override

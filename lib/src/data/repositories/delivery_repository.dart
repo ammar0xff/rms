@@ -9,6 +9,21 @@ import '../../domain/models/payment.dart';
 /// for review instead of silently overwriting the newer assignment.
 enum AssignmentOutcome { assigned, conflict }
 
+/// One provisional assignment produced by
+/// [DeliveryRepository.autoAssignWaiting], reporting the driver chosen and
+/// whether the write was applied or flagged as a conflict.
+class DeliveryAssignmentResult {
+  const DeliveryAssignmentResult({
+    required this.deliveryId,
+    required this.driver,
+    required this.outcome,
+  });
+
+  final String deliveryId;
+  final String driver;
+  final AssignmentOutcome outcome;
+}
+
 /// Local-first access to delivery jobs, the courier roster, and the append-only
 /// collection log.
 abstract class DeliveryRepository {
@@ -36,6 +51,19 @@ abstract class DeliveryRepository {
     String driver, {
     String? baseDriver,
   });
+
+  /// Provisional, offline-safe auto-assignment of every waiting job.
+  ///
+  /// When the server has explicitly permitted local auto-assignment (the
+  /// `delivery_auto_assign` flag), the device picks the least-loaded available
+  /// driver for each unassigned job, oldest first, and applies the whole batch
+  /// in a single transaction. The backend stays authoritative: it reconciles
+  /// these provisional assignments later, and a stale reassignment is still
+  /// recorded as a conflict rather than silently applied.
+  ///
+  /// Returns one result per job that was planned; an empty list means there was
+  /// nothing to assign or no courier was available.
+  Future<List<DeliveryAssignmentResult>> autoAssignWaiting();
 
   Future<void> updateState(String deliveryId, DeliveryState state);
 

@@ -18,7 +18,9 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 > stock ledger: append-only movements whose sum is the on-hand balance, and conflict-aware physical
 > counts that are flagged for review rather than overwriting a newer balance; purchasing raises and
 > receives supplier orders that post straight into that ledger; reporting builds offline read-model
-> snapshots from those append-only stores with freshness and CSV export. Source of truth for
+> snapshots from those append-only stores with freshness and CSV export; and automated delivery
+> assignment provisionally assigns waiting jobs to the least-loaded courier when a server flag
+> permits it. Source of truth for
 > behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
@@ -119,12 +121,20 @@ ledger.
   collections, cash sessions, stock ledger, purchases, suppliers) into one self-consistent
   `ReportsSnapshot`; it reads the outbox for freshness (last acknowledgement plus
   pending/failed/conflict counts) and exports a flat CSV.
+- **Automated delivery assignment** (`DeliveryAssignmentPolicy` +
+  `LocalDeliveryRepository.autoAssignWaiting`) — when the cached `delivery_auto_assign` flag
+  permits it, the device picks the least-loaded *available* courier for every waiting job, oldest
+  first, and applies the batch in one transaction. The plan is a pure function of the cached roster
+  and open jobs, so two offline terminals agree; the backend stays authoritative, and a stale
+  reassignment is still flagged rather than silently overwritten.
 - **Migrations** — v3 (`stock-ledger`) introduces the ledger; v4 (`purchasing`) introduces suppliers
   and purchase orders. Each stamps revision/sync defaults on pre-existing records and never touches
   the outbox, so pending offline work survives the upgrade.
 - Tests: `inventory_repository_test.dart`, `purchasing_repository_test.dart`, `reports_test.dart`,
   `reports_repository_test.dart` (proves reporting stays consistent after a concurrent offline
-  movement), plus the v3/v4 cases in `migration_test.dart` and `release_upgrade_test.dart`.
+  movement), `delivery_assignment_test.dart` and `delivery_auto_assign_test.dart` (deterministic,
+  conflict-aware offline auto-assignment), plus the v3/v4 cases in `migration_test.dart` and
+  `release_upgrade_test.dart`.
 
 ## Layout
 ```
@@ -159,7 +169,7 @@ test/
 - **Dashboard** — hero KPI, sales-by-hour, alerts, sync health, branch status
 - **POS** — menu grid from the local cache, cart, order types, offline banner, local-first save
 - **Kitchen (KDS)** — queued / preparing / ready columns, local tickets routed from POS orders
-- **Delivery** — deliveries, drivers, offline collections, settlement queue
+- **Delivery** — deliveries, drivers, flag-gated auto-assignment, offline collections, settlement queue
 - **Accounting** — cash session, approvals, append-only ledger
 - **Menu** — cached catalog with offline reads · **Inventory** — offline stock ledger, movements
   and conflict-aware counts · **Purchasing** — suppliers and offline purchase orders that post to the

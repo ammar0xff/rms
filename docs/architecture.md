@@ -100,6 +100,11 @@ through an `AppScope` inherited widget.
   into one pure `ReportsSnapshot` (`domain/models/report.dart`). It reads the outbox for freshness
   and exports CSV; because every source is append-only, a report stays consistent under concurrent
   offline operations and long connectivity gaps.
+- **Automated delivery assignment** — `domain/assignment/delivery_assignment.dart` is a pure,
+  deterministic planner (least-loaded *available* courier, ties broken by name). When the cached
+  `delivery_auto_assign` flag permits it, `LocalDeliveryRepository.autoAssignWaiting` applies the
+  whole plan in one transaction; the assignment stays provisional and the backend remains
+  authoritative, so a stale reassignment is flagged rather than overwritten.
 - **Migrations** — v3 `stock-ledger` introduces the ledger; v4 `purchasing` introduces suppliers and
   purchase orders. Each stamps defaults on pre-existing records and never touches the outbox.
 

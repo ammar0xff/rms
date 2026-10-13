@@ -11,7 +11,7 @@ Maintained as a versioned policy (see `lib/src/domain/offline/offline_capability
 | External card payments | Integration-dependent | Never claim unverified success |
 | Kitchen | Local queue | Process local orders, persist status |
 | Printing | Conditional | Supported local integration only |
-| Delivery assignment | Restricted | Cached or permitted provisional only |
+| Delivery assignment | Restricted | Cached or flag-permitted provisional auto-assign only |
 | Driver updates | Queueable | Persist locally, sync later |
 | Customer collection | Queueable w/ safeguards | Financial confirmation stays pending |
 | Driver settlement | Restricted | Draft offline; final needs validation |
