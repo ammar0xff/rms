@@ -4,7 +4,7 @@ import 'package:rms/src/domain/update/artifact_verifier.dart';
 import 'package:rms/src/domain/update/download_state.dart';
 
 final _shaEmpty = _shaHex(''.codeUnits);
-final _shaHello = _shaHex('hello'.codeUnits);
+final _shaHello = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
 
 String _shaHex(List<int> bytes) {
   final digest = _sha(bytes);
