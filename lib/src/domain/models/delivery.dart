@@ -1,12 +1,16 @@
 import '../../data/local/outbox/outbox_status.dart';
+import 'collection.dart';
 
-/// Lifecycle of a delivery job, from creation to cash collected.
+/// Operational lifecycle of a delivery job.
+///
+/// This is intentionally *only* the operational state. Money collection and
+/// back-office settlement live on [CollectionModel] and [SettlementStatus], so a
+/// delivered order is never conflated with a financially settled one.
 enum DeliveryState {
   waiting('بانتظار الاستلام'),
   assigned('مُسند'),
   onRoute('في الطريق'),
-  delivered('تم التسليم'),
-  collected('تم التحصيل');
+  delivered('تم التسليم');
 
   const DeliveryState(this.label);
 
@@ -16,6 +20,8 @@ enum DeliveryState {
       this == DeliveryState.waiting ||
       this == DeliveryState.assigned ||
       this == DeliveryState.onRoute;
+
+  bool get isDelivered => this == DeliveryState.delivered;
 }
 
 /// A delivery job attached to an order and (optionally) a driver.
@@ -29,6 +35,8 @@ class DeliveryModel {
     required this.createdAt,
     this.driver = unassignedDriver,
     this.offline = false,
+    this.settlementStatus = SettlementStatus.pending,
+    this.localRevision = 1,
     this.syncStatus = SyncStatus.pendingSync,
   });
 
@@ -45,6 +53,15 @@ class DeliveryModel {
 
   /// Whether this job was created while the device was offline.
   bool offline;
+
+  /// Reconciliation state of the money collected for this job. Advanced only by
+  /// a server acknowledgement, never by the device that took the money.
+  SettlementStatus settlementStatus;
+
+  /// Monotonic local revision, used as the optimistic-concurrency base for
+  /// conflict-aware reassignment.
+  int localRevision;
+
   SyncStatus syncStatus;
 
   bool get isUnassigned => driver.isEmpty || driver == unassignedDriver;
@@ -58,6 +75,8 @@ class DeliveryModel {
         'createdAt': createdAt.toIso8601String(),
         'driver': driver,
         'offline': offline,
+        'settlementStatus': settlementStatus.name,
+        'localRevision': localRevision,
         'syncStatus': syncStatus.name,
       };
 
@@ -70,6 +89,9 @@ class DeliveryModel {
         createdAt: DateTime.parse(record['createdAt'] as String),
         driver: record['driver'] as String? ?? unassignedDriver,
         offline: record['offline'] as bool? ?? false,
+        settlementStatus: SettlementStatus.values
+            .byName(record['settlementStatus'] as String? ?? 'pending'),
+        localRevision: (record['localRevision'] as int?) ?? 1,
         syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
       );
 }

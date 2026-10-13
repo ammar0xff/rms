@@ -3,7 +3,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
+import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/models/payment.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
@@ -13,9 +15,11 @@ import 'delivery_repository.dart';
 
 /// Local-first delivery repository.
 ///
-/// Jobs, driver assignments and state transitions each write their business
-/// record and an outbox command in a single transaction, so an offline device
-/// can keep dispatching and collecting while the backend is unreachable.
+/// Jobs, driver assignments, state transitions and collections each write their
+/// business record and an outbox command in a single transaction, so an offline
+/// device can keep dispatching, delivering and collecting while the backend is
+/// unreachable. Operational state, collection and settlement are tracked
+/// separately; only a server acknowledgement settles money.
 class LocalDeliveryRepository implements DeliveryRepository {
   LocalDeliveryRepository(
     this._db, {
@@ -44,6 +48,15 @@ class LocalDeliveryRepository implements DeliveryRepository {
   Future<List<DriverModel>> listDrivers() async {
     final snapshots = await LocalStores.drivers.find(_db.db);
     return snapshots.map((s) => DriverModel.fromRecord(s.value)).toList();
+  }
+
+  @override
+  Future<List<CollectionModel>> listCollections() async {
+    final snapshots = await LocalStores.collections.find(_db.db);
+    final collections =
+        snapshots.map((s) => CollectionModel.fromRecord(s.value)).toList();
+    collections.sort((a, b) => a.collectedAt.compareTo(b.collectedAt));
+    return collections;
   }
 
   @override
@@ -76,38 +89,91 @@ class LocalDeliveryRepository implements DeliveryRepository {
       createdAt: now,
       offline: createdOffline,
     );
-    final entry = OutboxEntry(
-      operationId: _uuid.v4(),
-      entityType: 'delivery',
-      entityId: id,
-      operationType: 'createDelivery',
-      payload: {
-        'id': id,
-        'orderRef': orderRef,
-        'address': address,
-        'amount': amount,
-      },
-      schemaVersion: AppVersion.localSchemaVersion,
-      idempotencyKey: _uuid.v4(),
-      createdAt: now,
-    );
     await _db.transaction((txn) async {
       await LocalStores.deliveries.record(id).put(txn, delivery.toRecord());
-      await _outbox.append(txn, entry);
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: id,
+          operationType: 'createDelivery',
+          createdAt: now,
+          payload: {
+            'id': id,
+            'orderRef': orderRef,
+            'address': address,
+            'amount': amount,
+          },
+        ),
+      );
     });
     return delivery;
   }
 
   @override
-  Future<void> assignDriver(String deliveryId, String driver) =>
-      _mutate(
-        deliveryId,
-        (d) {
-          d.driver = driver;
-          d.state = DeliveryState.assigned;
-        },
-        operationType: 'assignDriver',
+  Future<AssignmentOutcome> assignDriver(
+    String deliveryId,
+    String driver, {
+    String? baseDriver,
+  }) async {
+    final now = _clock();
+    var outcome = AssignmentOutcome.assigned;
+    await _db.transaction((txn) async {
+      final record = LocalStores.deliveries.record(deliveryId);
+      final existing = await record.get(txn);
+      if (existing == null) return;
+      final delivery = DeliveryModel.fromRecord(existing);
+
+      // Conflict-aware reassignment: the caller's snapshot is stale when the
+      // stored job already has a *different, non-empty* driver.
+      final stale = baseDriver != null &&
+          baseDriver != delivery.driver &&
+          !delivery.isUnassigned;
+      if (stale) {
+        outcome = AssignmentOutcome.conflict;
+        delivery.localRevision += 1;
+        delivery.syncStatus = SyncStatus.conflict;
+        await record.put(txn, delivery.toRecord());
+        await _outbox.append(
+          txn,
+          _entry(
+            entityId: deliveryId,
+            operationType: 'reassignDeliveryConflict',
+            createdAt: now,
+            status: OutboxStatus.conflict,
+            payload: {
+              'id': deliveryId,
+              'orderRef': delivery.orderRef,
+              'baseDriver': baseDriver,
+              'currentDriver': delivery.driver,
+              'attemptedDriver': driver,
+            },
+          ),
+        );
+        return;
+      }
+
+      delivery.driver = driver;
+      delivery.state = DeliveryState.assigned;
+      delivery.localRevision += 1;
+      delivery.syncStatus = SyncStatus.pendingSync;
+      await record.put(txn, delivery.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: deliveryId,
+          operationType: 'assignDriver',
+          createdAt: now,
+          payload: {
+            'id': deliveryId,
+            'orderRef': delivery.orderRef,
+            'driver': driver,
+            'state': delivery.state.name,
+          },
+        ),
       );
+    });
+    return outcome;
+  }
 
   @override
   Future<void> updateState(String deliveryId, DeliveryState state) => _mutate(
@@ -117,6 +183,117 @@ class LocalDeliveryRepository implements DeliveryRepository {
         },
         operationType: 'deliveryState',
       );
+
+  @override
+  Future<CollectionModel?> recordCollection({
+    required String deliveryId,
+    required double amount,
+    PaymentMethod method = PaymentMethod.cash,
+    bool createdOffline = false,
+  }) async {
+    final now = _clock();
+    final id = _uuid.v4();
+    CollectionModel? collection;
+    await _db.transaction((txn) async {
+      final record = LocalStores.deliveries.record(deliveryId);
+      final existing = await record.get(txn);
+      if (existing == null) return;
+      final delivery = DeliveryModel.fromRecord(existing);
+      if (!delivery.state.isDelivered) return;
+
+      // One collection per job: recording is idempotent and never duplicates.
+      final already = await LocalStores.collections.find(
+        txn,
+        finder: Finder(filter: Filter.equals('deliveryId', deliveryId)),
+      );
+      if (already.isNotEmpty) return;
+
+      collection = CollectionModel(
+        id: id,
+        deliveryId: deliveryId,
+        orderRef: delivery.orderRef,
+        driver: delivery.driver,
+        amount: amount,
+        method: method,
+        collectedAt: now,
+        createdOffline: createdOffline,
+      );
+      delivery.settlementStatus = SettlementStatus.pending;
+      delivery.localRevision += 1;
+      delivery.syncStatus = SyncStatus.pendingSync;
+      await record.put(txn, delivery.toRecord());
+      await LocalStores.collections
+          .record(id)
+          .put(txn, collection!.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityType: 'collection',
+          entityId: id,
+          operationType: 'recordCollection',
+          createdAt: now,
+          payload: {
+            'id': id,
+            'deliveryId': deliveryId,
+            'orderRef': delivery.orderRef,
+            'driver': delivery.driver,
+            'amount': amount,
+            'method': method.name,
+          },
+        ),
+      );
+    });
+    return collection;
+  }
+
+  @override
+  Future<void> finalizeSettlement(String deliveryId) async {
+    // Idempotent: never queue a second settlement for the same job.
+    final queued = await _outbox.pending();
+    final alreadyQueued = queued.any((e) =>
+        e.entityType == 'delivery' &&
+        e.entityId == deliveryId &&
+        e.operationType == 'settleDelivery');
+    if (alreadyQueued) return;
+
+    final now = _clock();
+    await _db.transaction((txn) async {
+      final record = LocalStores.deliveries.record(deliveryId);
+      final existing = await record.get(txn);
+      if (existing == null) return;
+      final delivery = DeliveryModel.fromRecord(existing);
+      if (!delivery.state.isDelivered) return;
+      if (delivery.settlementStatus == SettlementStatus.settled) return;
+
+      final pending = await LocalStores.collections.find(
+        txn,
+        finder: Finder(
+          filter: Filter.and([
+            Filter.equals('deliveryId', deliveryId),
+            Filter.equals('settlementStatus', SettlementStatus.pending.name),
+          ]),
+        ),
+      );
+      final outstanding = pending.fold<double>(
+        0,
+        (sum, s) => sum + ((s.value['amount'] as num?)?.toDouble() ?? 0),
+      );
+
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: deliveryId,
+          operationType: 'settleDelivery',
+          createdAt: now,
+          payload: {
+            'id': deliveryId,
+            'orderRef': delivery.orderRef,
+            'settlement': outstanding,
+          },
+        ),
+      );
+    });
+  }
 
   /// Applies a local mutation and queues its outbox command atomically.
   Future<void> _mutate(
@@ -131,38 +308,68 @@ class LocalDeliveryRepository implements DeliveryRepository {
       if (existing == null) return;
       final delivery = DeliveryModel.fromRecord(existing);
       change(delivery);
+      delivery.localRevision += 1;
       delivery.syncStatus = SyncStatus.pendingSync;
       await record.put(txn, delivery.toRecord());
       await _outbox.append(
         txn,
-        OutboxEntry(
-          operationId: _uuid.v4(),
-          entityType: 'delivery',
+        _entry(
           entityId: deliveryId,
           operationType: operationType,
+          createdAt: now,
           payload: {
             'id': deliveryId,
             'orderRef': delivery.orderRef,
             'driver': delivery.driver,
             'state': delivery.state.name,
           },
-          schemaVersion: AppVersion.localSchemaVersion,
-          idempotencyKey: _uuid.v4(),
-          createdAt: now,
         ),
       );
     });
   }
 
-  /// Marks the delivery an outbox entry refers to as synced.
+  /// Marks the delivery (or collection) an outbox entry refers to as synced and
+  /// applies any server-confirmed settlement.
   Future<void> applySynced(OutboxEntry entry) async {
+    if (entry.entityType == 'collection') {
+      final record = LocalStores.collections.record(entry.entityId);
+      final existing = await record.get(_db.db);
+      if (existing == null) return;
+      final collection = CollectionModel.fromRecord(existing);
+      collection.syncStatus = SyncStatus.synced;
+      await record.put(_db.db, collection.toRecord());
+      return;
+    }
     if (entry.entityType != 'delivery') return;
     final record = LocalStores.deliveries.record(entry.entityId);
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final delivery = DeliveryModel.fromRecord(existing);
     delivery.syncStatus = SyncStatus.synced;
+    if (entry.operationType == 'settleDelivery') {
+      delivery.settlementStatus = SettlementStatus.settled;
+      await _settleCollections(entry.entityId);
+    }
     await record.put(_db.db, delivery.toRecord());
+  }
+
+  /// Marks every still-pending collection of a job as settled.
+  Future<void> _settleCollections(String deliveryId) async {
+    await _db.transaction((txn) async {
+      final snapshots = await LocalStores.collections.find(
+        txn,
+        finder: Finder(filter: Filter.equals('deliveryId', deliveryId)),
+      );
+      for (final snapshot in snapshots) {
+        final collection = CollectionModel.fromRecord(snapshot.value);
+        if (collection.settlementStatus == SettlementStatus.settled) continue;
+        collection.settlementStatus = SettlementStatus.settled;
+        collection.syncStatus = SyncStatus.synced;
+        await LocalStores.collections
+            .record(collection.id)
+            .put(txn, collection.toRecord());
+      }
+    });
   }
 
   Future<void> seedDeliveries(List<DeliveryModel> deliveries) async {
@@ -176,4 +383,36 @@ class LocalDeliveryRepository implements DeliveryRepository {
     });
     AppLogger.info('Seeded ${deliveries.length} demo deliveries.');
   }
+
+  Future<void> seedCollections(List<CollectionModel> collections) async {
+    if (collections.isEmpty) return;
+    await _db.transaction((txn) async {
+      for (final collection in collections) {
+        await LocalStores.collections
+            .record(collection.id)
+            .put(txn, collection.toRecord());
+      }
+    });
+    AppLogger.info('Seeded ${collections.length} demo collections.');
+  }
+
+  OutboxEntry _entry({
+    String entityType = 'delivery',
+    required String entityId,
+    required String operationType,
+    required DateTime createdAt,
+    required Map<String, Object?> payload,
+    OutboxStatus status = OutboxStatus.pending,
+  }) =>
+      OutboxEntry(
+        operationId: _uuid.v4(),
+        entityType: entityType,
+        entityId: entityId,
+        operationType: operationType,
+        payload: Map<String, dynamic>.from(payload),
+        schemaVersion: AppVersion.localSchemaVersion,
+        idempotencyKey: _uuid.v4(),
+        createdAt: createdAt,
+        syncStatus: status,
+      );
 }

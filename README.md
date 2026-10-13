@@ -7,11 +7,13 @@
 Cross-platform, **offline-first** restaurant management system.
 Flutter frontend, Firebase backend, local-first persistence with transactional outbox and idempotent synchronization.
 
-> Status: **Phase 1 — Core Features** (in progress). Flutter architecture, build-time
-> Firebase configuration, authentication, version/diagnostics, and the **local-first persistence
-> layer (document store + transactional outbox + idempotent sync engine)** are in place; the POS,
-> menu, and kitchen (KDS) screens now read from the local store. Source of truth for behavior is
-> `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
+> Status: **Phase 2 — Delivery and Settlement** (in progress). Phase 0 (local-first
+> persistence: document store + transactional outbox + idempotent sync engine) and Phase 1
+> (POS, menu cache, kitchen KDS, local printing, sync monitoring) are in place, together with
+> accounting, conflicts, settings and server-assigned order identity. Phase 2 adds offline
+> delivery events, an append-only collection log, conflict-aware reassignment, and an
+> outstanding settlement queue that is finalized only on a server acknowledgement. Source of
+> truth for behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
 

@@ -22,4 +22,7 @@ abstract final class LocalStores {
 
   static final StoreRef<String, Map<String, Object?>> drivers =
       stringMapStoreFactory.store('drivers');
+
+  static final StoreRef<String, Map<String, Object?>> collections =
+      stringMapStoreFactory.store('collections');
 }

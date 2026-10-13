@@ -15,6 +15,7 @@ import '../../data/repositories/local_kitchen_repository.dart';
 import '../../data/repositories/local_menu_repository.dart';
 import '../../data/repositories/local_order_repository.dart';
 import '../../data/repositories/local_payment_repository.dart';
+import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/kitchen_ticket.dart';
 import '../../domain/models/menu_item.dart';
@@ -281,13 +282,53 @@ Future<void> _primeDeliveryData(LocalDeliveryRepository? deliveries) async {
         orderRef: 'T-019',
         address: 'استلام من الفرع',
         amount: 18.00,
-        state: DeliveryState.collected,
+        state: DeliveryState.delivered,
         driver: 'مروان ر.',
         offline: true,
+        settlementStatus: SettlementStatus.pending,
         createdAt: now.subtract(const Duration(minutes: 40)),
         syncStatus: SyncStatus.synced,
       ),
+      DeliveryModel(
+        id: 'DL-0097',
+        orderRef: 'ORD-4818',
+        address: '9 شارع الزيتون',
+        amount: 44.00,
+        state: DeliveryState.delivered,
+        driver: 'سارة ك.',
+        settlementStatus: SettlementStatus.settled,
+        createdAt: now.subtract(const Duration(minutes: 62)),
+        syncStatus: SyncStatus.synced,
+      ),
     ]);
+    final collections = await deliveries.listCollections();
+    if (collections.isEmpty) {
+      await deliveries.seedCollections([
+        CollectionModel(
+          id: 'COL-0096',
+          deliveryId: 'DL-0096',
+          orderRef: 'T-019',
+          driver: 'مروان ر.',
+          amount: 18.00,
+          method: PaymentMethod.cash,
+          collectedAt: now.subtract(const Duration(minutes: 32)),
+          createdOffline: true,
+          settlementStatus: SettlementStatus.pending,
+          syncStatus: SyncStatus.synced,
+        ),
+        CollectionModel(
+          id: 'COL-0097',
+          deliveryId: 'DL-0097',
+          orderRef: 'ORD-4818',
+          driver: 'سارة ك.',
+          amount: 44.00,
+          method: PaymentMethod.cash,
+          collectedAt: now.subtract(const Duration(minutes: 55)),
+          settlementStatus: SettlementStatus.settled,
+          syncStatus: SyncStatus.synced,
+        ),
+      ]);
+    }
   } catch (error, stackTrace) {
     AppLogger.error('Failed to prime delivery data', error, stackTrace);
   }
