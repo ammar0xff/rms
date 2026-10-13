@@ -19,6 +19,7 @@ import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
 import '../../data/repositories/reports_repository.dart';
 import '../../data/repositories/supplier_repository.dart';
+import '../../data/repositories/update_repository.dart';
 import '../../data/sync/sync_service.dart';
 import '../../data/services/print_service.dart';
 
@@ -47,6 +48,7 @@ class AppServices {
     this.purchases,
     this.reports,
     this.branches,
+    this.updates,
   });
 
   final FirebaseConfig config;
@@ -111,6 +113,10 @@ class AppServices {
 
   /// Branch directory and consolidation read-model, or null when unavailable.
   final BranchRepository? branches;
+
+  /// Cached release manifest used to classify app updates, or null when
+  /// unavailable.
+  final UpdateRepository? updates;
 
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;

@@ -6,6 +6,11 @@
 abstract final class AppVersion {
   static const String number = '0.8.0';
   static const int build = 1;
+
+  /// The release channel this build tracks (see `UpdateChannel`). Compiled in so
+  /// an offline device cannot switch itself onto a different channel.
+  static const String channel = 'production';
+
   static const String localSchema = 'v5';
   static const int localSchemaVersion = 5;
   static const String apiContract = '2026-10-11';

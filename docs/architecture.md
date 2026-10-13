@@ -144,7 +144,12 @@ half, so the eligibility rules are verifiable without touching Firebase, secrets
 - **Local-work preservation** — the engine classifies only; it never downloads or installs. It flags
   whether a migration is required, so later slices can honour AC-35 (never drop unsynced orders,
   payments, kitchen, delivery, settlement or outbox work) around install.
-- Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`.
+- **Cached and surfaced** — `data/repositories/local_update_repository.dart` stores the document in the
+  config store, so wiring it in needs no schema migration; the settings screen resolves the device
+  platform/channel/branch through `core/config/device_update_context.dart`, classifies the cached
+  release and renders the verdict, the failed gate and the rollout bucket.
+- Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`,
+  `update_repository_test.dart`, `settings_update_test.dart`.
 
 
 ## Sync engine responsibilities

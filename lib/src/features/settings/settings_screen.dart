@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/app_version.dart';
+import '../../core/config/device_update_context.dart';
 import '../../core/di/app_services.dart';
 import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
@@ -13,6 +14,7 @@ import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
 import '../../domain/models/release_manifest.dart';
+import '../../domain/update/update_decision.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -23,6 +25,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   ReleaseManifest? _manifest;
+  UpdateDecision? _decision;
   bool _loaded = false;
 
   @override
@@ -34,10 +37,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _load() async {
-    final features = AppScope.of(context).features;
+    final services = AppScope.of(context);
+    final features = services.features;
     final manifest = features == null ? null : await features.manifest();
+    final updates = services.updates;
+    final release = updates == null ? null : await updates.cached();
+    final branches = services.branches;
+    final branch = branches == null ? null : await branches.activeBranch();
+    final decision = UpdateDecisionEngine.decide(
+      manifest: release,
+      context: buildUpdateContext(
+        now: DateTime.now(),
+        branchId: branch?.id ?? '',
+        cohortSeed: branch?.id ?? '',
+      ),
+    );
     if (!mounted) return;
-    setState(() => _manifest = manifest);
+    setState(() {
+      _manifest = manifest;
+      _decision = decision;
+    });
   }
 
   @override
@@ -54,7 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(child: _VersionCard(migration: services.migration)),
             const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _UpdateCard(manifest: _manifest)),
+            Expanded(child: _UpdateCard(decision: _decision)),
           ],
         ),
         Row(
@@ -106,18 +125,17 @@ class _VersionCard extends StatelessWidget {
 }
 
 class _UpdateCard extends StatelessWidget {
-  const _UpdateCard({required this.manifest});
+  const _UpdateCard({required this.decision});
 
-  final ReleaseManifest? manifest;
+  final UpdateDecision? decision;
 
   @override
   Widget build(BuildContext context) {
-    final channel = manifest?.channel ?? 'stable';
-    final version = manifest?.version ?? AppVersion.number;
-    final minSupported = manifest?.minSupportedVersion ?? '—';
-    final rollout = manifest?.rolloutPercent;
-    final mandatory = manifest?.mandatory ?? false;
-    final hasNewer = manifest != null && manifest!.version != AppVersion.number;
+    final current = decision;
+    final release = current?.release;
+    final (headline, body, tone, icon) = _presentUpdate(current);
+    final color = toneColor(tone);
+    final canInstall = current?.isUpdate ?? false;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -125,43 +143,49 @@ class _UpdateCard extends StatelessWidget {
           SectionHeader(
             title: 'التحديثات',
             trailing: Tag(
-              label: mandatory ? 'إلزامي' : 'مستقر',
-              tone: mandatory ? StatusTone.warning : StatusTone.positive,
+              label: _updateTagLabel(current),
+              tone: tone,
+              icon: icon,
             ),
           ),
           const SizedBox(height: 12),
           for (final (k, v) in [
-            ('قناة الإصدار', channel),
-            ('الإصدار المعلن', version),
-            ('الحد الأدنى المدعوم', minSupported),
-            ('نسبة النشر', rollout == null ? '—' : '$rollout%'),
-            ('الإصدار الحالي', AppVersion.number),
+            ('قناة الإصدار', release?.channel.label ?? '—'),
+            ('الإصدار المعلن', release?.version ?? '—'),
+            ('الإصدار الحالي', AppVersion.string),
+            ('حالة الإصدار', release?.status.label ?? '—'),
+            ('نسبة النشر', release == null ? '—' : '${release.rolloutPercent}%'),
+            ('الحد الأدنى المدعوم', release?.minSupportedVersion ?? '—'),
+            if (current?.bucket != null) ('شريحة النشر', '${current!.bucket} / 100'),
+            if (current?.blockReason != null)
+              ('سبب عدم الإتاحة', current!.blockReason!.label),
+            if (current?.requiresMigration ?? false) ('ترحيل محلي مطلوب', 'نعم'),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.06),
-              border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
+              color: color.withValues(alpha: 0.06),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.system_update_alt, size: 15, color: AppColors.info),
+                Icon(icon, size: 15, color: color),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        hasNewer ? 'تحديث اختياري متاح · $version' : 'أنت على الإصدار المعلن',
-                        style: AppText.tableCellPrimary.copyWith(color: AppColors.info),
+                        headline,
+                        style: AppText.tableCellPrimary.copyWith(color: color),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'يُسمح بالتأجيل. تُحفظ المعاملات المحلية المعلقة وتُجرى الترحيلات بشكل متصل.',
+                        body,
                         style: AppText.caption.copyWith(fontSize: 10.5),
                       ),
                     ],
@@ -171,7 +195,15 @@ class _UpdateCard extends StatelessWidget {
                 RmsButton(
                   label: 'تحديث',
                   variant: BtnVariant.primary,
-                  onPressed: hasNewer ? () {} : null,
+                  onPressed: canInstall
+                      ? () => ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'سيتم تنزيل الحزمة والتحقق من بصمتها قبل التثبيت.',
+                              ),
+                            ),
+                          )
+                      : null,
                 ),
               ],
             ),
@@ -181,6 +213,60 @@ class _UpdateCard extends StatelessWidget {
     );
   }
 }
+
+/// The headline, detail, tone and icon for a decision, so the card explains the
+/// outcome without leaking the gate ordering.
+(String, String, StatusTone, IconData) _presentUpdate(UpdateDecision? decision) {
+  final version = decision?.release?.version ?? '';
+  return switch (decision?.status) {
+    UpdateDecisionStatus.optional => (
+        'تحديث اختياري متاح · $version',
+        'يُسمح بالتأجيل؛ تُحفظ المعاملات المحلية المعلقة ولا تُمس الترحيلات.',
+        StatusTone.info,
+        Icons.system_update_alt,
+      ),
+    UpdateDecisionStatus.recommended => (
+        'تحديث مُوصى به · $version',
+        'يُنصح بالتحديث قريبًا؛ لن تُفقد أي أعمال محلية غير متزامنة.',
+        StatusTone.info,
+        Icons.system_update_alt,
+      ),
+    UpdateDecisionStatus.mandatory => (
+        'تحديث إلزامي · $version',
+        'مطلوب لمواصلة التشغيل الآمن؛ تُحفظ الأعمال المحلية المعلقة قبل التثبيت.',
+        StatusTone.warning,
+        Icons.priority_high,
+      ),
+    UpdateDecisionStatus.ineligible => (
+        'لا يتوفر تحديث لهذا الجهاز',
+        decision?.blockReason?.label ?? 'التحديث معلّق لهذا الجهاز.',
+        StatusTone.neutral,
+        Icons.block,
+      ),
+    UpdateDecisionStatus.upToDate => (
+        'أنت على أحدث إصدار',
+        'لا يوجد تحديث معلن لهذا الجهاز حاليًا.',
+        StatusTone.positive,
+        Icons.check_circle_outline,
+      ),
+    null => (
+        'جارٍ التحقق من الإصدار…',
+        'يُقرأ آخر بيان إصدار مخزّن على هذا الجهاز.',
+        StatusTone.neutral,
+        Icons.system_update_alt,
+      ),
+  };
+}
+
+String _updateTagLabel(UpdateDecision? decision) =>
+    switch (decision?.status) {
+      UpdateDecisionStatus.optional => 'اختياري',
+      UpdateDecisionStatus.recommended => 'مُوصى به',
+      UpdateDecisionStatus.mandatory => 'إلزامي',
+      UpdateDecisionStatus.ineligible => 'غير متاح',
+      UpdateDecisionStatus.upToDate => 'محدّث',
+      null => 'جارٍ التحقق',
+    };
 
 class _MigrationCard extends StatelessWidget {
   const _MigrationCard({required this.outcome});

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../config/app_version.dart';
+import '../config/device_update_context.dart';
 import '../config/firebase_config.dart';
 import '../di/app_services.dart';
 import '../logging/app_logger.dart';
@@ -27,6 +28,7 @@ import '../../data/repositories/local_payment_repository.dart';
 import '../../data/repositories/local_purchase_repository.dart';
 import '../../data/repositories/local_reports_repository.dart';
 import '../../data/repositories/local_supplier_repository.dart';
+import '../../data/repositories/local_update_repository.dart';
 import '../../domain/models/approval_request.dart';
 import '../../domain/models/branch.dart';
 import '../../domain/models/cash_session.dart';
@@ -40,6 +42,7 @@ import '../../domain/models/purchase_order.dart';
 import '../../domain/models/release_manifest.dart';
 import '../../domain/models/stock_movement.dart';
 import '../../domain/models/supplier.dart';
+import '../../domain/models/update_manifest.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
 import '../../data/sync/firestore_sync_transport.dart';
@@ -112,6 +115,7 @@ Future<AppServices> _resolveAuth(
       : LocalApprovalRepository(database, outbox: outbox, audit: audit);
   final features =
       database == null ? null : LocalFeatureFlagRepository(database);
+  final updates = database == null ? null : LocalUpdateRepository(database);
   final inventory = (database == null || outbox == null)
       ? null
       : LocalInventoryRepository(database, outbox: outbox, audit: audit);
@@ -158,6 +162,7 @@ Future<AppServices> _resolveAuth(
   await _primeInventoryData(inventory);
   await _primePurchasingData(suppliers, purchases);
   await _primeBranchData(branches);
+  await _primeUpdateManifest(updates);
 
   // Surface local outbox state even without a backend (demo mode); the
   // Firebase branch below re-attaches with the sync loop.
@@ -191,6 +196,7 @@ Future<AppServices> _resolveAuth(
       purchases: purchases,
       reports: reports,
       branches: branches,
+      updates: updates,
     );
   }
 
@@ -226,6 +232,7 @@ Future<AppServices> _resolveAuth(
       purchases: purchases,
       reports: reports,
       branches: branches,
+      updates: updates,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -255,6 +262,7 @@ Future<AppServices> _resolveAuth(
       purchases: purchases,
       reports: reports,
       branches: branches,
+      updates: updates,
     );
   }
 }
@@ -806,5 +814,44 @@ Future<void> _primeBranchData(LocalBranchRepository? branches) async {
     }
   } catch (error, stackTrace) {
     AppLogger.error('Failed to prime branch data', error, stackTrace);
+  }
+}
+
+/// Seeds a cached release manifest for the running platform when none exists, so
+/// the update card has a real decision to render in demo mode. Published builds
+/// receive this document from the backend; the seed is only a stand-in.
+Future<void> _primeUpdateManifest(LocalUpdateRepository? updates) async {
+  if (updates == null) return;
+  try {
+    if (await updates.cached() != null) return;
+    final now = DateTime.now();
+    await updates.cache(
+      UpdateManifest(
+        releaseId: 'rel-${AppVersion.channel}-0.9.0',
+        version: '0.9.0',
+        buildNumber: 2,
+        platform: currentUpdatePlatform(),
+        channel: currentUpdateChannel(),
+        status: ReleaseStatus.active,
+        severity: UpdateSeverity.recommended,
+        rolloutPercent: 100,
+        publishedAt: now,
+        artifact: const ReleaseArtifact(
+          reference: 'releases/rms-0.9.0.pkg',
+          sizeBytes: 48234496,
+          sha256:
+              'a3f1c8e27d4b9016f8e2a5c7b3d9014e6f2a8c5b1d3e7092fa4c6b8d0e2f4a6c',
+          signature: 'rms-release-key',
+        ),
+        minSupportedVersion: '0.7.0',
+        localSchemaMin: 4,
+        localSchemaMax: 6,
+        requiredMigrationVersion: AppVersion.localSchemaVersion,
+        releaseNotes: 'تحسينات في أداء المزامنة والعمل دون اتصال.',
+        forceAfter: now.add(const Duration(days: 21)),
+      ),
+    );
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime update manifest', error, stackTrace);
   }
 }

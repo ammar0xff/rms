@@ -166,7 +166,12 @@ secrets or installers.
   `ineligible` with the first failed gate, and places partial rollouts with a deterministic
   cross-platform cohort bucket. Installing is out of scope for this slice; the engine only classifies
   and flags whether a migration is required.
-- Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`.
+- **Cached and surfaced** — `LocalUpdateRepository` keeps the manifest in the local config store (no
+  new schema), and the Settings screen resolves the device platform/channel/branch, classifies the
+  cached release and renders the verdict plus, when blocked, the failed gate. Downloading and
+  installing the verified artifact is the next slice.
+- Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`,
+  `update_repository_test.dart`, `settings_update_test.dart`.
 
 ## Layout
 ```
