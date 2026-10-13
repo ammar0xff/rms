@@ -115,7 +115,9 @@ through an `AppScope` inherited widget.
   read-model into one `ConsolidationSnapshot` (`domain/models/branch.dart`). The merge is a pure
   function, so the same inputs always produce the same totals; the device's branch is read live and
   other branches fall back to their last synced aggregate, which keeps cross-branch reporting
-  consistent offline and marks stale/missing branches instead of counting them as zero.
+  consistent offline and marks stale/missing branches instead of counting them as zero. The
+  dashboard's branch-status card reads this same snapshot, so the home screen shows the live
+  own-branch plus cached-peers picture without any hardcoded figures.
 - **Migrations** — v3 `stock-ledger` introduces the ledger; v4 `purchasing` introduces suppliers and
   purchase orders; v5 `multi-branch` introduces the branch directory and consolidation aggregates.
   Each stamps defaults on pre-existing records and never touches the outbox.

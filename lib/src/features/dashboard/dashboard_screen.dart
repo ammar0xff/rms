@@ -16,6 +16,7 @@ import '../../core/widgets/surface_card.dart';
 import '../../core/widgets/sync_chip.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/mock/mock_data.dart';
+import '../../domain/models/branch.dart';
 import '../../domain/models/order.dart';
 import '../common/format.dart';
 import 'dashboard_metrics.dart';
@@ -29,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Order> _orders = const [];
+  ConsolidationSnapshot? _snapshot;
   bool _hasRepo = false;
   bool _initialized = false;
 
@@ -54,20 +56,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  /// Reads local orders. When no store is available the screen falls back to
-  /// demo figures so the layout is still meaningful.
+  /// Reads local orders and the consolidated branch snapshot. When no store is
+  /// available the screen falls back to demo figures so the layout is still
+  /// meaningful, and the branch card shows its unavailable state.
   Future<void> _load() async {
     if (!mounted) return;
-    final orders = AppScope.of(context).orders;
-    if (orders == null) {
-      _hasRepo = false;
-      return;
-    }
-    final list = await orders.listOrders();
+    final services = AppScope.of(context);
+    final orders = services.orders;
+    final branches = services.branches;
+    final list =
+        orders == null ? const <Order>[] : await orders.listOrders();
+    final snapshot = branches == null ? null : await branches.consolidate();
     if (!mounted) return;
     setState(() {
       _orders = list;
-      _hasRepo = true;
+      _hasRepo = orders != null;
+      _snapshot = snapshot;
     });
   }
 
@@ -126,12 +130,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Expanded(child: _AlertsPanel()),
           ],
         ),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: _SyncHealthCard()),
-            SizedBox(width: AppSpacing.lg),
-            Expanded(child: _BranchCard()),
+            const Expanded(flex: 2, child: _SyncHealthCard()),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(child: _BranchCard(snapshot: _snapshot)),
           ],
         ),
       ],
@@ -493,27 +497,75 @@ class _SyncHealthCard extends StatelessWidget {
   }
 }
 
+/// Compact branch status driven by the consolidation read-model: the device's
+/// own branch is read live, every other branch contributes its last synced
+/// aggregate, and stale/missing branches are flagged rather than zeroed.
 class _BranchCard extends StatelessWidget {
-  const _BranchCard();
+  const _BranchCard({required this.snapshot});
+
+  final ConsolidationSnapshot? snapshot;
 
   @override
   Widget build(BuildContext context) {
+    final snapshot = this.snapshot;
+    if (snapshot == null) {
+      return const SurfaceCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SectionHeader(title: 'حالة الفرع'),
+            SizedBox(height: 12),
+            Text(
+              'توحيد الفروع غير متاح في هذه الجلسة.',
+              style: AppText.caption,
+            ),
+          ],
+        ),
+      );
+    }
+    final local = snapshot.localBranch;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'حالة الفرع'),
+          SectionHeader(
+            title: 'حالة الفرع',
+            subtitle: local == null
+                ? null
+                : '${local.branch.name} · ${local.branch.code}',
+            trailing: Tag(
+              label: _coverageLabel(snapshot),
+              tone: _coverageTone(snapshot),
+            ),
+          ),
           const SizedBox(height: 12),
-          for (final (k, v) in const [
-            ('تقرير الكاشير (Z)', 'مفتوح · 12:00'),
-            ('درج النقدية', '1,204.50 ج.م'),
-            ('الموظفون النشطون', '9 في الوردية'),
-            ('إصدار التطبيق', '0.9.4 (build 812)'),
-            ('إصدار المخطط', 'v7'),
-          ])
-            KeyValue(label: k, value: v),
+          KvPanel(pairs: [
+            ('مبيعات الشبكة', money(snapshot.totalSales)),
+            ('طلبات الشبكة', '${snapshot.totalOrders}'),
+            ('تحصيل الشبكة', money(snapshot.totalCollected)),
+            ('مخزون الشبكة', _qty(snapshot.totalInventoryUnits)),
+            (
+              'تغطية الفروع',
+              '${snapshot.reportingCount} من ${snapshot.branchCount}',
+            ),
+          ]),
         ],
       ),
     );
   }
+
+  static String _coverageLabel(ConsolidationSnapshot snapshot) {
+    if (snapshot.staleCount > 0) return '${snapshot.staleCount} متأخر';
+    if (snapshot.missingCount > 0) return '${snapshot.missingCount} بلا بيانات';
+    return 'مكتمل';
+  }
+
+  static StatusTone _coverageTone(ConsolidationSnapshot snapshot) {
+    if (snapshot.staleCount > 0) return StatusTone.warning;
+    if (snapshot.missingCount > 0) return StatusTone.neutral;
+    return StatusTone.positive;
+  }
+
+  static String _qty(double value) =>
+      value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1);
 }
