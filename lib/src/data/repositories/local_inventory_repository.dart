@@ -185,7 +185,7 @@ class LocalInventoryRepository implements InventoryRepository {
             entityType: 'inventoryItem',
             entityId: itemId,
             summary:
-                'تعارض جرد · ${item.name} · أساس ${baseRevision ?? '—'} مقابل ${priorRevision}',
+                'تعارض جرد · ${item.name} · أساس $baseRevision مقابل $priorRevision',
             at: now,
             createdOffline: true,
           ),
