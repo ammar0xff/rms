@@ -23,3 +23,4 @@ Maintained as a versioned policy (see `lib/src/domain/offline/offline_capability
 | User management | Online only | No offline permission changes |
 | Refunds | Restricted | Online workflow unless authorized |
 | Configuration | Cached read | Changes need authorized server workflow |
+| App updates | Fully offline to evaluate | Classify the cached release manifest for this device (platform, channel, cohort, compatibility); downloading and installing the verified artifact needs connectivity |

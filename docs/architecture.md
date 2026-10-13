@@ -122,6 +122,31 @@ through an `AppScope` inherited widget.
   purchase orders; v5 `multi-branch` introduces the branch directory and consolidation aggregates.
   Each stamps defaults on pre-existing records and never touches the outbox.
 
+## Phase 5 — Firebase update delivery
+The v1.2 addendum turns Firebase into the release control plane: it publishes the manifest,
+distributes or references the artifact, and records rollout state. The first slice is the pure client
+half, so the eligibility rules are verifiable without touching Firebase, secrets or installers.
+
+- **Release-manifest contract** — `domain/models/update_manifest.dart` models one immutable release
+  per platform/channel/version: the artifact reference, size and SHA-256 (plus optional signature); a
+  rollout percentage; `draft/staged/active/paused/revoked` status; `optional/recommended/mandatory`
+  severity with a `forceAfter` deadline; optional cohort scoping by branch or device group; and the
+  compatibility ranges (backend version, local schema, required migration). It is parsed defensively:
+  a malformed or newer-schema document yields a `ManifestParseError` rather than a half-populated
+  manifest. It is distinct from the cached capability manifest, which only carries feature flags and
+  never gates artifact delivery.
+- **Update decision engine** — `domain/update/update_decision.dart` is a pure function of the cached
+  manifest and the device context. It reports `upToDate`, `optional`, `recommended`, `mandatory`, or
+  `ineligible` with the first failed gate (`platformMismatch`, `expired`, `alreadyInstalled`,
+  `rolloutExcluded`, `backendIncompatible`, `schemaIncompatible`, …). Partial rollouts use a
+  deterministic cross-platform Jenkins hash of the device/branch seed, so a device always lands in the
+  same bucket; a passed `forceAfter` escalates an optional release to mandatory.
+- **Local-work preservation** — the engine classifies only; it never downloads or installs. It flags
+  whether a migration is required, so later slices can honour AC-35 (never drop unsynced orders,
+  payments, kitchen, delivery, settlement or outbox work) around install.
+- Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`.
+
+
 ## Sync engine responsibilities
 - Detect connectivity and confirm reachability.
 - Process pending operations in dependency order.

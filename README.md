@@ -21,8 +21,11 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 > snapshots from those append-only stores with freshness and CSV export; automated delivery
 > assignment provisionally assigns waiting jobs to the least-loaded courier when a server flag
 > permits it; and multi-branch consolidation merges the device's live figures with every other
-> branch's last synced aggregate, so cross-branch reporting keeps working offline. Source of truth for
-> behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
+> branch's last synced aggregate, so cross-branch reporting keeps working offline. Phase 5 begins the
+> v1.2 update-delivery work with a pure release-manifest contract and a client update decision engine
+> that classifies a cached release — offline — as optional, recommended, mandatory or ineligible
+> before any artifact is fetched. Source of truth for behavior is
+> `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
 
@@ -149,6 +152,22 @@ ledger.
   (live-plus-cached cross-branch consolidation), plus the v3/v4/v5 cases in `migration_test.dart` and
   `release_upgrade_test.dart`.
 
+## Firebase update delivery (Phase 5)
+Firebase becomes the release control plane: it publishes the manifest and references the verified
+artifact. The first slice is the pure client half, so the rules are testable without Firebase,
+secrets or installers.
+
+- **Release-manifest contract** (`domain/models/update_manifest.dart`) — one immutable release per
+  platform/channel/version, carrying the artifact reference, size and SHA-256, rollout percentage,
+  lifecycle status, severity and the backend/schema compatibility ranges. It is parsed defensively: a
+  malformed or newer-schema document is rejected instead of partially honoured.
+- **Update decision engine** (`domain/update/update_decision.dart`) — a pure function of the cached
+  manifest and the device context. It returns `upToDate`, `optional`, `recommended`, `mandatory` or
+  `ineligible` with the first failed gate, and places partial rollouts with a deterministic
+  cross-platform cohort bucket. Installing is out of scope for this slice; the engine only classifies
+  and flags whether a migration is required.
+- Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`.
+
 ## Layout
 ```
 lib/
@@ -170,6 +189,8 @@ lib/
     domain/
       models/           # order, payment, delivery, cash session, approval, stock, ...
       offline/          # offline capability policy
+      assignment/       # pure delivery-assignment planner
+      update/           # pure release/update decision engine
     features/
       auth/ dashboard/ pos/ kitchen/ delivery/
       accounting/ menu/ inventory/ purchasing/ customers/ reports/
