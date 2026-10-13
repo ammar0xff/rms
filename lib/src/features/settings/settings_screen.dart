@@ -15,6 +15,8 @@ import '../../core/widgets/surface_card.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
 import '../../domain/models/release_manifest.dart';
 import '../../domain/update/update_decision.dart';
+import '../../domain/update/update_readiness.dart';
+import '../../data/local/outbox/outbox_snapshot.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -26,6 +28,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   ReleaseManifest? _manifest;
   UpdateDecision? _decision;
+  UpdateReadiness? _readiness;
   bool _loaded = false;
 
   @override
@@ -52,10 +55,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         cohortSeed: branch?.id ?? '',
       ),
     );
+    final work = await loadLocalWorkSnapshot(
+      services.outbox,
+      online: SyncMonitor.instance.online,
+    );
+    final readiness = UpdateReadinessEngine.classify(
+      decision: decision,
+      work: work,
+    );
     if (!mounted) return;
     setState(() {
       _manifest = manifest;
       _decision = decision;
+      _readiness = readiness;
     });
   }
 
@@ -73,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(child: _VersionCard(migration: services.migration)),
             const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _UpdateCard(decision: _decision)),
+            Expanded(child: _UpdateCard(decision: _decision, readiness: _readiness)),
           ],
         ),
         Row(
@@ -125,17 +137,18 @@ class _VersionCard extends StatelessWidget {
 }
 
 class _UpdateCard extends StatelessWidget {
-  const _UpdateCard({required this.decision});
+  const _UpdateCard({required this.decision, this.readiness});
 
   final UpdateDecision? decision;
+  final UpdateReadiness? readiness;
 
   @override
   Widget build(BuildContext context) {
     final current = decision;
     final release = current?.release;
-    final (headline, body, tone, icon) = _presentUpdate(current);
+    final (headline, body, tone, icon) = _presentUpdate(current, readiness);
     final color = toneColor(tone);
-    final canInstall = current?.isUpdate ?? false;
+    final canInstall = readiness?.allowsInstall ?? false;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -160,6 +173,8 @@ class _UpdateCard extends StatelessWidget {
             if (current?.blockReason != null)
               ('سبب عدم الإتاحة', current!.blockReason!.label),
             if (current?.requiresMigration ?? false) ('ترحيل محلي مطلوب', 'نعم'),
+            if (readiness != null && current?.isUpdate == true)
+              ('جاهزية التثبيت', readiness!.status.label),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
@@ -216,47 +231,80 @@ class _UpdateCard extends StatelessWidget {
 
 /// The headline, detail, tone and icon for a decision, so the card explains the
 /// outcome without leaking the gate ordering.
-(String, String, StatusTone, IconData) _presentUpdate(UpdateDecision? decision) {
+(String, String, StatusTone, IconData) _presentUpdate(
+  UpdateDecision? decision,
+  UpdateReadiness? readiness,
+) {
   final version = decision?.release?.version ?? '';
-  return switch (decision?.status) {
-    UpdateDecisionStatus.optional => (
-        'تحديث اختياري متاح · $version',
-        'يُسمح بالتأجيل؛ تُحفظ المعاملات المحلية المعلقة ولا تُمس الترحيلات.',
-        StatusTone.info,
-        Icons.system_update_alt,
-      ),
-    UpdateDecisionStatus.recommended => (
-        'تحديث مُوصى به · $version',
-        'يُنصح بالتحديث قريبًا؛ لن تُفقد أي أعمال محلية غير متزامنة.',
-        StatusTone.info,
-        Icons.system_update_alt,
-      ),
-    UpdateDecisionStatus.mandatory => (
-        'تحديث إلزامي · $version',
-        'مطلوب لمواصلة التشغيل الآمن؛ تُحفظ الأعمال المحلية المعلقة قبل التثبيت.',
-        StatusTone.warning,
-        Icons.priority_high,
-      ),
-    UpdateDecisionStatus.ineligible => (
-        'لا يتوفر تحديث لهذا الجهاز',
-        'الإصدار غير متاح لهذا الجهاز؛ السبب موضّح في التفاصيل أعلاه.',
-        StatusTone.neutral,
-        Icons.block,
-      ),
-    UpdateDecisionStatus.upToDate => (
-        'أنت على أحدث إصدار',
-        'لا يوجد تحديث معلن لهذا الجهاز حاليًا.',
-        StatusTone.positive,
-        Icons.check_circle_outline,
-      ),
-    null => (
-        'جارٍ التحقق من الإصدار…',
-        'يُقرأ آخر بيان إصدار مخزّن على هذا الجهاز.',
-        StatusTone.neutral,
-        Icons.system_update_alt,
-      ),
-  };
+  final pending = readiness?.isPending ?? false;
+  if (pending) {
+    final work = readiness!.work;
+    return switch (readiness.status) {
+      UpdateReadinessStatus.awaitingSync => (
+          'بانتظار مزامنة الأعمال المحلية',
+          'لا يُثبَّت التحديث قبل رفع ${work.unsynced} عملية محلية حتى لا تُفقد.',
+          StatusTone.warning,
+          Icons.sync,
+        ),
+      UpdateReadinessStatus.offlineBacklog => (
+          'يلزم اتصال بالإنترنت',
+          'هناك ${work.unsynced} عملية محلية غير مرفوعة؛ اتصل بالشبكة لرفعها ثم التحديث.',
+          StatusTone.warning,
+          Icons.cloud_off,
+        ),
+      UpdateReadinessStatus.needsAcknowledgement => (
+          'أعمال محلية معلّقة',
+          'هناك ${work.stuck} عملية رفضها الخادم؛ راجعها وأقرّها قبل التحديث.',
+          StatusTone.warning,
+          Icons.report_problem_outlined,
+        ),
+      _ => _decisionNote(decision, version),
+    };
+  }
+  return _decisionNote(decision, version);
 }
+
+(String, String, StatusTone, IconData) _decisionNote(
+  UpdateDecision? decision,
+  String version,
+) => switch (decision?.status) {
+      UpdateDecisionStatus.optional => (
+          'تحديث اختياري متاح · $version',
+          'يُسمح بالتأجيل؛ تُحفظ المعاملات المحلية المعلقة ولا تُمس الترحيلات.',
+          StatusTone.info,
+          Icons.system_update_alt,
+        ),
+      UpdateDecisionStatus.recommended => (
+          'تحديث مُوصى به · $version',
+          'يُنصح بالتحديث قريبًا؛ لن تُفقد أي أعمال محلية غير متزامنة.',
+          StatusTone.info,
+          Icons.system_update_alt,
+        ),
+      UpdateDecisionStatus.mandatory => (
+          'تحديث إلزامي · $version',
+          'مطلوب لمواصلة التشغيل الآمن؛ تُحفظ الأعمال المحلية المعلقة قبل التثبيت.',
+          StatusTone.warning,
+          Icons.priority_high,
+        ),
+      UpdateDecisionStatus.ineligible => (
+          'لا يتوفر تحديث لهذا الجهاز',
+          'الإصدار غير متاح لهذا الجهاز؛ السبب موضّح في التفاصيل أعلاه.',
+          StatusTone.neutral,
+          Icons.block,
+        ),
+      UpdateDecisionStatus.upToDate => (
+          'أنت على أحدث إصدار',
+          'لا يوجد تحديث معلن لهذا الجهاز حاليًا.',
+          StatusTone.positive,
+          Icons.check_circle_outline,
+        ),
+      null => (
+          'جارٍ التحقق من الإصدار…',
+          'يُقرأ آخر بيان إصدار مخزّن على هذا الجهاز.',
+          StatusTone.neutral,
+          Icons.system_update_alt,
+        ),
+    };
 
 String _updateTagLabel(UpdateDecision? decision) =>
     switch (decision?.status) {
