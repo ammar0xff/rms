@@ -1,0 +1,78 @@
+name: Bootstrap native platforms
+
+# One-time scaffolding generator.
+#
+# The repository started web-only, with platform projects created at build time
+# by `flutter create --platforms web`. That cannot work for Android or desktop:
+# in-app updates require a committed application id, a committed signing
+# configuration and versioned permissions/icons, none of which exist if the
+# platform tree is regenerated on every build.
+#
+# This workflow generates the native projects and commits them. It is
+# re-runnable by hand (workflow_dispatch) but is not triggered by pushes, so it
+# cannot fight the normal build.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-platforms
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: Generate and commit native projects
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate native platform projects
+        run: |
+          flutter create . \
+            --platforms android,linux,windows,macos \
+            --project-name rms \
+            --org dev.rms
+
+      # `flutter create` also refreshes template files it considers stale.
+      # Only the platform trees are committed so an accidental rewrite of lib/
+      # or pubspec.yaml cannot slip into main.
+      - name: Stage only the platform trees
+        run: |
+          git status --porcelain
+          git add android linux windows macos
+          if git diff --cached --quiet; then
+            echo "Native platforms already present and current — nothing to commit."
+            exit 0
+          fi
+
+      - name: Commit
+        run: |
+          git -c user.name=github-actions[bot] \
+              -c user.email=41898282+github-actions[bot]@users.noreply.github.com \
+              commit -m "chore(platforms): add Android and desktop scaffolding" \
+                    -- android linux windows macos
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### Native platforms bootstrapped"
+            echo ""
+            for d in android linux windows macos; do
+              if [ -d "$d" ]; then
+                echo "- \`$d\` — $(find "$d" -type f | wc -l) files"
+              else
+                echo "- \`$d\` — not generated"
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
