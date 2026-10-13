@@ -13,17 +13,6 @@ enum UpdateLifecycleState {
   const UpdateLifecycleState(this.label);
 
   final String label;
-
-  bool get isActive =>
-      state == UpdateLifecycleState.installing ||
-      state == UpdateLifecycleState.migrating ||
-      state == UpdateLifecycleState.healthCheck ||
-      state == UpdateLifecycleState.rebooting;
-
-  bool get isTerminal =>
-      state == UpdateLifecycleState.completed ||
-      state == UpdateLifecycleState.failed ||
-      state == UpdateLifecycleState.rolledBack;
 }
 
 /// The result of a health-check after applying an update.
