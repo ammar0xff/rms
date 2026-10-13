@@ -290,7 +290,7 @@ void main() {
       generatedAt: _now,
       orders: [_order(DateTime(2026, 10, 13, 12), price: 50)],
       payments: [_payment(100)],
-      recentAudit: [_audit('a1', _now)],
+      audit: [_audit('a1', _now)],
     );
 
     final csv = snapshot.toCsv();
