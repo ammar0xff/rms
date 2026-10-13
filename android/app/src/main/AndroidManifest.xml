@@ -1,6 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required to reach Firebase (auth, Firestore, Storage) and to download a
+         release artifact. Without it a release build cannot sync at all; the
+         debug manifest adds it implicitly, which hides the gap until release. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Lets a downloaded update be handed to the system package installer.
+         Android never permits an app to replace itself silently: the user
+         always confirms the install, so this grants the ability to *request*
+         it, not to install unattended. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
     <application
-        android:label="rms"
+        android:label="RMS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
