@@ -3,9 +3,11 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
+import '../../domain/models/audit_entry.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/payment.dart';
+import '../local/audit_log.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
@@ -24,14 +26,17 @@ class LocalDeliveryRepository implements DeliveryRepository {
   LocalDeliveryRepository(
     this._db, {
     OutboxStore? outbox,
+    AuditLog? audit,
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
+        _audit = audit,
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
+  final AuditLog? _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -149,6 +154,18 @@ class LocalDeliveryRepository implements DeliveryRepository {
             },
           ),
         );
+        await _audit?.append(
+          txn,
+          AuditEntry(
+            id: _uuid.v4(),
+            action: AuditAction.reassignConflict,
+            entityType: 'delivery',
+            entityId: deliveryId,
+            summary: 'تعارض إسناد: الحالي ${delivery.driver} مقابل $driver',
+            at: now,
+            createdOffline: true,
+          ),
+        );
         return;
       }
 
@@ -240,6 +257,19 @@ class LocalDeliveryRepository implements DeliveryRepository {
             'amount': amount,
             'method': method.name,
           },
+        ),
+      );
+      await _audit?.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.recordCollection,
+          entityType: 'collection',
+          entityId: id,
+          summary: 'تحصيل ${amount.toStringAsFixed(2)} · ${delivery.orderRef}',
+          at: now,
+          amount: amount,
+          createdOffline: createdOffline,
         ),
       );
     });
@@ -349,6 +379,17 @@ class LocalDeliveryRepository implements DeliveryRepository {
     if (entry.operationType == 'settleDelivery') {
       delivery.settlementStatus = SettlementStatus.settled;
       await _settleCollections(entry.entityId);
+      await _audit?.record(
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.settleDelivery,
+          entityType: 'delivery',
+          entityId: entry.entityId,
+          summary: 'تسوية معتمدة من الخادم · ${delivery.orderRef}',
+          at: _clock(),
+          amount: delivery.amount,
+        ),
+      );
     }
     await record.put(_db.db, delivery.toRecord());
   }

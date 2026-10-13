@@ -1,10 +1,15 @@
 import 'package:flutter/widgets.dart';
 
 import '../config/firebase_config.dart';
+import '../../data/local/audit_log.dart';
 import '../../data/local/local_database.dart';
+import '../../data/local/migrations/local_migration_runner.dart';
 import '../../data/local/outbox/outbox_store.dart';
+import '../../data/repositories/approval_repository.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/cash_session_repository.dart';
 import '../../data/repositories/delivery_repository.dart';
+import '../../data/repositories/feature_flag_repository.dart';
 import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
 import '../../data/repositories/order_repository.dart';
@@ -27,6 +32,11 @@ class AppServices {
     this.outbox,
     this.sync,
     this.print,
+    this.audit,
+    this.cashSessions,
+    this.approvals,
+    this.features,
+    this.migration,
   });
 
 
@@ -62,6 +72,21 @@ class AppServices {
 
   /// Local print service (stub).
   final PrintService? print;
+
+  /// Append-only local audit trail, or null when the store is unavailable.
+  final AuditLog? audit;
+
+  /// Cashier drawer sessions, or null when the store is unavailable.
+  final CashSessionRepository? cashSessions;
+
+  /// Refund / correction approval workflow, or null when unavailable.
+  final ApprovalRepository? approvals;
+
+  /// Cached server release manifest and feature flags.
+  final FeatureFlagRepository? features;
+
+  /// Result of the last local schema migration attempt, or null when no store.
+  final MigrationOutcome? migration;
 
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;

@@ -7,13 +7,15 @@
 Cross-platform, **offline-first** restaurant management system.
 Flutter frontend, Firebase backend, local-first persistence with transactional outbox and idempotent synchronization.
 
-> Status: **Phase 2 — Delivery and Settlement** (in progress). Phase 0 (local-first
+> Status: **Phase 3 — Accounting, Administration and Controlled Upgrades**. Phase 0 (local-first
 > persistence: document store + transactional outbox + idempotent sync engine) and Phase 1
 > (POS, menu cache, kitchen KDS, local printing, sync monitoring) are in place, together with
-> accounting, conflicts, settings and server-assigned order identity. Phase 2 adds offline
-> delivery events, an append-only collection log, conflict-aware reassignment, and an
-> outstanding settlement queue that is finalized only on a server acknowledgement. Source of
-> truth for behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
+> conflicts, settings and server-assigned order identity. Phase 2 adds offline delivery events,
+> an append-only collection log, conflict-aware reassignment, and an outstanding settlement queue
+> that is finalized only on a server acknowledgement. Phase 3 adds cashier drawer sessions,
+> refund/payment approvals, an append-only audit trail, forward-only local schema migrations, and
+> cached release manifests with server-controlled feature flags. Source of truth for behavior is
+> `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
 
@@ -66,6 +68,32 @@ web (IndexedDB). The outbox/transaction semantics the PRD requires are preserved
 - `test/offline_sync_test.dart` covers: create offline → restart (reopen the same file) → reconnect →
   sync → replay without duplicates.
 
+## Accounting, administration & controlled upgrades (Phase 3)
+All Phase 3 writes follow the same rule as the rest of the app: the business record, its outbox
+command and its audit row are committed in **one** transaction, so money never moves without a
+trace and pending offline work is never lost by an upgrade.
+
+- **Cash sessions** (`LocalCashSessionRepository`) — opening a drawer queues `openCashSession`;
+  closing counts the drawer and queues `closeCashSession`. Expected cash = opening float + cash
+  payments + cash collections in the session window; variance = counted − expected. A session is
+  only marked synced once the backend acknowledges its command.
+- **Approvals** (`LocalApprovalRepository`) — a refund request posts **nothing**; it writes an
+  approval row, an outbox command and an audit event. Approval writes the correcting negative
+  payment (and its own `recordPayment` command) atomically and is **idempotent** (a decided
+  request is returned unchanged, so a retry can never double-post).
+- **Audit log** (`AuditLog`) — append-only, keyed by event id, written in the same transaction as
+  the operation it describes (`payments`, `collections`, reassignment conflicts, settlements).
+- **Local migrations** (`LocalMigrationRunner`) — forward-only steps that each run in a
+  transaction together with their own version bump (stored in `LocalStores.meta` under
+  `schemaVersion`); a failure rolls the step back and keeps the prior version. Migrations never
+  touch the outbox, so pending operations survive a schema upgrade.
+- **Release manifest & feature flags** (`LocalFeatureFlagRepository`) — the last manifest is cached
+  locally and read offline; flags gate optional workflows but never override a backend capability
+  check. `ReleaseManifest` also carries the update channel, minimum supported version and rollout.
+- Tests: `migration_test.dart`, `audit_log_test.dart`, `cash_session_test.dart`,
+  `approval_repository_test.dart`, `feature_flags_test.dart`, `release_upgrade_test.dart` (the last
+  one proves pending offline delivery work survives a schema upgrade).
+
 ## Layout
 ```
 lib/
@@ -80,12 +108,12 @@ lib/
       theme/            # colors, text, spacing, Material theme
       widgets/          # app shell, table, stat cards, charts, primitives
     data/
-      local/            # transactional outbox models
+      local/            # document store, outbox models, audit log, migrations/
       mock/             # mock data used by the UI (demo mode)
       repositories/     # auth repository (Firebase + demo)
       sync/             # sync engine, retry, conflict resolver
     domain/
-      models/           # order, app user, ...
+      models/           # order, payment, delivery, cash session, approval, ...
       offline/          # offline capability policy
     features/
       auth/ dashboard/ pos/ kitchen/ delivery/

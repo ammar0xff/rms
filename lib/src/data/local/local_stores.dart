@@ -25,4 +25,22 @@ abstract final class LocalStores {
 
   static final StoreRef<String, Map<String, Object?>> collections =
       stringMapStoreFactory.store('collections');
+
+  /// Per-device metadata such as the applied local schema version.
+  static final StoreRef<String, Map<String, Object?>> meta =
+      stringMapStoreFactory.store('meta');
+
+  /// Append-only audit trail of local financial operations.
+  static final StoreRef<String, Map<String, Object?>> audit =
+      stringMapStoreFactory.store('audit');
+
+  static final StoreRef<String, Map<String, Object?>> cashSessions =
+      stringMapStoreFactory.store('cash_sessions');
+
+  static final StoreRef<String, Map<String, Object?>> approvals =
+      stringMapStoreFactory.store('approvals');
+
+  /// Cached server configuration (release manifest / feature flags).
+  static final StoreRef<String, Map<String, Object?>> config =
+      stringMapStoreFactory.store('config');
 }

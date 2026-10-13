@@ -62,6 +62,24 @@ through an `AppScope` inherited widget.
 - `syncConflicts`
 - `localPrintJobs`
 - `localAppMetadata`
+- `deliveries` / `drivers` / `collections` (Phase 2)
+- `cashSessions` / `approvals` / `audit` / `meta` / `config` (Phase 3)
+
+## Phase 3 — accounting, administration & controlled upgrades
+- **Cash sessions** — `data/repositories/local_cash_session_repository.dart` derives the expected
+  drawer total from cash payments + cash collections in the session window and queues
+  `openCashSession` / `closeCashSession` commands; a session is synced only on acknowledgement.
+- **Approvals** — `data/repositories/local_approval_repository.dart` queues refund requests without
+  moving money; approval writes the correcting negative payment in the same transaction as the
+  decision and is idempotent, so a retried decision can never double-post.
+- **Audit** — `data/local/audit_log.dart` is append-only and receives rows through the caller's
+  transaction, so financial operations and their audit events commit together.
+- **Migrations** — `data/local/migrations/` implements forward-only steps; each step and its version
+  bump (`meta.schemaVersion`) commit in one transaction, and the outbox is never touched, so pending
+  offline work survives a release upgrade.
+- **Feature flags** — `data/repositories/local_feature_flag_repository.dart` caches the last
+  server-provided `ReleaseManifest`; flags gate optional workflows but never override a backend
+  capability check.
 
 ## Sync engine responsibilities
 - Detect connectivity and confirm reachability.

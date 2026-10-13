@@ -1,0 +1,79 @@
+import '../../data/local/outbox/outbox_status.dart';
+
+enum CashSessionStatus {
+  open('مفتوحة'),
+  closed('مغلقة');
+
+  const CashSessionStatus(this.label);
+
+  final String label;
+}
+
+/// A cashier drawer session: opened with a float, closed after counting.
+///
+/// [expectedCash] is derived from the cash movements recorded on the device
+/// between [openedAt] and [closedAt]; the [variance] is what the counter found
+/// versus what the ledger implies. Sessions are local-first and only stamped
+/// [SyncStatus.synced] once the backend acknowledges them.
+class CashSession {
+  CashSession({
+    required this.id,
+    required this.openedAt,
+    required this.openingFloat,
+    this.closedAt,
+    this.countedCash,
+    this.expectedCash,
+    this.status = CashSessionStatus.open,
+    this.note,
+    this.createdOffline = false,
+    this.syncStatus = SyncStatus.pendingSync,
+  });
+
+  final String id;
+  final DateTime openedAt;
+  final double openingFloat;
+  DateTime? closedAt;
+  double? countedCash;
+  double? expectedCash;
+  CashSessionStatus status;
+  String? note;
+  final bool createdOffline;
+  SyncStatus syncStatus;
+
+  bool get isOpen => status == CashSessionStatus.open;
+
+  double? get variance {
+    final counted = countedCash;
+    final expected = expectedCash;
+    if (counted == null || expected == null) return null;
+    return counted - expected;
+  }
+
+  Map<String, Object?> toRecord() => {
+        'id': id,
+        'openedAt': openedAt.toIso8601String(),
+        'openingFloat': openingFloat,
+        'closedAt': closedAt?.toIso8601String(),
+        'countedCash': countedCash,
+        'expectedCash': expectedCash,
+        'status': status.name,
+        'note': note,
+        'createdOffline': createdOffline,
+        'syncStatus': syncStatus.name,
+      };
+
+  static CashSession fromRecord(Map<String, Object?> record) => CashSession(
+        id: record['id'] as String,
+        openedAt: DateTime.parse(record['openedAt'] as String),
+        openingFloat: (record['openingFloat'] as num).toDouble(),
+        closedAt: record['closedAt'] == null
+            ? null
+            : DateTime.parse(record['closedAt'] as String),
+        countedCash: (record['countedCash'] as num?)?.toDouble(),
+        expectedCash: (record['expectedCash'] as num?)?.toDouble(),
+        status: CashSessionStatus.values.byName(record['status'] as String),
+        note: record['note'] as String?,
+        createdOffline: record['createdOffline'] as bool? ?? false,
+        syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
+      );
+}

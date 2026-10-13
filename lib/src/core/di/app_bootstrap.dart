@@ -2,24 +2,34 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 
+import '../config/app_version.dart';
 import '../config/firebase_config.dart';
 import '../di/app_services.dart';
 import '../logging/app_logger.dart';
+import '../../data/local/audit_log.dart';
 import '../../data/local/local_database.dart';
+import '../../data/local/migrations/local_migration_registry.dart';
+import '../../data/local/migrations/local_migration_runner.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/local/outbox/outbox_store.dart';
 import '../../data/repositories/demo_auth_repository.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
+import '../../data/repositories/local_approval_repository.dart';
+import '../../data/repositories/local_cash_session_repository.dart';
 import '../../data/repositories/local_delivery_repository.dart';
+import '../../data/repositories/local_feature_flag_repository.dart';
 import '../../data/repositories/local_kitchen_repository.dart';
 import '../../data/repositories/local_menu_repository.dart';
 import '../../data/repositories/local_order_repository.dart';
 import '../../data/repositories/local_payment_repository.dart';
+import '../../domain/models/approval_request.dart';
+import '../../domain/models/cash_session.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/kitchen_ticket.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/payment.dart';
+import '../../domain/models/release_manifest.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
 import '../../data/sync/firestore_sync_transport.dart';
@@ -38,15 +48,41 @@ import '../state/sync_monitor.dart';
 Future<AppServices> bootstrapApp() async {
   final config = FirebaseConfig.fromEnvironment();
   final database = await _openLocalDatabase();
+  final migration = await _runMigrations(database);
 
-  return _resolveAuth(config, database);
+  return _resolveAuth(config, database, migration);
+}
+
+/// Brings the on-device schema up to the version the build expects.
+///
+/// A failure is logged but never blocks startup: the app keeps running on the
+/// last good schema rather than losing access to pending offline work.
+Future<MigrationOutcome?> _runMigrations(LocalDatabase? database) async {
+  if (database == null) return null;
+  try {
+    final outcome = await LocalMigrationRunner(
+      database,
+      defaultLocalMigrations,
+    ).run(targetVersion: AppVersion.localSchemaVersion);
+    final applied =
+        outcome.applied.isEmpty ? 'none' : outcome.applied.join(', ');
+    AppLogger.info(
+      'Local schema v${outcome.fromVersion}→v${outcome.toVersion} (applied: $applied).',
+    );
+    return outcome;
+  } catch (error, stackTrace) {
+    AppLogger.error('Local schema migration failed.', error, stackTrace);
+    return null;
+  }
 }
 
 Future<AppServices> _resolveAuth(
   FirebaseConfig config,
   LocalDatabase? database,
+  MigrationOutcome? migration,
 ) async {
   final outbox = database == null ? null : OutboxStore(database);
+  final audit = database == null ? null : AuditLog(database);
   final orders = (database == null || outbox == null)
       ? null
       : LocalOrderRepository(database, outbox: outbox);
@@ -54,14 +90,25 @@ Future<AppServices> _resolveAuth(
   final kitchen = database == null ? null : LocalKitchenRepository(database);
   final payments = (database == null || outbox == null)
       ? null
-      : LocalPaymentRepository(database, outbox: outbox);
+      : LocalPaymentRepository(database, outbox: outbox, audit: audit);
   final deliveries = (database == null || outbox == null)
       ? null
-      : LocalDeliveryRepository(database, outbox: outbox);
+      : LocalDeliveryRepository(database, outbox: outbox, audit: audit);
+  final cashSessions = (database == null || outbox == null)
+      ? null
+      : LocalCashSessionRepository(database, outbox: outbox, audit: audit);
+  final approvals = (database == null || outbox == null)
+      ? null
+      : LocalApprovalRepository(database, outbox: outbox, audit: audit);
+  final features =
+      database == null ? null : LocalFeatureFlagRepository(database);
   await _primeMenuCache(menu);
   await _primeKitchenCache(kitchen);
   await _primeDeliveryData(deliveries);
   await _primePaymentData(payments);
+  await _primeCashData(cashSessions);
+  await _primeApprovalData(approvals);
+  await _primeFeatureFlags(features);
 
   // Surface local outbox state even without a backend (demo mode); the
   // Firebase branch below re-attaches with the sync loop.
@@ -85,13 +132,19 @@ Future<AppServices> _resolveAuth(
       deliveries: deliveries,
       outbox: outbox,
       print: PrintService(),
+      audit: audit,
+      cashSessions: cashSessions,
+      approvals: approvals,
+      features: features,
+      migration: migration,
     );
   }
 
   try {
     await Firebase.initializeApp(options: config.toOptions());
     AppLogger.info('Firebase initialized (env=${config.environment}).');
-    final sync = _buildSync(outbox, orders, payments, deliveries);
+    final sync =
+        _buildSync(outbox, orders, payments, deliveries, cashSessions, approvals);
     if (sync != null) unawaited(sync.start());
     try {
       SyncMonitor.instance.attach(sync: sync, outbox: outbox);
@@ -109,6 +162,11 @@ Future<AppServices> _resolveAuth(
       deliveries: deliveries,
       outbox: outbox,
       print: PrintService(),
+      audit: audit,
+      cashSessions: cashSessions,
+      approvals: approvals,
+      features: features,
+      migration: migration,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -128,6 +186,11 @@ Future<AppServices> _resolveAuth(
       deliveries: deliveries,
       outbox: outbox,
       print: PrintService(),
+      audit: audit,
+      cashSessions: cashSessions,
+      approvals: approvals,
+      features: features,
+      migration: migration,
     );
   }
 }
@@ -139,6 +202,8 @@ SyncService? _buildSync(
   LocalOrderRepository? orders,
   LocalPaymentRepository? payments,
   LocalDeliveryRepository? deliveries,
+  LocalCashSessionRepository? cashSessions,
+  LocalApprovalRepository? approvals,
 ) {
   if (outbox == null || orders == null) return null;
   final engine = SyncEngine(
@@ -148,6 +213,8 @@ SyncService? _buildSync(
       await orders.applySynced(entry);
       await payments?.applySynced(entry);
       await deliveries?.applySynced(entry);
+      await cashSessions?.applySynced(entry);
+      await approvals?.applySynced(entry);
     },
   );
   return SyncService(
@@ -368,5 +435,103 @@ Future<void> _primePaymentData(LocalPaymentRepository? payments) async {
     await payments.seedPayments(seeded);
   } catch (error, stackTrace) {
     AppLogger.error('Failed to prime payment data', error, stackTrace);
+  }
+}
+
+/// Seeds a demo drawer session so the accounting workspace opens with a live
+/// session to count and close.
+Future<void> _primeCashData(LocalCashSessionRepository? cashSessions) async {
+  if (cashSessions == null) return;
+  try {
+    if ((await cashSessions.listSessions()).isNotEmpty) return;
+    final now = DateTime.now();
+    await cashSessions.seedSessions([
+      CashSession(
+        id: 'CS-0001',
+        openedAt: now.subtract(const Duration(hours: 3)),
+        openingFloat: 200,
+        syncStatus: SyncStatus.synced,
+      ),
+    ]);
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime cash sessions', error, stackTrace);
+  }
+}
+
+/// Seeds a pending refund so the approval workflow has something to act on.
+Future<void> _primeApprovalData(LocalApprovalRepository? approvals) async {
+  if (approvals == null) return;
+  try {
+    if ((await approvals.listRequests()).isNotEmpty) return;
+    final now = DateTime.now();
+    await approvals.seedApprovals([
+      ApprovalRequest(
+        id: 'AP-0001',
+        kind: ApprovalKind.refund,
+        orderLocalId: 'seed-ORD-4791',
+        orderRef: 'ORD-4791',
+        amount: 14.50,
+        reason: 'طبق مُعاد من العميل',
+        requestedAt: now.subtract(const Duration(minutes: 26)),
+        createdOffline: true,
+        syncStatus: SyncStatus.synced,
+      ),
+    ]);
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime approval requests', error, stackTrace);
+  }
+}
+
+/// Caches a demo release manifest so feature flags and the update card render
+/// from the same source the device would use when a backend is present.
+Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
+  if (features == null) return;
+  try {
+    if (await features.manifest() != null) return;
+    await features.cacheManifest(
+      ReleaseManifest(
+        channel: 'stable',
+        version: '0.3.0',
+        minSupportedVersion: '0.2.0',
+        rolloutPercent: 25,
+        mandatory: false,
+        publishedAt: DateTime.now(),
+        apiContract: AppVersion.apiContract,
+        flags: const [
+          FeatureFlag(
+            key: 'pos_new_layout',
+            label: 'تخطيط نقطة البيع الجديد',
+            enabled: true,
+            scope: 'عام · مفعّل',
+          ),
+          FeatureFlag(
+            key: 'delivery_auto_assign',
+            label: 'الإسناد التلقائي للتوصيل',
+            enabled: false,
+            scope: 'مجموعة 25%',
+          ),
+          FeatureFlag(
+            key: 'settlement_v2',
+            label: 'سير عمل التسوية v2',
+            enabled: false,
+            scope: 'الفرع · متوقف',
+          ),
+          FeatureFlag(
+            key: 'compact_ticket',
+            label: 'تنسيق تذكرة مضغوط',
+            enabled: true,
+            scope: 'الدور · المطبخ',
+          ),
+          FeatureFlag(
+            key: 'inventory_v2',
+            label: 'محرك المخزون v2',
+            enabled: false,
+            scope: 'عام · متوقف',
+          ),
+        ],
+      ),
+    );
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to cache feature flags', error, stackTrace);
   }
 }

@@ -11,35 +11,61 @@ import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
+import '../../data/local/migrations/local_migration_runner.dart';
+import '../../domain/models/release_manifest.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  ReleaseManifest? _manifest;
+  bool _loaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loaded) return;
+    _loaded = true;
+    _load();
+  }
+
+  Future<void> _load() async {
+    final features = AppScope.of(context).features;
+    final manifest = features == null ? null : await features.manifest();
+    if (!mounted) return;
+    setState(() => _manifest = manifest);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final services = AppScope.of(context);
     return PageBody(
       children: [
         const SectionHeader(
           title: 'الإعدادات والنظام',
-          subtitle: 'إظهار الإصدار والترقيات والمؤشرات وسياسة العمل دون اتصال',
+          subtitle: 'إظهار الإصدار والترحيلات والمؤشرات وسياسة العمل دون اتصال',
         ),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _VersionCard()),
-            SizedBox(width: AppSpacing.lg),
-            Expanded(child: _UpdateCard()),
+            Expanded(child: _VersionCard(migration: services.migration)),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(child: _UpdateCard(manifest: _manifest)),
           ],
         ),
-        const Row(
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _MigrationCard()),
-            SizedBox(width: AppSpacing.lg),
-            Expanded(child: _OfflinePolicyCard()),
+            Expanded(child: _MigrationCard(outcome: services.migration)),
+            const SizedBox(width: AppSpacing.lg),
+            const Expanded(child: _OfflinePolicyCard()),
           ],
         ),
-        const _FlagsCard(),
+        _FlagsCard(manifest: _manifest),
         const _DiagnosticsCard(),
       ],
     );
@@ -47,7 +73,9 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class _VersionCard extends StatelessWidget {
-  const _VersionCard();
+  const _VersionCard({required this.migration});
+
+  final MigrationOutcome? migration;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +89,10 @@ class _VersionCard extends StatelessWidget {
           for (final (k, v) in [
             ('إصدار التطبيق', AppVersion.string),
             ('مخطط البيانات المحلي', AppVersion.localSchema),
+            (
+              'المخطط المطبق',
+              migration == null ? 'غير معروف' : 'v${migration!.toVersion}',
+            ),
             ('عقد الـ API', AppVersion.apiContract),
             ('الإعدادات', services.config.environment),
             ('الخلفية', services.firebaseReady ? 'Firebase' : 'محلي (وضع العرض)'),
@@ -74,25 +106,36 @@ class _VersionCard extends StatelessWidget {
 }
 
 class _UpdateCard extends StatelessWidget {
-  const _UpdateCard();
+  const _UpdateCard({required this.manifest});
+
+  final ReleaseManifest? manifest;
 
   @override
   Widget build(BuildContext context) {
+    final channel = manifest?.channel ?? 'stable';
+    final version = manifest?.version ?? AppVersion.number;
+    final minSupported = manifest?.minSupportedVersion ?? '—';
+    final rollout = manifest?.rolloutPercent;
+    final mandatory = manifest?.mandatory ?? false;
+    final hasNewer = manifest != null && manifest!.version != AppVersion.number;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionHeader(
             title: 'التحديثات',
-            trailing: const Tag(label: 'مستقر', tone: StatusTone.positive),
+            trailing: Tag(
+              label: mandatory ? 'إلزامي' : 'مستقر',
+              tone: mandatory ? StatusTone.warning : StatusTone.positive,
+            ),
           ),
           const SizedBox(height: 12),
-          for (final (k, v) in const [
-            ('قناة الإصدار', 'stable'),
+          for (final (k, v) in [
+            ('قناة الإصدار', channel),
+            ('الإصدار المعلن', version),
+            ('الحد الأدنى المدعوم', minSupported),
+            ('نسبة النشر', rollout == null ? '—' : '$rollout%'),
             ('الإصدار الحالي', AppVersion.number),
-            ('الحد الأدنى المدعوم', '0.9.0'),
-            ('آخر فحص للإصدارات', '12:40'),
-            ('مجموعة النشر', '25%'),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
@@ -112,8 +155,10 @@ class _UpdateCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('تحديث اختياري متاح · 0.9.5',
-                          style: AppText.tableCellPrimary.copyWith(color: AppColors.info)),
+                      Text(
+                        hasNewer ? 'تحديث اختياري متاح · $version' : 'أنت على الإصدار المعلن',
+                        style: AppText.tableCellPrimary.copyWith(color: AppColors.info),
+                      ),
                       const SizedBox(height: 3),
                       Text(
                         'يُسمح بالتأجيل. تُحفظ المعاملات المحلية المعلقة وتُجرى الترحيلات بشكل متصل.',
@@ -123,7 +168,11 @@ class _UpdateCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const RmsButton(label: 'تحديث', variant: BtnVariant.primary, onPressed: null),
+                RmsButton(
+                  label: 'تحديث',
+                  variant: BtnVariant.primary,
+                  onPressed: hasNewer ? () {} : null,
+                ),
               ],
             ),
           ),
@@ -134,25 +183,49 @@ class _UpdateCard extends StatelessWidget {
 }
 
 class _MigrationCard extends StatelessWidget {
-  const _MigrationCard();
+  const _MigrationCard({required this.outcome});
+
+  final MigrationOutcome? outcome;
 
   @override
   Widget build(BuildContext context) {
+    final migration = outcome;
+    final succeeded = migration?.succeeded ?? false;
+    final tone = migration == null
+        ? StatusTone.neutral
+        : succeeded
+            ? StatusTone.positive
+            : StatusTone.negative;
+    final label = migration == null
+        ? 'غير معروفة'
+        : succeeded
+            ? 'مكتمل'
+            : 'فشل';
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionHeader(
             title: 'الترحيل المحلي',
-            trailing: const StatusText(label: 'مكتمل', tone: StatusTone.positive),
+            trailing: StatusText(label: label, tone: tone),
           ),
           const SizedBox(height: 12),
-          for (final (k, v) in const [
-            ('الحالة', 'v6 ← v7 مطبق'),
-            ('اكتمل', '2024-10-08 09:14'),
-            ('صندوق الصادر محفوظ', 'نعم — 0 مفقود'),
-            ('نقاط التحقق', 'سليمة'),
+          for (final (k, v) in [
+            (
+              'الإصدار',
+              migration == null
+                  ? 'غير معروف'
+                  : 'v${migration.fromVersion} ← v${migration.toVersion}',
+            ),
+            (
+              'الخطوات المطبقة',
+              migration == null || migration.applied.isEmpty
+                  ? 'لا شيء'
+                  : migration.applied.join(' · '),
+            ),
+            ('صندوق الصادر محفوظ', 'نعم — لا تُمس إدخالاته'),
             ('نسخة التراجع', 'محفوظة'),
+            if (migration?.error != null) ('الخطأ', migration!.error!),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
@@ -205,18 +278,13 @@ class _OfflinePolicyCard extends StatelessWidget {
 }
 
 class _FlagsCard extends StatelessWidget {
-  const _FlagsCard();
+  const _FlagsCard({required this.manifest});
 
-  static const _flags = [
-    ('تخطيط نقطة البيع الجديد', 'عام · مفعّل', true),
-    ('الإسناد التلقائي للتوصيل', 'مجموعة 25%', false),
-    ('سير عمل التسوية v2', 'الفرع · متوقف', false),
-    ('تنسيق تذكرة مضغوط', 'الدور · المطبخ', true),
-    ('محرك المخزون v2', 'عام · متوقف', false),
-  ];
+  final ReleaseManifest? manifest;
 
   @override
   Widget build(BuildContext context) {
+    final flags = manifest?.flags ?? const <FeatureFlag>[];
     return SurfaceCard(
       padding: EdgeInsets.zero,
       clip: true,
@@ -231,9 +299,19 @@ class _FlagsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          for (var i = 0; i < _flags.length; i++) ...[
-            _FlagRow(name: _flags[i].$1, scope: _flags[i].$2, on: _flags[i].$3),
-            if (i != _flags.length - 1)
+          if (flags.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text('لا يوجد بيان إصدار مخزّن على هذا الجهاز.',
+                  style: AppText.caption),
+            ),
+          for (var i = 0; i < flags.length; i++) ...[
+            _FlagRow(
+              name: flags[i].label,
+              scope: flags[i].scope,
+              on: flags[i].enabled,
+            ),
+            if (i != flags.length - 1)
               const Divider(height: 1, indent: 20, endIndent: 20, color: AppColors.borderFaint),
           ],
           const SizedBox(height: 8),
@@ -261,7 +339,8 @@ class _FlagRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name, style: AppText.tableCellPrimary),
-                Text(scope, style: AppText.caption.copyWith(fontSize: 10)),
+                if (scope.isNotEmpty)
+                  Text(scope, style: AppText.caption.copyWith(fontSize: 10)),
               ],
             ),
           ),

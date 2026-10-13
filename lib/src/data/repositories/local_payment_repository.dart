@@ -3,7 +3,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
+import '../../domain/models/audit_entry.dart';
 import '../../domain/models/payment.dart';
+import '../local/audit_log.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
@@ -19,14 +21,17 @@ class LocalPaymentRepository implements PaymentRepository {
   LocalPaymentRepository(
     this._db, {
     OutboxStore? outbox,
+    AuditLog? audit,
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
+        _audit = audit,
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
+  final AuditLog? _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -64,6 +69,19 @@ class LocalPaymentRepository implements PaymentRepository {
     await _db.transaction((txn) async {
       await LocalStores.payments.record(id).put(txn, payment.toRecord());
       await _outbox.append(txn, entry);
+      await _audit?.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.recordPayment,
+          entityType: 'payment',
+          entityId: id,
+          summary: 'دفعة ${draft.amount.toStringAsFixed(2)} · ${draft.orderRef}',
+          at: now,
+          amount: draft.amount,
+          createdOffline: draft.createdOffline,
+        ),
+      );
     });
     AppLogger.info('Payment $id queued (offline=${draft.createdOffline}).');
     return payment;
