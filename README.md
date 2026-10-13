@@ -166,12 +166,18 @@ secrets or installers.
   `ineligible` with the first failed gate, and places partial rollouts with a deterministic
   cross-platform cohort bucket. Installing is out of scope for this slice; the engine only classifies
   and flags whether a migration is required.
+- **Local-work readiness gate** (`domain/update/update_readiness.dart`) — the install gate for AC-35. A
+  pure `LocalWorkSnapshot` (pending, in-progress, retryable, conflict, user-action and rejected counts)
+  feeds `UpdateReadinessEngine`, which withholds an install while any work is outstanding: it reports
+  `awaitingSync` when online, `offlineBacklog` when offline, `needsAcknowledgement` for work the
+  backend rejected, and `ready` only when nothing would be dropped. A mandatory release never bypasses
+  it — it installs as soon as, but not before, the backlog clears.
 - **Cached and surfaced** — `LocalUpdateRepository` keeps the manifest in the local config store (no
   new schema), and the Settings screen resolves the device platform/channel/branch, classifies the
   cached release and renders the verdict plus, when blocked, the failed gate. Downloading and
   installing the verified artifact is the next slice.
 - Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`,
-  `update_repository_test.dart`, `settings_update_test.dart`.
+  `update_readiness_test.dart`, `update_repository_test.dart`, `settings_update_test.dart`.
 
 ## Layout
 ```

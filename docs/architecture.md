@@ -141,15 +141,18 @@ half, so the eligibility rules are verifiable without touching Firebase, secrets
   `rolloutExcluded`, `backendIncompatible`, `schemaIncompatible`, …). Partial rollouts use a
   deterministic cross-platform Jenkins hash of the device/branch seed, so a device always lands in the
   same bucket; a passed `forceAfter` escalates an optional release to mandatory.
-- **Local-work preservation** — the engine classifies only; it never downloads or installs. It flags
-  whether a migration is required, so later slices can honour AC-35 (never drop unsynced orders,
-  payments, kitchen, delivery, settlement or outbox work) around install.
+- **Local-work readiness gate** — `domain/update/update_readiness.dart` implements AC-35. A pure
+  `LocalWorkSnapshot` (pending, in-progress, retryable, conflict, user-action and rejected counts)
+  feeds `UpdateReadinessEngine`, which withholds an install while any work is outstanding: it reports
+  `awaitingSync` when online, `offlineBacklog` when offline, `needsAcknowledgement` for work the
+  backend rejected, and `ready` only when nothing would be dropped. A mandatory release installs as
+  soon as, but not before, the backlog clears; nothing here downloads, installs or mutates the outbox.
 - **Cached and surfaced** — `data/repositories/local_update_repository.dart` stores the document in the
   config store, so wiring it in needs no schema migration; the settings screen resolves the device
   platform/channel/branch through `core/config/device_update_context.dart`, classifies the cached
   release and renders the verdict, the failed gate and the rollout bucket.
 - Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`,
-  `update_repository_test.dart`, `settings_update_test.dart`.
+  `update_readiness_test.dart`, `update_repository_test.dart`, `settings_update_test.dart`.
 
 
 ## Sync engine responsibilities
