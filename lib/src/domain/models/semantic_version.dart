@@ -15,20 +15,24 @@ class SemanticVersion implements Comparable<SemanticVersion> {
   /// Parses `major.minor.patch`, or returns null when [value] is malformed.
   ///
   /// Pre-release or build metadata suffixes are intentionally unsupported: the
-  /// update control plane only ever publishes plain numeric versions.
+  /// update control plane only ever publishes plain numeric versions. Each part
+  /// must be digits only, so whitespace or a `+`/`-` sign is rejected rather
+  /// than silently trimmed by `int.tryParse`.
   static SemanticVersion? tryParse(String? value) {
     if (value == null) return null;
     final parts = value.split('.');
     if (parts.length != 3) return null;
     final numbers = <int>[];
     for (final part in parts) {
-      if (part.isEmpty) return null;
+      if (!_digits.hasMatch(part)) return null;
       final number = int.tryParse(part);
-      if (number == null || number < 0) return null;
+      if (number == null) return null;
       numbers.add(number);
     }
     return SemanticVersion(numbers[0], numbers[1], numbers[2]);
   }
+
+  static final RegExp _digits = RegExp(r'^[0-9]+$');
 
   @override
   int compareTo(SemanticVersion other) {
