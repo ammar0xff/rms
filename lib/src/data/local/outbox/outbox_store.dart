@@ -2,6 +2,7 @@ import 'package:sembast/sembast.dart';
 
 import '../local_database.dart';
 import '../local_stores.dart';
+import 'outbox_access.dart';
 import 'outbox_entry.dart';
 import 'outbox_status.dart';
 
@@ -9,7 +10,7 @@ import 'outbox_status.dart';
 ///
 /// [append] takes an explicit [Transaction] so callers can write a business
 /// change and its sync command atomically.
-class OutboxStore {
+class OutboxStore implements OutboxAccess {
   OutboxStore(this._db);
 
   final LocalDatabase _db;
@@ -17,6 +18,7 @@ class OutboxStore {
   Future<void> append(Transaction txn, OutboxEntry entry) =>
       LocalStores.outbox.record(entry.operationId).put(txn, entry.toRecord());
 
+  @override
   Future<List<OutboxEntry>> all() async {
     final snapshots = await LocalStores.outbox.find(_db.db);
     final entries =
@@ -42,6 +44,7 @@ class OutboxStore {
     return record == null ? null : OutboxEntry.fromRecord(record);
   }
 
+  @override
   Future<void> save(OutboxEntry entry) =>
       LocalStores.outbox.record(entry.operationId).put(_db.db, entry.toRecord());
 

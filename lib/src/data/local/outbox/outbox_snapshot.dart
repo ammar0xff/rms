@@ -1,11 +1,11 @@
 import '../../../domain/update/update_readiness.dart';
+import 'outbox_access.dart';
 import 'outbox_status.dart';
-import 'outbox_store.dart';
 
 /// Summarises the transactional outbox into the counts the update readiness gate
 /// needs. Returns an empty snapshot when there is no store.
 Future<LocalWorkSnapshot> loadLocalWorkSnapshot(
-  OutboxStore? outbox, {
+  OutboxAccess? outbox, {
   required bool online,
 }) async {
   if (outbox == null) return LocalWorkSnapshot(online: online);

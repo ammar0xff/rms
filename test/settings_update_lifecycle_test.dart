@@ -4,6 +4,9 @@ import 'package:rms/src/core/config/device_update_context.dart';
 import 'package:rms/src/core/config/firebase_config.dart';
 import 'package:rms/src/core/di/app_services.dart';
 import 'package:rms/src/core/theme/app_theme.dart';
+import 'package:rms/src/data/local/outbox/outbox_access.dart';
+import 'package:rms/src/data/local/outbox/outbox_entry.dart';
+import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/data/local/update_store_contracts.dart';
 import 'package:rms/src/data/repositories/demo_auth_repository.dart';
 import 'package:rms/src/data/repositories/update_repository.dart';
@@ -83,16 +86,56 @@ class _FakeAcknowledgementStore implements UpdateAcknowledgementStore {
   }
 }
 
+/// In-memory stand-in for the transactional outbox.
+///
+/// The real store is Sembast-backed and does not settle under the widget-test
+/// binding, which is why the UI reads it through [OutboxAccess] instead.
+class _FakeOutbox implements OutboxAccess {
+  _FakeOutbox(this.entries);
+
+  List<OutboxEntry> entries;
+
+  @override
+  Future<List<OutboxEntry>> all() async => entries;
+
+  @override
+  Future<void> save(OutboxEntry entry) async {
+    entries = [
+      for (final e in entries)
+        if (e.operationId != entry.operationId) e,
+      entry,
+    ];
+  }
+}
+
+OutboxEntry _entry(
+  String id,
+  OutboxStatus status,
+) =>
+    OutboxEntry(
+      operationId: 'op-$id',
+      entityType: 'order',
+      entityId: 'O-$id',
+      operationType: 'upsert',
+      payload: const {},
+      schemaVersion: 1,
+      idempotencyKey: 'idem-$id',
+      createdAt: DateTime(2026, 10, 13),
+      syncStatus: status,
+    );
+
 AppServices _services({
   required _FakeStatusStore status,
   _FakeAuditTrail? audit,
   _FakeAcknowledgementStore? acknowledgement,
+  OutboxAccess? outbox,
 }) =>
     AppServices(
       config: const FirebaseConfig.empty(),
       auth: DemoAuthRepository(),
       firebaseReady: false,
       updates: _FakeUpdates(_manifest()),
+      outbox: outbox,
       updateStatus: status,
       updateAudit: audit ?? _FakeAuditTrail(const []),
       updateAcknowledgement: acknowledgement ?? _FakeAcknowledgementStore(),
@@ -205,13 +248,57 @@ void main() {
     expect(find.text('اكتمل الترحيل'), findsOneWidget);
   });
 
-  testWidgets('a stored acknowledgement unblocks a stuck update',
+  testWidgets('stuck work withholds the install and offers acknowledgement',
       (tester) async {
-    // No outbox is wired, so there is no stuck work: the acknowledgement is
-    // present but there is nothing for it to waive, and the gate stays ready.
+    await _openSettings(
+      tester,
+      _services(
+        status: _FakeStatusStore(),
+        outbox: _FakeOutbox([
+          _entry('a', OutboxStatus.conflict),
+          _entry('b', OutboxStatus.conflict),
+        ]),
+      ),
+    );
+
+    expect(find.text('أعمال محلية معلّقة'), findsOneWidget);
+    expect(find.text('إقرار'), findsOneWidget);
+    expect(find.text('تحديث'), findsNothing);
+  });
+
+  testWidgets('the acknowledge action records the stuck count and unblocks',
+      (tester) async {
+    final acknowledgement = _FakeAcknowledgementStore();
+
+    await _openSettings(
+      tester,
+      _services(
+        status: _FakeStatusStore(),
+        outbox: _FakeOutbox([
+          _entry('a', OutboxStatus.conflict),
+          _entry('b', OutboxStatus.conflict),
+          _entry('c', OutboxStatus.conflict),
+        ]),
+        acknowledgement: acknowledgement,
+      ),
+    );
+
+    expect(find.text('إقرار'), findsOneWidget);
+    await tester.tap(find.text('إقرار'));
+    await _settle(tester);
+
+    // The sign-off captures how many stuck records were reviewed, and the gate
+    // then allows the install.
+    expect(acknowledgement.acknowledgement?.stuckCount, 3);
+    expect(find.text('جاهز للتثبيت'), findsOneWidget);
+    expect(find.text('تحديث'), findsOneWidget);
+  });
+
+  testWidgets('a stale acknowledgement does not unblock new stuck work',
+      (tester) async {
     final acknowledgement = _FakeAcknowledgementStore(
       UpdateAcknowledgement(
-        stuckCount: 2,
+        stuckCount: 1,
         acknowledgedAt: DateTime(2026, 10, 13, 14),
         acknowledgedBy: 'manager',
       ),
@@ -221,14 +308,46 @@ void main() {
       tester,
       _services(
         status: _FakeStatusStore(),
+        outbox: _FakeOutbox([
+          _entry('a', OutboxStatus.conflict),
+          _entry('b', OutboxStatus.conflict),
+          _entry('c', OutboxStatus.conflict),
+        ]),
         acknowledgement: acknowledgement,
       ),
     );
 
-    expect(find.text('جاهز للتثبيت'), findsOneWidget);
+    expect(find.text('أعمال محلية معلّقة'), findsOneWidget);
+    expect(find.text('إقرار'), findsOneWidget);
+    expect(find.text('تحديث'), findsNothing);
   });
 
-  testWidgets('the acknowledge action records who signed off',
+  testWidgets('unsynced work blocks the install even when acknowledged',
+      (tester) async {
+    await _openSettings(
+      tester,
+      _services(
+        status: _FakeStatusStore(),
+        outbox: _FakeOutbox([
+          _entry('a', OutboxStatus.conflict),
+          _entry('b', OutboxStatus.pending),
+        ]),
+        acknowledgement: _FakeAcknowledgementStore(
+          UpdateAcknowledgement(
+            stuckCount: 1,
+            acknowledgedAt: DateTime(2026, 10, 13, 14),
+            acknowledgedBy: 'manager',
+          ),
+        ),
+      ),
+    );
+
+    // A record that can still sync is never waived by an acknowledgement.
+    expect(find.text('أعمال محلية معلّقة'), findsNothing);
+    expect(find.text('تحديث'), findsNothing);
+  });
+
+  testWidgets('no acknowledgement is recorded when nothing is stuck',
       (tester) async {
     final acknowledgement = _FakeAcknowledgementStore();
 
@@ -236,14 +355,14 @@ void main() {
       tester,
       _services(
         status: _FakeStatusStore(),
+        outbox: _FakeOutbox(const []),
         acknowledgement: acknowledgement,
       ),
     );
 
-    // With no stuck work the button is the install action, not acknowledgement,
-    // so nothing is recorded unless the gate actually reports stuck work.
     expect(acknowledgement.acknowledgement, isNull);
     expect(find.text('إقرار'), findsNothing);
+    expect(find.text('تحديث'), findsOneWidget);
   });
 
   testWidgets('a malformed status row is ignored rather than rendered',

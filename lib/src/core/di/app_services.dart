@@ -4,7 +4,7 @@ import '../config/firebase_config.dart';
 import '../../data/local/audit_log.dart';
 import '../../data/local/local_database.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
-import '../../data/local/outbox/outbox_store.dart';
+import '../../data/local/outbox/outbox_access.dart';
 import '../../data/repositories/approval_repository.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/branch_repository.dart';
@@ -80,7 +80,7 @@ class AppServices {
   final DeliveryRepository? deliveries;
 
   /// The transactional outbox, exposed for diagnostics and conflict resolution.
-  final OutboxStore? outbox;
+  final OutboxAccess? outbox;
 
   /// Connectivity-driven sync loop, or null when there is no backend/store.
   final SyncService? sync;

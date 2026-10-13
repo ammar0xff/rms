@@ -151,6 +151,24 @@ half, so the eligibility rules are verifiable without touching Firebase, secrets
   config store, so wiring it in needs no schema migration; the settings screen resolves the device
   platform/channel/branch through `core/config/device_update_context.dart`, classifies the cached
   release and renders the verdict, the failed gate and the rollout bucket.
+- **Platform delivery is not implemented** — the decision, readiness and lifecycle layers above are
+  complete, but there is no `ArtifactDownloader` or `UpdateInstaller` for any platform. The settings
+  screen states this rather than implying a download will happen. Web deliberately does **not** take
+  artifact updates: it ships through GitHub Pages deploys on its own cadence, so the manifest's
+  artifact, checksum and rollback fields go unused there. Delivery is mobile/desktop only, behind the
+  existing interfaces. A Flutter web install has no real mechanism short of a service worker, and the
+  migration and health-check steps that follow an install could not run in the same session after a
+  plain reload — so implementing the web path as-is would produce something that looks finished and
+  is not.
+- **Acknowledgement** — `domain/update/update_acknowledgement.dart` lets an operator sign off on
+  stuck work (conflicts, user-action and permanently-rejected records) that can never sync. It is
+  scoped to the count reviewed, so work appearing later re-blocks the install rather than riding a
+  stale sign-off, and it never waives unsynced work, which can still reach the backend.
+- **Store contracts** — the settings screen depends on `UpdateStatusStore`, `ReleaseAuditTrail` and
+  `UpdateAcknowledgementStore` (interfaces in `data/local/update_store_contracts.dart`) plus
+  `OutboxAccess`, rather than the Sembast implementations. A `testWidgets` case driving a real
+  Sembast database does not settle under the widget-test binding and hangs the suite instead of
+  failing, so store-backed UI is tested against in-memory fakes.
 - Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`,
   `update_readiness_test.dart`, `update_repository_test.dart`, `settings_update_test.dart`.
 
