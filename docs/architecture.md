@@ -65,6 +65,7 @@ through an `AppScope` inherited widget.
 - `deliveries` / `drivers` / `collections` (Phase 2)
 - `cashSessions` / `approvals` / `audit` / `meta` / `config` (Phase 3)
 - `inventory` / `stockMovements` / `suppliers` / `purchases` (Phase 4)
+- `branches` / `branchAggregates` (Phase 4)
 
 ## Phase 3 — accounting, administration & controlled upgrades
 - **Cash sessions** — `data/repositories/local_cash_session_repository.dart` derives the expected
@@ -105,8 +106,15 @@ through an `AppScope` inherited widget.
   `delivery_auto_assign` flag permits it, `LocalDeliveryRepository.autoAssignWaiting` applies the
   whole plan in one transaction; the assignment stays provisional and the backend remains
   authoritative, so a stale reassignment is flagged rather than overwritten.
+- **Multi-branch consolidation** — `data/repositories/local_branch_repository.dart` owns the branch
+  directory and the cached per-branch aggregates, and folds them with the device's live report
+  read-model into one `ConsolidationSnapshot` (`domain/models/branch.dart`). The merge is a pure
+  function, so the same inputs always produce the same totals; the device's branch is read live and
+  other branches fall back to their last synced aggregate, which keeps cross-branch reporting
+  consistent offline and marks stale/missing branches instead of counting them as zero.
 - **Migrations** — v3 `stock-ledger` introduces the ledger; v4 `purchasing` introduces suppliers and
-  purchase orders. Each stamps defaults on pre-existing records and never touches the outbox.
+  purchase orders; v5 `multi-branch` introduces the branch directory and consolidation aggregates.
+  Each stamps defaults on pre-existing records and never touches the outbox.
 
 ## Sync engine responsibilities
 - Detect connectivity and confirm reachability.

@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text.dart';
 import '../../features/accounting/accounting_screen.dart';
+import '../../features/branches/branches_screen.dart';
 import '../../features/conflicts/conflicts_screen.dart';
 import '../../features/customers/customers_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
@@ -50,6 +51,7 @@ final navGroups = <NavGroup>[
     NavEntry('accounting', 'المحاسبة', Icons.receipt_long_outlined,
         _accounting),
     NavEntry('reports', 'التقارير', Icons.insights_outlined, _reports),
+    NavEntry('branches', 'الفروع', Icons.storefront_outlined, _branches),
   ]),
   NavGroup('النظام', [
     NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
@@ -71,6 +73,7 @@ Widget _purchasing(BuildContext c) => const PurchasingScreen();
 Widget _customers(BuildContext c) => const CustomersScreen();
 Widget _accounting(BuildContext c) => const AccountingScreen();
 Widget _reports(BuildContext c) => const ReportsScreen();
+Widget _branches(BuildContext c) => const BranchesScreen();
 Widget _sync(BuildContext c) => const SyncCenterScreen();
 Widget _conflicts(BuildContext c) => const ConflictsScreen();
 Widget _settings(BuildContext c) => const SettingsScreen();

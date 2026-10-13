@@ -88,4 +88,22 @@ final List<LocalMigration> defaultLocalMigrations = [
       }
     },
   ),
+
+  /// Introduces the branch directory and consolidation aggregates. Branches are
+  /// new, but any hand-written directory record is stamped with the status the
+  /// consolidation reads, so it stays consistent after the upgrade.
+  LocalMigration(
+    from: 4,
+    to: 5,
+    id: 'multi-branch',
+    description: 'Introduce the branch directory and consolidation aggregates.',
+    run: (txn) async {
+      final branches = await LocalStores.branches.find(txn);
+      for (final snapshot in branches) {
+        final record = Map<String, Object?>.from(snapshot.value);
+        record.putIfAbsent('status', () => 'active');
+        await LocalStores.branches.record(snapshot.key).put(txn, record);
+      }
+    },
+  ),
 ];

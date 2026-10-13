@@ -19,6 +19,7 @@ Maintained as a versioned policy (see `lib/src/domain/offline/offline_capability
 | Purchasing | Queueable | Raise/receive orders offline; stock posts locally |
 | Suppliers | Cached read / local creation | Sync new/updated records later |
 | Reports | Cached read (local read-model) | Compute from append-only stores; show freshness + pending sync |
+| Branches / consolidation | Cached read (live + cached aggregates) | Device branch read live; other branches from last synced aggregate, mark stale/missing |
 | User management | Online only | No offline permission changes |
 | Refunds | Restricted | Online workflow unless authorized |
 | Configuration | Cached read | Changes need authorized server workflow |

@@ -201,4 +201,34 @@ void main() {
     expect(purchase['syncStatus'], 'pendingSync');
     expect(purchase['createdOffline'], isFalse);
   });
+
+  test('applies the multi-branch step and stamps branch status', () async {
+    await LocalStores.branches.record('BR-1').put(db.db, {
+      'id': 'BR-1',
+      'name': 'بوابة الشمال',
+      'code': 'NS-01',
+      'city': 'القاهرة',
+      'timezone': 'Africa/Cairo',
+      'openedAt': '2024-01-01T00:00:00.000',
+    });
+
+    final runner = LocalMigrationRunner(db, defaultLocalMigrations);
+    final outcome = await runner.run(targetVersion: 5);
+
+    expect(outcome.succeeded, isTrue);
+    expect(outcome.toVersion, 5);
+    expect(outcome.applied, [
+      'baseline',
+      'settlement-split',
+      'stock-ledger',
+      'purchasing',
+      'multi-branch',
+    ]);
+    expect(await runner.currentVersion(), 5);
+
+    final branch = await LocalStores.branches.record('BR-1').get(db.db);
+    expect(branch, isNotNull);
+    expect(branch!['status'], 'active');
+    expect(branch['name'], 'بوابة الشمال');
+  });
 }

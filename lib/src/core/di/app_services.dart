@@ -7,6 +7,7 @@ import '../../data/local/migrations/local_migration_runner.dart';
 import '../../data/local/outbox/outbox_store.dart';
 import '../../data/repositories/approval_repository.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/branch_repository.dart';
 import '../../data/repositories/cash_session_repository.dart';
 import '../../data/repositories/delivery_repository.dart';
 import '../../data/repositories/feature_flag_repository.dart';
@@ -45,6 +46,7 @@ class AppServices {
     this.suppliers,
     this.purchases,
     this.reports,
+    this.branches,
   });
 
   final FirebaseConfig config;
@@ -106,6 +108,9 @@ class AppServices {
 
   /// Local-first reporting read-model, or null when the store is unavailable.
   final ReportsRepository? reports;
+
+  /// Branch directory and consolidation read-model, or null when unavailable.
+  final BranchRepository? branches;
 
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;

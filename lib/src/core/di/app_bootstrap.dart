@@ -15,6 +15,7 @@ import '../../data/local/outbox/outbox_store.dart';
 import '../../data/repositories/demo_auth_repository.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
 import '../../data/repositories/local_approval_repository.dart';
+import '../../data/repositories/local_branch_repository.dart';
 import '../../data/repositories/local_cash_session_repository.dart';
 import '../../data/repositories/local_delivery_repository.dart';
 import '../../data/repositories/local_feature_flag_repository.dart';
@@ -27,6 +28,7 @@ import '../../data/repositories/local_purchase_repository.dart';
 import '../../data/repositories/local_reports_repository.dart';
 import '../../data/repositories/local_supplier_repository.dart';
 import '../../domain/models/approval_request.dart';
+import '../../domain/models/branch.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
@@ -143,6 +145,9 @@ Future<AppServices> _resolveAuth(
           audit: audit,
           outbox: outbox,
         );
+  final branches = (database == null || reports == null)
+      ? null
+      : LocalBranchRepository(database, reports: reports);
   await _primeMenuCache(menu);
   await _primeKitchenCache(kitchen);
   await _primeDeliveryData(deliveries);
@@ -152,6 +157,7 @@ Future<AppServices> _resolveAuth(
   await _primeFeatureFlags(features);
   await _primeInventoryData(inventory);
   await _primePurchasingData(suppliers, purchases);
+  await _primeBranchData(branches);
 
   // Surface local outbox state even without a backend (demo mode); the
   // Firebase branch below re-attaches with the sync loop.
@@ -184,6 +190,7 @@ Future<AppServices> _resolveAuth(
       suppliers: suppliers,
       purchases: purchases,
       reports: reports,
+      branches: branches,
     );
   }
 
@@ -218,6 +225,7 @@ Future<AppServices> _resolveAuth(
       suppliers: suppliers,
       purchases: purchases,
       reports: reports,
+      branches: branches,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -246,6 +254,7 @@ Future<AppServices> _resolveAuth(
       suppliers: suppliers,
       purchases: purchases,
       reports: reports,
+      branches: branches,
     );
   }
 }
@@ -552,7 +561,7 @@ Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
     await features.cacheManifest(
       ReleaseManifest(
         channel: 'stable',
-        version: '0.7.0',
+        version: '0.8.0',
         minSupportedVersion: '0.3.0',
         rolloutPercent: 25,
         mandatory: false,
@@ -727,5 +736,75 @@ Future<void> _primePurchasingData(
     }
   } catch (error, stackTrace) {
     AppLogger.error('Failed to prime purchasing data', error, stackTrace);
+  }
+}
+
+/// Seeds a small branch network plus the last synced figures for the branches
+/// other than this device's, so the consolidated view has something to show in
+/// demo mode. The device's own branch is never cached as an aggregate — it is
+/// always read live from the local stores.
+Future<void> _primeBranchData(LocalBranchRepository? branches) async {
+  if (branches == null) return;
+  try {
+    final cached = await branches.listBranches();
+    if (cached.isEmpty) {
+      final now = DateTime.now();
+      await branches.cacheBranches([
+        BranchModel(
+          id: 'BR-01',
+          name: 'بوابة الشمال',
+          code: 'NS-01',
+          city: 'القاهرة',
+          timezone: 'Africa/Cairo',
+          openedAt: now.subtract(const Duration(days: 1100)),
+        ),
+        BranchModel(
+          id: 'BR-02',
+          name: 'فرع المعادي',
+          code: 'MD-02',
+          city: 'القاهرة',
+          timezone: 'Africa/Cairo',
+          openedAt: now.subtract(const Duration(days: 420)),
+        ),
+        BranchModel(
+          id: 'BR-03',
+          name: 'فرع مدينة نصر',
+          code: 'NS-03',
+          city: 'القاهرة',
+          timezone: 'Africa/Cairo',
+          openedAt: now.subtract(const Duration(days: 150)),
+          status: BranchStatus.paused,
+        ),
+      ]);
+    }
+    if (await branches.activeBranch() == null) {
+      await branches.setActiveBranch('BR-01');
+    }
+    if ((await branches.cachedAggregates()).isEmpty) {
+      final now = DateTime.now();
+      await branches.cacheAggregate(
+        BranchRollup(
+          branchId: 'BR-02',
+          orders: 214,
+          sales: 18450.0,
+          collected: 17980.5,
+          inventoryUnits: 640.0,
+          asOf: now.subtract(const Duration(minutes: 40)),
+        ),
+      );
+      await branches.cacheAggregate(
+        BranchRollup(
+          branchId: 'BR-03',
+          orders: 96,
+          sales: 7420.25,
+          collected: 7010.0,
+          inventoryUnits: 388.5,
+          asOf: now.subtract(const Duration(hours: 9)),
+          pending: 3,
+        ),
+      );
+    }
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime branch data', error, stackTrace);
   }
 }

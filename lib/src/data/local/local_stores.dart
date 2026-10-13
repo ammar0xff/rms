@@ -59,4 +59,12 @@ abstract final class LocalStores {
   /// Purchase orders raised against suppliers.
   static final StoreRef<String, Map<String, Object?>> purchases =
       stringMapStoreFactory.store('purchases');
+
+  /// Branch directory for the multi-branch network (synced directory).
+  static final StoreRef<String, Map<String, Object?>> branches =
+      stringMapStoreFactory.store('branches');
+
+  /// Cached per-branch rollups used to consolidate while offline.
+  static final StoreRef<String, Map<String, Object?>> branchAggregates =
+      stringMapStoreFactory.store('branch_aggregates');
 }

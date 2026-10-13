@@ -18,9 +18,10 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 > stock ledger: append-only movements whose sum is the on-hand balance, and conflict-aware physical
 > counts that are flagged for review rather than overwriting a newer balance; purchasing raises and
 > receives supplier orders that post straight into that ledger; reporting builds offline read-model
-> snapshots from those append-only stores with freshness and CSV export; and automated delivery
+> snapshots from those append-only stores with freshness and CSV export; automated delivery
 > assignment provisionally assigns waiting jobs to the least-loaded courier when a server flag
-> permits it. Source of truth for
+> permits it; and multi-branch consolidation merges the device's live figures with every other
+> branch's last synced aggregate, so cross-branch reporting keeps working offline. Source of truth for
 > behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
@@ -127,13 +128,21 @@ ledger.
   first, and applies the batch in one transaction. The plan is a pure function of the cached roster
   and open jobs, so two offline terminals agree; the backend stays authoritative, and a stale
   reassignment is still flagged rather than silently overwritten.
+- **Multi-branch consolidation** (`LocalBranchRepository` + `ConsolidationSnapshot`) — the device's
+  own branch is read **live** from the append-only stores, while every other branch contributes its
+  last synced aggregate; the pure `ConsolidationSnapshot.from` merges the two in a deterministic
+  order and sums the network totals. Branches with a stale or missing aggregate are marked, never
+  counted as zero, so the consolidated view stays consistent through an outage and only its
+  *freshness* degrades.
 - **Migrations** — v3 (`stock-ledger`) introduces the ledger; v4 (`purchasing`) introduces suppliers
-  and purchase orders. Each stamps revision/sync defaults on pre-existing records and never touches
-  the outbox, so pending offline work survives the upgrade.
+  and purchase orders; v5 (`multi-branch`) introduces the branch directory and the consolidation
+  aggregates. Each stamps defaults on pre-existing records and never touches the outbox, so pending
+  offline work survives the upgrade.
 - Tests: `inventory_repository_test.dart`, `purchasing_repository_test.dart`, `reports_test.dart`,
   `reports_repository_test.dart` (proves reporting stays consistent after a concurrent offline
   movement), `delivery_assignment_test.dart` and `delivery_auto_assign_test.dart` (deterministic,
-  conflict-aware offline auto-assignment), plus the v3/v4 cases in `migration_test.dart` and
+  conflict-aware offline auto-assignment), `consolidation_test.dart` and `branch_repository_test.dart`
+  (live-plus-cached cross-branch consolidation), plus the v3/v4/v5 cases in `migration_test.dart` and
   `release_upgrade_test.dart`.
 
 ## Layout
@@ -176,6 +185,8 @@ test/
   ledger on receipt · **Customers** — management tables
 - **Reports** — offline read-model: sales window trend, payment mix, inventory, purchasing and cash
   reconciliation, freshness vs. last sync, and CSV export
+- **Branches** — multi-branch consolidation: network KPIs and a per-branch table showing each
+  branch's orders, sales, collection, stock and freshness, with live/cached sourcing and CSV export
 - **Sync Center** — outbox operations, sync order, idempotency/retry policy
 - **Conflicts** — detected conflicts and per-entity resolution strategy
 - **Settings** — version visibility, updates, migrations, flags, offline policy
