@@ -11,7 +11,6 @@ import 'package:rms/src/domain/models/update_manifest.dart';
 import 'package:rms/src/domain/update/device_update_status.dart';
 import 'package:rms/src/domain/update/release_audit_event.dart';
 import 'package:rms/src/domain/update/update_acknowledgement.dart';
-import 'package:rms/src/domain/update/update_readiness.dart';
 import 'package:rms/src/features/settings/settings_screen.dart';
 
 final _sha = 'a' * 64;
