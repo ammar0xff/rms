@@ -1,0 +1,155 @@
+name: Release
+
+# Workflow B: build the current repository and publish it as the new version.
+#
+# Unlike the web deploy, this does not run on every push. Publishing a manifest
+# is a deliberate act — it changes what every enrolled device is offered — and it
+# needs a Firebase service account that may not be configured yet. Keeping it
+# manual means a missing secret can never break the normal build.
+#
+# The equivalent of "upload a ready APK/EXE" is the same publisher invoked
+# with --reference, which skips the upload and writes only the manifest.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Target platform
+        type: choice
+        options: [android, windows, linux, macos]
+        default: android
+      version:
+        description: Human version, e.g. 0.9.0
+        type: string
+        required: true
+      channel:
+        type: choice
+        options: [production, beta, development]
+        default: production
+      severity:
+        type: choice
+        options: [optional, recommended, mandatory]
+        default: recommended
+      rollout:
+        description: Percentage of devices offered the release (1-100)
+        type: string
+        default: '100'
+      release-notes:
+        type: string
+        default: ''
+      min-supported:
+        description: Oldest version allowed to run this release
+        type: string
+        default: '0.0.0'
+      rollback-target:
+        description: Version to fall back to, if this release is bad
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check required secrets
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT is not configured."
+            echo "Create a Firebase service account with Storage and Firestore"
+            echo "write access, then add its JSON as a repository secret."
+            exit 1
+          fi
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Install publisher dependencies
+        run: npm install --no-save firebase-admin
+
+      - name: Build artifact
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          case "$PLATFORM" in
+            android)
+              flutter build apk --release \
+                --build-name="$VERSION" \
+                --build-number="${GITHUB_RUN_NUMBER}"
+              echo "ARTIFACT=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_ENV"
+              ;;
+            linux)
+              sudo apt-get update
+              sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+              flutter build linux --release --build-name="$VERSION"
+              tar -czf build/rms-linux.tar.gz -C build/linux/x64/release/bundle .
+              echo "ARTIFACT=build/rms-linux.tar.gz" >> "$GITHUB_ENV"
+              ;;
+            windows|macos)
+              echo "::error::$PLATFORM cannot be built on a Linux runner."
+              echo "Run this workflow on a native runner, or add a per-OS job."
+              exit 1
+              ;;
+          esac
+
+      - name: Publish artifact and manifest
+        env:
+          NODE_ENV: production
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          node tool/publish_release.mjs \
+            --artifact "$ARTIFACT" \
+            --platform "${{ inputs.platform }}" \
+            --version "${{ inputs.version }}" \
+            --channel "${{ inputs.channel }}" \
+            --severity "${{ inputs.severity }}" \
+            --rollout "${{ inputs.rollout }}" \
+            --release-notes "${{ inputs.release-notes }}" \
+            --min-supported "${{ inputs.min-supported }}" \
+            --rollback-target "${{ inputs.rollback-target }}"
+
+      - name: Keep the artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ inputs.platform }}-${{ inputs.version }}
+          path: ${{ env.ARTIFACT }}
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          {
+            echo "### Release published"
+            echo ""
+            echo "- Platform: \`${{ inputs.platform }}\`"
+            echo "- Version: \`${{ inputs.version }}\`"
+            echo "- Channel: \`${{ inputs.channel }}\`"
+            echo "- Severity: \`${{ inputs.severity }}\`"
+            echo "- Rollout: ${{ inputs.rollout }}%"
+            echo "- Artifact: \`$ARTIFACT\`"
+          } >> "$GITHUB_STEP_SUMMARY"

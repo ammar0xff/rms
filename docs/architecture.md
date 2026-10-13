@@ -169,6 +169,48 @@ half, so the eligibility rules are verifiable without touching Firebase, secrets
   `OutboxAccess`, rather than the Sembast implementations. A `testWidgets` case driving a real
   Sembast database does not settle under the widget-test binding and hangs the suite instead of
   failing, so store-backed UI is tested against in-memory fakes.
+
+## Releases and platform delivery
+
+Two update paths publish the same manifest shape, so a client cannot tell them apart:
+
+- **Build on demand** — `.github/workflows/release.yml`, dispatched by hand. It builds the current
+  repository, hashes the artifact, uploads it to Cloud Storage and writes the manifest document.
+  Manual on purpose: publishing changes what every enrolled device is offered, so it must not run
+  on every push, and a missing secret must never break the normal build.
+- **Bring your own artifact** — the same publisher, `tool/publish_release.mjs`, invoked with
+  `--reference` against an artifact already in Storage. Nothing is uploaded; only the manifest is
+  written.
+
+The publisher derives the next `buildNumber` from what is already published rather than trusting the
+caller. Android refuses an update whose version code is not strictly higher than the installed one,
+so a re-run must always produce something installable.
+
+`tool/publish_release.mjs` emits exactly `UpdateManifest.toRecord()`. The two must stay in step: the
+client treats a document it cannot parse as absent, so a field rename would silently stop every
+device being offered updates rather than fail loudly.
+
+### Required secrets
+
+None of these exist yet; the release workflow fails with a clear message until they are added.
+
+| Secret | Purpose |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | Service-account JSON with Storage **write** and Firestore **write** access. Without it nothing can be published. |
+| `FIREBASE_PROJECT_ID` | Target project, used for the default bucket and Admin SDK initialisation. |
+
+### Signing
+
+Every artifact currently builds unsigned — Android with the debug key, desktop and macOS without an
+identity. A real update requires stable signing:
+
+- **Android** — a release keystore. The package name (`dev.rms.app`) and signing key together
+  identify an install. Changing either after a release forces an uninstall that discards all local
+  data, so both are fixed now, before the first release.
+- **Windows** — an Authenticode certificate, or SmartScreen will warn on every update.
+- **macOS** — an Apple Developer identity and notarisation, or Gatekeeper will block it.
+
+Signing keys must live in CI secrets, never in the repository.
 - Tests: `semantic_version_test.dart`, `update_manifest_test.dart`, `update_decision_test.dart`,
   `update_readiness_test.dart`, `update_repository_test.dart`, `settings_update_test.dart`.
 
