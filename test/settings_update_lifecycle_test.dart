@@ -4,6 +4,7 @@ import 'package:rms/src/core/config/device_update_context.dart';
 import 'package:rms/src/core/config/firebase_config.dart';
 import 'package:rms/src/core/di/app_services.dart';
 import 'package:rms/src/core/theme/app_theme.dart';
+import 'package:rms/src/core/widgets/buttons.dart';
 import 'package:rms/src/data/local/outbox/outbox_access.dart';
 import 'package:rms/src/data/local/outbox/outbox_entry.dart';
 import 'package:rms/src/data/local/outbox/outbox_status.dart';
@@ -342,9 +343,12 @@ void main() {
       ),
     );
 
-    // A record that can still sync is never waived by an acknowledgement.
+    // A record that can still sync is never waived by an acknowledgement. The
+    // install action stays on screen but must not be actionable.
     expect(find.text('أعمال محلية معلّقة'), findsNothing);
-    expect(find.text('تحديث'), findsNothing);
+    final button =
+        tester.widget<RmsButton>(find.widgetWithText(RmsButton, 'تحديث'));
+    expect(button.onPressed, isNull);
   });
 
   testWidgets('no acknowledgement is recorded when nothing is stuck',
