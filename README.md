@@ -17,7 +17,8 @@ Flutter frontend, Firebase backend, local-first persistence with transactional o
 > cached release manifests with server-controlled feature flags. Phase 4 begins with an offline
 > stock ledger: append-only movements whose sum is the on-hand balance, and conflict-aware physical
 > counts that are flagged for review rather than overwriting a newer balance; purchasing raises and
-> receives supplier orders that post straight into that ledger. Source of truth for
+> receives supplier orders that post straight into that ledger; reporting builds offline read-model
+> snapshots from those append-only stores with freshness and CSV export. Source of truth for
 > behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
@@ -114,11 +115,16 @@ ledger.
   it offline. Receiving posts one `receipt` movement per line through the stock ledger in the **same**
   transaction that marks the order received, so a retried receive can never double the stock.
 - **Suppliers** (`LocalSupplierRepository`) — local-first directory carrying the running amount owed.
+- **Reporting** (`LocalReportsRepository`) — folds the append-only sources (orders, payments,
+  collections, cash sessions, stock ledger, purchases, suppliers) into one self-consistent
+  `ReportsSnapshot`; it reads the outbox for freshness (last acknowledgement plus
+  pending/failed/conflict counts) and exports a flat CSV.
 - **Migrations** — v3 (`stock-ledger`) introduces the ledger; v4 (`purchasing`) introduces suppliers
   and purchase orders. Each stamps revision/sync defaults on pre-existing records and never touches
   the outbox, so pending offline work survives the upgrade.
-- Tests: `inventory_repository_test.dart`, `purchasing_repository_test.dart`, plus the v3/v4 cases in
-  `migration_test.dart` and `release_upgrade_test.dart`.
+- Tests: `inventory_repository_test.dart`, `purchasing_repository_test.dart`, `reports_test.dart`,
+  `reports_repository_test.dart` (proves reporting stays consistent after a concurrent offline
+  movement), plus the v3/v4 cases in `migration_test.dart` and `release_upgrade_test.dart`.
 
 ## Layout
 ```
@@ -158,7 +164,8 @@ test/
 - **Menu** — cached catalog with offline reads · **Inventory** — offline stock ledger, movements
   and conflict-aware counts · **Purchasing** — suppliers and offline purchase orders that post to the
   ledger on receipt · **Customers** — management tables
-- **Reports** — sales trend, category breakdown, payment mix
+- **Reports** — offline read-model: sales window trend, payment mix, inventory, purchasing and cash
+  reconciliation, freshness vs. last sync, and CSV export
 - **Sync Center** — outbox operations, sync order, idempotency/retry policy
 - **Conflicts** — detected conflicts and per-entity resolution strategy
 - **Settings** — version visibility, updates, migrations, flags, offline policy

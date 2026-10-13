@@ -96,6 +96,10 @@ through an `AppScope` inherited widget.
   received, so a retried receive is idempotent and can never double the stock.
 - **Suppliers** — `data/repositories/local_supplier_repository.dart` is a local-first directory that
   carries the running amount owed.
+- **Reporting** — `data/repositories/local_reports_repository.dart` composes the local repositories
+  into one pure `ReportsSnapshot` (`domain/models/report.dart`). It reads the outbox for freshness
+  and exports CSV; because every source is append-only, a report stays consistent under concurrent
+  offline operations and long connectivity gaps.
 - **Migrations** — v3 `stock-ledger` introduces the ledger; v4 `purchasing` introduces suppliers and
   purchase orders. Each stamps defaults on pre-existing records and never touches the outbox.
 

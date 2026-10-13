@@ -18,7 +18,7 @@ Maintained as a versioned policy (see `lib/src/domain/offline/offline_capability
 | Inventory | Conditional | Local movements, flag conflicts |
 | Purchasing | Queueable | Raise/receive orders offline; stock posts locally |
 | Suppliers | Cached read / local creation | Sync new/updated records later |
-| Reports | Cached / limited | Show freshness + last sync |
+| Reports | Cached read (local read-model) | Compute from append-only stores; show freshness + pending sync |
 | User management | Online only | No offline permission changes |
 | Refunds | Restricted | Online workflow unless authorized |
 | Configuration | Cached read | Changes need authorized server workflow |

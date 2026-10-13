@@ -24,6 +24,7 @@ import '../../data/repositories/local_menu_repository.dart';
 import '../../data/repositories/local_order_repository.dart';
 import '../../data/repositories/local_payment_repository.dart';
 import '../../data/repositories/local_purchase_repository.dart';
+import '../../data/repositories/local_reports_repository.dart';
 import '../../data/repositories/local_supplier_repository.dart';
 import '../../domain/models/approval_request.dart';
 import '../../domain/models/cash_session.dart';
@@ -123,6 +124,25 @@ Future<AppServices> _resolveAuth(
           outbox: outbox,
           audit: audit,
         );
+  final reports = (orders == null ||
+          payments == null ||
+          deliveries == null ||
+          cashSessions == null ||
+          inventory == null ||
+          purchases == null ||
+          suppliers == null)
+      ? null
+      : LocalReportsRepository(
+          orders,
+          payments,
+          deliveries,
+          cashSessions,
+          inventory,
+          purchases,
+          suppliers,
+          audit: audit,
+          outbox: outbox,
+        );
   await _primeMenuCache(menu);
   await _primeKitchenCache(kitchen);
   await _primeDeliveryData(deliveries);
@@ -163,6 +183,7 @@ Future<AppServices> _resolveAuth(
       inventory: inventory,
       suppliers: suppliers,
       purchases: purchases,
+      reports: reports,
     );
   }
 
@@ -196,6 +217,7 @@ Future<AppServices> _resolveAuth(
       inventory: inventory,
       suppliers: suppliers,
       purchases: purchases,
+      reports: reports,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -223,6 +245,7 @@ Future<AppServices> _resolveAuth(
       inventory: inventory,
       suppliers: suppliers,
       purchases: purchases,
+      reports: reports,
     );
   }
 }
@@ -529,7 +552,7 @@ Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
     await features.cacheManifest(
       ReleaseManifest(
         channel: 'stable',
-        version: '0.5.0',
+        version: '0.6.0',
         minSupportedVersion: '0.3.0',
         rolloutPercent: 25,
         mandatory: false,

@@ -16,6 +16,7 @@ import '../../data/repositories/menu_repository.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
+import '../../data/repositories/reports_repository.dart';
 import '../../data/repositories/supplier_repository.dart';
 import '../../data/sync/sync_service.dart';
 import '../../data/services/print_service.dart';
@@ -43,6 +44,7 @@ class AppServices {
     this.inventory,
     this.suppliers,
     this.purchases,
+    this.reports,
   });
 
   final FirebaseConfig config;
@@ -101,6 +103,9 @@ class AppServices {
 
   /// Purchase orders, or null when the store is unavailable.
   final PurchaseRepository? purchases;
+
+  /// Local-first reporting read-model, or null when the store is unavailable.
+  final ReportsRepository? reports;
 
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;
