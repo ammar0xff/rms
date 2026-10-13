@@ -4,6 +4,7 @@ import 'package:rms/src/app.dart';
 import 'package:rms/src/core/config/device_update_context.dart';
 import 'package:rms/src/core/config/firebase_config.dart';
 import 'package:rms/src/core/di/app_services.dart';
+import 'package:rms/src/core/widgets/status.dart';
 import 'package:rms/src/data/repositories/demo_auth_repository.dart';
 import 'package:rms/src/data/repositories/update_repository.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
@@ -96,7 +97,8 @@ void main() {
       _services(_FakeUpdates(_manifest(platform: _otherPlatform()))),
     );
 
-    expect(find.text('غير متاح'), findsOneWidget);
+    // The state card also renders "غير متاح", so scope this to the update Tag.
+    expect(find.widgetWithText(Tag, 'غير متاح'), findsOneWidget);
     expect(find.text('سبب عدم الإتاحة'), findsOneWidget);
     expect(find.text('النظام الأساسي غير مطابق'), findsOneWidget);
     expect(find.text('لا يتوفر تحديث لهذا الجهاز'), findsOneWidget);
