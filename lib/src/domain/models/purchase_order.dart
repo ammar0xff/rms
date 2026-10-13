@@ -81,6 +81,8 @@ class PurchaseOrderModel {
 
   bool get isOpen => status == PurchaseOrderStatus.ordered;
 
+  bool get isCancelled => status == PurchaseOrderStatus.cancelled;
+
   Map<String, Object?> toRecord() => {
         'id': id,
         'supplierId': supplierId,

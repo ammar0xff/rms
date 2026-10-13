@@ -76,11 +76,12 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
       children: [
         Row(
           children: [
-            const SectionHeader(
-              title: 'التعارضات',
-              subtitle: 'تُكتشف عند المزامنة · التعارضات المالية تتطلب مراجعة',
+            const Expanded(
+              child: SectionHeader(
+                title: 'التعارضات',
+                subtitle: 'تُكتشف عند المزامنة · التعارضات المالية تتطلب مراجعة',
+              ),
             ),
-            const Spacer(),
             Tag(
               label: '${_conflicts.length} غير محلولة',
               tone: _conflicts.isEmpty ? StatusTone.positive : StatusTone.negative,

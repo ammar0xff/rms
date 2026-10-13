@@ -93,6 +93,67 @@ class LocalSupplierRepository implements SupplierRepository {
     return supplier;
   }
 
+  @override
+  Future<SupplierPaymentOutcome> recordSupplierPayment({
+    required String supplierId,
+    required double amount,
+    required String reference,
+    bool createdOffline = false,
+  }) async {
+    if (!amount.isFinite || amount <= 0) {
+      return SupplierPaymentOutcome.invalidAmount;
+    }
+    var outcome = SupplierPaymentOutcome.notFound;
+    await _db.transaction((txn) async {
+      final record = LocalStores.suppliers.record(supplierId);
+      final existing = await record.get(txn);
+      if (existing == null) {
+        outcome = SupplierPaymentOutcome.notFound;
+        return;
+      }
+      final supplier = SupplierModel.fromRecord(existing);
+      if (amount > supplier.payable) {
+        outcome = SupplierPaymentOutcome.exceedsPayable;
+        return;
+      }
+      final now = _clock();
+      supplier.payable = supplier.payable - amount;
+      supplier.localRevision = supplier.localRevision + 1;
+      supplier.syncStatus = SyncStatus.pendingSync;
+      await record.put(txn, supplier.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityType: 'supplier',
+          entityId: supplierId,
+          operationType: 'paySupplier',
+          createdAt: now,
+          payload: {
+            'id': supplierId,
+            'amount': amount,
+            'reference': reference,
+            'payable': supplier.payable,
+          },
+        ),
+      );
+      await _audit?.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.paySupplier,
+          entityType: 'supplier',
+          entityId: supplierId,
+          summary: 'تسديد $reference · ${supplier.name}',
+          at: now,
+          amount: amount,
+          createdOffline: createdOffline,
+        ),
+      );
+      outcome = SupplierPaymentOutcome.recorded;
+    });
+    return outcome;
+  }
+
   /// Marks a supplier synced once the backend acknowledges it.
   Future<void> applySynced(OutboxEntry entry) async {
     if (entry.entityType != 'supplier') return;

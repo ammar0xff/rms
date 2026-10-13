@@ -35,11 +35,12 @@ class SyncCenterScreen extends StatelessWidget {
       children: [
         Row(
           children: [
-            const SectionHeader(
-              title: 'مركز المزامنة',
-              subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
+            const Expanded(
+              child: SectionHeader(
+                title: 'مركز المزامنة',
+                subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
+              ),
             ),
-            const Spacer(),
             RmsButton(label: 'إعادة الاتصال والمزامنة الآن', icon: Icons.sync, onPressed: () {
               final svc = AppScope.of(context).sync;
               if (svc != null) svc.requestSync();

@@ -19,11 +19,12 @@ class CustomersScreen extends StatelessWidget {
       children: [
         Row(
           children: [
-            const SectionHeader(
-              title: 'العملاء',
-              subtitle: 'قراءة مخزنة مع إنشاء محلي · مزامنة عند الاتصال',
+            const Expanded(
+              child: SectionHeader(
+                title: 'العملاء',
+                subtitle: 'قراءة مخزنة مع إنشاء محلي · مزامنة عند الاتصال',
+              ),
             ),
-            const Spacer(),
             RmsButton(label: 'إضافة عميل', icon: Icons.person_add_alt, onPressed: () {}),
           ],
         ),

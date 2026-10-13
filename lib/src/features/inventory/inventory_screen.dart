@@ -138,11 +138,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ]),
         Row(
           children: [
-            const SectionHeader(
-              title: 'مستويات المخزون',
-              subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
+            const Expanded(
+              child: SectionHeader(
+                title: 'مستويات المخزون',
+                subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
+              ),
             ),
-            const Spacer(),
             RmsButton(
               label: 'جرد',
               icon: Icons.fact_check_outlined,

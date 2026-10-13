@@ -114,10 +114,14 @@ ledger.
   outbox entry, a `stockConflict` audit row) instead of silently overwriting a newer balance.
 - **Sync reconciliation** — on acknowledgement a movement is stamped synced and its item is marked
   synced only once no movements for it remain pending.
-- **Purchasing** (`LocalPurchaseRepository`) — raise an order against a cached supplier and receive
-  it offline. Receiving posts one `receipt` movement per line through the stock ledger in the **same**
-  transaction that marks the order received, so a retried receive can never double the stock.
-- **Suppliers** (`LocalSupplierRepository`) — local-first directory carrying the running amount owed.
+- **Purchasing** (`LocalPurchaseRepository`) — raise an order against a cached supplier, receive it
+  offline, or cancel it while it is still open. Receiving posts one `receipt` movement per line through
+  the stock ledger and adds the order total to the supplier's payable in the **same** transaction that
+  marks the order received, so a retried receive can never double the stock; cancelling an open order
+  only closes the intent locally and never touches stock.
+- **Suppliers** (`LocalSupplierRepository`) — local-first directory carrying the running amount owed:
+  it rises when a purchase is received and falls when `recordSupplierPayment` is called, which refuses
+  to overpay. Both the receipt and the payment queue an outbox command and an audit row.
 - **Reporting** (`LocalReportsRepository`) — folds the append-only sources (orders, payments,
   collections, cash sessions, stock ledger, purchases, suppliers) into one self-consistent
   `ReportsSnapshot`; it reads the outbox for freshness (last acknowledgement plus
@@ -182,7 +186,8 @@ test/
 - **Accounting** — cash session, approvals, append-only ledger
 - **Menu** — cached catalog with offline reads · **Inventory** — offline stock ledger, movements
   and conflict-aware counts · **Purchasing** — suppliers and offline purchase orders that post to the
-  ledger on receipt · **Customers** — management tables
+  ledger on receipt, with cancel for open orders and supplier payments against the running payable ·
+  **Customers** — management tables
 - **Reports** — offline read-model: sales window trend, payment mix, inventory, purchasing and cash
   reconciliation, freshness vs. last sync, and CSV export
 - **Branches** — multi-branch consolidation: network KPIs and a per-branch table showing each

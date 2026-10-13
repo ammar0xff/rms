@@ -6,6 +6,7 @@ import '../../core/logging/app_logger.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/purchase_order.dart';
 import '../../domain/models/stock_movement.dart';
+import '../../domain/models/supplier.dart';
 import '../local/audit_log.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
@@ -145,6 +146,18 @@ class LocalPurchaseRepository implements PurchaseRepository {
       purchase.receivedAt = now;
       purchase.localRevision = purchase.localRevision + 1;
       purchase.syncStatus = SyncStatus.pendingSync;
+      // Receiving the goods is what creates the debt, so the order total is
+      // added to the supplier's payable in the same transaction as the stock
+      // post: stock and payables can never drift apart.
+      final supplierRecord = LocalStores.suppliers.record(purchase.supplierId);
+      final existingSupplier = await supplierRecord.get(txn);
+      if (existingSupplier != null) {
+        final supplier = SupplierModel.fromRecord(existingSupplier);
+        supplier.payable = supplier.payable + purchase.total;
+        supplier.localRevision = supplier.localRevision + 1;
+        supplier.syncStatus = SyncStatus.pendingSync;
+        await supplierRecord.put(txn, supplier.toRecord());
+      }
       await record.put(txn, purchase.toRecord());
       await _outbox.append(
         txn,
@@ -174,6 +187,66 @@ class LocalPurchaseRepository implements PurchaseRepository {
         ),
       );
       outcome = PurchaseReceiveOutcome.received;
+    });
+    return outcome;
+  }
+
+  @override
+  Future<PurchaseCancelOutcome> cancelPurchase(
+    String id, {
+    bool createdOffline = false,
+  }) async {
+    var outcome = PurchaseCancelOutcome.notFound;
+    await _db.transaction((txn) async {
+      final record = LocalStores.purchases.record(id);
+      final existing = await record.get(txn);
+      if (existing == null) {
+        outcome = PurchaseCancelOutcome.notFound;
+        return;
+      }
+      final purchase = PurchaseOrderModel.fromRecord(existing);
+      if (purchase.isReceived) {
+        outcome = PurchaseCancelOutcome.alreadyReceived;
+        return;
+      }
+      if (purchase.isCancelled) {
+        outcome = PurchaseCancelOutcome.alreadyCancelled;
+        return;
+      }
+      final now = _clock();
+      // Nothing is posted to the stock ledger: an open order has never moved
+      // stock, so cancelling it only closes the intent locally.
+      purchase.status = PurchaseOrderStatus.cancelled;
+      purchase.localRevision = purchase.localRevision + 1;
+      purchase.syncStatus = SyncStatus.pendingSync;
+      await record.put(txn, purchase.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityType: 'purchase',
+          entityId: id,
+          operationType: 'cancelPurchase',
+          createdAt: now,
+          payload: {
+            'id': id,
+            'reference': purchase.reference,
+          },
+        ),
+      );
+      await _audit?.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.cancelPurchase,
+          entityType: 'purchase',
+          entityId: id,
+          summary: 'إلغاء ${purchase.reference} · ${purchase.supplierName}',
+          at: now,
+          amount: purchase.total,
+          createdOffline: createdOffline,
+        ),
+      );
+      outcome = PurchaseCancelOutcome.cancelled;
     });
     return outcome;
   }

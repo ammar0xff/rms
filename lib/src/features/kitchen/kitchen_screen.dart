@@ -90,11 +90,12 @@ class _KitchenScreenState extends State<KitchenScreen> {
       children: [
         Row(
           children: [
-            const SectionHeader(
-              title: 'شاشة المطبخ',
-              subtitle: 'التذاكر تنجو من إعادة التشغيل · الطباعة مستقلة عن المزامنة',
+            const Expanded(
+              child: SectionHeader(
+                title: 'شاشة المطبخ',
+                subtitle: 'التذاكر تنجو من إعادة التشغيل · الطباعة مستقلة عن المزامنة',
+              ),
             ),
-            const Spacer(),
             SizedBox(height: 30, child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s))),
             const SizedBox(width: 12),
             RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: _load),

@@ -114,11 +114,12 @@ class _MenuScreenState extends State<MenuScreen> {
       children: [
         Row(
           children: [
-            const SectionHeader(
-              title: 'القائمة والأسعار',
-              subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
+            const Expanded(
+              child: SectionHeader(
+                title: 'القائمة والأسعار',
+                subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
+              ),
             ),
-            const Spacer(),
             const Tag(label: 'الإعدادات v24', tone: StatusTone.neutral),
             const SizedBox(width: 8),
             const StatusText(label: 'آخر مزامنة', tone: StatusTone.positive),

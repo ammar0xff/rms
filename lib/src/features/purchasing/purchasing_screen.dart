@@ -11,6 +11,7 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/repositories/purchase_repository.dart';
+import '../../data/repositories/supplier_repository.dart';
 import '../../domain/models/inventory_item.dart';
 import '../../domain/models/purchase_order.dart';
 import '../../domain/models/supplier.dart';
@@ -120,6 +121,44 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
     });
   }
 
+  Future<void> _cancelPurchase(PurchaseOrderModel purchase) async {
+    final repo = AppScope.of(context).purchases;
+    if (repo == null) return;
+    final outcome = await repo.cancelPurchase(purchase.id, createdOffline: true);
+    await _load();
+    _notify(switch (outcome) {
+      PurchaseCancelOutcome.cancelled => 'تم إلغاء أمر الشراء.',
+      PurchaseCancelOutcome.alreadyReceived => 'لا يمكن إلغاء أمر مستلَم بالفعل.',
+      PurchaseCancelOutcome.alreadyCancelled => 'هذا الأمر ملغى بالفعل.',
+      PurchaseCancelOutcome.notFound => 'لم يُعثر على أمر الشراء.',
+    });
+  }
+
+  Future<void> _paySupplier(SupplierModel supplier) async {
+    final repo = AppScope.of(context).suppliers;
+    if (repo == null || supplier.payable <= 0) return;
+    final input = await showDialog<_PaymentInput>(
+      context: context,
+      builder: (_) => _PaymentDialog(supplier: supplier),
+    );
+    if (input == null) return;
+    final outcome = await repo.recordSupplierPayment(
+      supplierId: supplier.id,
+      amount: input.amount,
+      reference: input.reference,
+      createdOffline: true,
+    );
+    await _load();
+    _notify(switch (outcome) {
+      SupplierPaymentOutcome.recorded => 'تم تسجيل التسديد محليًا.',
+      SupplierPaymentOutcome.notFound => 'لم يُعثر على المورد.',
+      SupplierPaymentOutcome.invalidAmount =>
+        'أدخل مبلغًا صحيحًا أكبر من صفر.',
+      SupplierPaymentOutcome.exceedsPayable =>
+        'المبلغ يتجاوز المستحق على المورد.',
+    });
+  }
+
   void _notify(String message) {
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
@@ -182,11 +221,12 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: Row(
               children: [
-                const SectionHeader(
-                  title: 'الموردون',
-                  subtitle: 'دليل الموردين ومستحقاتهم',
+                const Expanded(
+                  child: SectionHeader(
+                    title: 'الموردون',
+                    subtitle: 'دليل الموردين ومستحقاتهم',
+                  ),
                 ),
-                const Spacer(),
                 RmsButton(
                   label: 'إضافة مورد',
                   icon: Icons.person_add_alt,
@@ -203,6 +243,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
               RmsColumn('الهاتف', flex: 3),
               RmsColumn('المستحق', flex: 3, align: TextAlign.right),
               RmsColumn('المزامنة', flex: 3),
+              RmsColumn('إجراء', width: 96, align: TextAlign.center),
             ],
             rows: [
               for (final supplier in _suppliers)
@@ -220,6 +261,14 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
                   StatusText(
                     label: orderSyncView(supplier.syncStatus).$1,
                     tone: orderSyncView(supplier.syncStatus).$2,
+                  ),
+                  RmsButton(
+                    label: 'تسديد',
+                    variant: BtnVariant.secondary,
+                    dense: true,
+                    onPressed: supplier.payable > 0
+                        ? () => _paySupplier(supplier)
+                        : null,
                   ),
                 ],
             ],
@@ -240,11 +289,12 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: Row(
               children: [
-                const SectionHeader(
-                  title: 'أوامر الشراء',
-                  subtitle: 'استلام الأمر يزيد المخزون',
+                const Expanded(
+                  child: SectionHeader(
+                    title: 'أوامر الشراء',
+                    subtitle: 'استلام الأمر يزيد المخزون',
+                  ),
                 ),
-                const Spacer(),
                 RmsButton(
                   label: 'أمر شراء جديد',
                   icon: Icons.add,
@@ -263,7 +313,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
               RmsColumn('الإجمالي', flex: 3, align: TextAlign.right),
               RmsColumn('الحالة', flex: 3),
               RmsColumn('المزامنة', flex: 3),
-              RmsColumn('إجراء', width: 96, align: TextAlign.center),
+              RmsColumn('إجراء', width: 150, align: TextAlign.center),
             ],
             rows: [
               for (final purchase in _purchases)
@@ -278,20 +328,34 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
                   Text(money(purchase.total), style: AppText.tableCellPrimary),
                   StatusText(
                     label: purchase.status.label,
-                    tone: purchase.isReceived
-                        ? StatusTone.positive
-                        : StatusTone.warning,
+                    tone: switch (purchase.status) {
+                      PurchaseOrderStatus.received => StatusTone.positive,
+                      PurchaseOrderStatus.cancelled => StatusTone.neutral,
+                      PurchaseOrderStatus.ordered => StatusTone.warning,
+                    },
                   ),
                   StatusText(
                     label: orderSyncView(purchase.syncStatus).$1,
                     tone: orderSyncView(purchase.syncStatus).$2,
                   ),
                   if (purchase.isOpen)
-                    RmsButton(
-                      label: 'استلام',
-                      variant: BtnVariant.secondary,
-                      dense: true,
-                      onPressed: () => _receive(purchase),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        RmsButton(
+                          label: 'استلام',
+                          variant: BtnVariant.secondary,
+                          dense: true,
+                          onPressed: () => _receive(purchase),
+                        ),
+                        const SizedBox(width: 6),
+                        RmsButton(
+                          label: 'إلغاء',
+                          variant: BtnVariant.ghost,
+                          dense: true,
+                          onPressed: () => _cancelPurchase(purchase),
+                        ),
+                      ],
                     )
                   else
                     const Text('—', style: AppText.tableCell),
@@ -387,6 +451,100 @@ class _SupplierDialogState extends State<_SupplierDialog> {
                 }
               : null,
           child: const Text('حفظ'),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentInput {
+  const _PaymentInput({required this.amount, required this.reference});
+
+  final double amount;
+  final String reference;
+}
+
+class _PaymentDialog extends StatefulWidget {
+  const _PaymentDialog({required this.supplier});
+
+  final SupplierModel supplier;
+
+  @override
+  State<_PaymentDialog> createState() => _PaymentDialogState();
+}
+
+class _PaymentDialogState extends State<_PaymentDialog> {
+  final TextEditingController _amount = TextEditingController();
+  final TextEditingController _reference = TextEditingController();
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _reference.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    final valid = amount > 0 && amount <= widget.supplier.payable;
+    final entered = _amount.text.trim().isNotEmpty;
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: Text('تسديد · ${widget.supplier.name}'),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'المستحق الحالي ${money(widget.supplier.payable)}',
+              style: AppText.tableCellPrimary,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amount,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'المبلغ'),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _reference,
+              decoration: const InputDecoration(labelText: 'المرجع (اختياري)'),
+            ),
+            if (entered && !valid) ...[
+              const SizedBox(height: 8),
+              Text(
+                'يجب أن يكون المبلغ أكبر من صفر ولا يتجاوز المستحق.',
+                style: AppText.caption.copyWith(color: AppColors.negative),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          onPressed: valid
+              ? () {
+                  final reference = _reference.text.trim();
+                  Navigator.pop(
+                    context,
+                    _PaymentInput(
+                      amount: amount,
+                      reference: reference.isEmpty ? 'تسديد مورد' : reference,
+                    ),
+                  );
+                }
+              : null,
+          child: const Text('تسديد'),
         ),
       ],
     );

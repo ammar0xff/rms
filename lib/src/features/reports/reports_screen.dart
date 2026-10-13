@@ -90,11 +90,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       children: [
         Row(
           children: [
-            const SectionHeader(
-              title: 'التقارير',
-              subtitle: 'قراءة محلية من المخازن الإضافة-فقط · تبقى متسقة دون اتصال',
+            const Expanded(
+              child: SectionHeader(
+                title: 'التقارير',
+                subtitle: 'قراءة محلية من المخازن الإضافة-فقط · تبقى متسقة دون اتصال',
+              ),
             ),
-            const Spacer(),
             if (snapshot != null) ...[
               StatusText(
                 label: _freshnessLabel(snapshot),

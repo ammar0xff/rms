@@ -93,10 +93,14 @@ through an `AppScope` inherited widget.
 - **Sync reconciliation** — an acknowledged movement is marked synced and its item synced only once
   no movements remain pending.
 - **Purchasing** — `data/repositories/local_purchase_repository.dart` receives an order by posting one
-  `receipt` movement per line through the ledger in the same transaction that marks the order
-  received, so a retried receive is idempotent and can never double the stock.
+  `receipt` movement per line through the ledger and adding the order total to the supplier's payable in
+  the same transaction that marks the order received, so a retried receive is idempotent and can never
+  double the stock. An open order can also be cancelled, which closes the intent locally without
+  touching stock; a received order cannot be cancelled.
 - **Suppliers** — `data/repositories/local_supplier_repository.dart` is a local-first directory that
-  carries the running amount owed.
+  carries the running amount owed: receiving a purchase raises it and `recordSupplierPayment` lowers it.
+  Payments refuse to exceed the outstanding payable, and each receipt or payment queues an outbox
+  command plus an audit row.
 - **Reporting** — `data/repositories/local_reports_repository.dart` composes the local repositories
   into one pure `ReportsSnapshot` (`domain/models/report.dart`). It reads the outbox for freshness
   and exports CSV; because every source is append-only, a report stays consistent under concurrent

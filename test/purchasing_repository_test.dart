@@ -7,6 +7,7 @@ import 'package:rms/src/data/repositories/local_inventory_repository.dart';
 import 'package:rms/src/data/repositories/local_purchase_repository.dart';
 import 'package:rms/src/data/repositories/local_supplier_repository.dart';
 import 'package:rms/src/data/repositories/purchase_repository.dart';
+import 'package:rms/src/data/repositories/supplier_repository.dart';
 import 'package:rms/src/domain/models/audit_entry.dart';
 import 'package:rms/src/domain/models/inventory_item.dart';
 import 'package:rms/src/domain/models/purchase_order.dart';
@@ -219,5 +220,147 @@ void main() {
 
     expect((await suppliers.listSuppliers()).single.syncStatus, SyncStatus.synced);
     expect((await purchases.listPurchases()).single.syncStatus, SyncStatus.synced);
+  });
+
+  test('receiving increases the supplier payable', () async {
+    await inventory.seedItems([_item('I1')]);
+    final supplier = await suppliers.createSupplier(name: 'مورد', payable: 100);
+    final purchase = await purchases.createPurchase(
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      reference: 'PO-PAY',
+      lines: const [
+        PurchaseOrderLine(
+          itemId: 'I1',
+          name: 'أ',
+          quantity: 3.0,
+          unitCost: 10.0,
+        ),
+      ],
+    );
+
+    await purchases.receivePurchase(purchase.id, createdOffline: true);
+
+    final updated = (await suppliers.listSuppliers()).single;
+    expect(updated.payable, 130);
+    expect(updated.syncStatus, SyncStatus.pendingSync);
+  });
+
+  test('cancelling an open order is idempotent and audited', () async {
+    await inventory.seedItems([_item('I1')]);
+    final purchase = await purchases.createPurchase(
+      supplierId: 'SP-1',
+      supplierName: 'مورد',
+      reference: 'PO-CANCEL',
+      lines: const [
+        PurchaseOrderLine(
+          itemId: 'I1',
+          name: 'أ',
+          quantity: 1.0,
+          unitCost: 5.0,
+        ),
+      ],
+    );
+
+    final first =
+        await purchases.cancelPurchase(purchase.id, createdOffline: true);
+    expect(first, PurchaseCancelOutcome.cancelled);
+    expect((await purchases.listPurchases()).single.isCancelled, isTrue);
+    expect(
+      (await audit.list()).map((e) => e.action),
+      contains(AuditAction.cancelPurchase),
+    );
+
+    // A retried cancel must be a no-op: no extra commands or audits.
+    final outboxBefore = (await OutboxStore(db).all()).length;
+    final auditBefore = (await audit.list()).length;
+    final second = await purchases.cancelPurchase(purchase.id);
+    expect(second, PurchaseCancelOutcome.alreadyCancelled);
+    expect((await OutboxStore(db).all()).length, outboxBefore);
+    expect((await audit.list()).length, auditBefore);
+  });
+
+  test('cannot cancel a received order', () async {
+    await inventory.seedItems([_item('I1')]);
+    final purchase = await purchases.createPurchase(
+      supplierId: 'SP-1',
+      supplierName: 'مورد',
+      reference: 'PO-RECV',
+      lines: const [
+        PurchaseOrderLine(
+          itemId: 'I1',
+          name: 'أ',
+          quantity: 1.0,
+          unitCost: 5.0,
+        ),
+      ],
+    );
+    await purchases.receivePurchase(purchase.id);
+
+    expect(
+      await purchases.cancelPurchase(purchase.id),
+      PurchaseCancelOutcome.alreadyReceived,
+    );
+    expect((await purchases.listPurchases()).single.isReceived, isTrue);
+  });
+
+  test('cancelling an unknown order reports notFound', () async {
+    expect(
+      await purchases.cancelPurchase('missing'),
+      PurchaseCancelOutcome.notFound,
+    );
+  });
+
+  test('supplier payment reduces the payable and queues a command', () async {
+    final supplier = await suppliers.createSupplier(name: 'مورد', payable: 500);
+
+    final outcome = await suppliers.recordSupplierPayment(
+      supplierId: supplier.id,
+      amount: 200,
+      reference: 'PAY-1',
+      createdOffline: true,
+    );
+
+    expect(outcome, SupplierPaymentOutcome.recorded);
+    final updated = (await suppliers.listSuppliers()).single;
+    expect(updated.payable, 300);
+    expect(updated.syncStatus, SyncStatus.pendingSync);
+    final entry = (await OutboxStore(db).all())
+        .firstWhere((e) => e.operationType == 'paySupplier');
+    expect(entry.entityType, 'supplier');
+    expect(
+      (await audit.list()).map((e) => e.action),
+      contains(AuditAction.paySupplier),
+    );
+  });
+
+  test('supplier payment rejects invalid and over-payments', () async {
+    final supplier = await suppliers.createSupplier(name: 'مورد', payable: 100);
+
+    expect(
+      await suppliers.recordSupplierPayment(
+        supplierId: supplier.id,
+        amount: 0,
+        reference: 'PAY-0',
+      ),
+      SupplierPaymentOutcome.invalidAmount,
+    );
+    expect(
+      await suppliers.recordSupplierPayment(
+        supplierId: supplier.id,
+        amount: 150,
+        reference: 'PAY-2',
+      ),
+      SupplierPaymentOutcome.exceedsPayable,
+    );
+    expect(
+      await suppliers.recordSupplierPayment(
+        supplierId: 'missing',
+        amount: 10,
+        reference: 'PAY-3',
+      ),
+      SupplierPaymentOutcome.notFound,
+    );
+    expect((await suppliers.listSuppliers()).single.payable, 100);
   });
 }
