@@ -15,15 +15,15 @@ enum UpdateLifecycleState {
   final String label;
 
   bool get isActive =>
-      this == UpdateLifecycleState.installing ||
-      this == UpdateLifecycleState.migrating ||
-      this == UpdateLifecycleState.healthCheck ||
-      this == UpdateLifecycleState.rebooting;
+      state == UpdateLifecycleState.installing ||
+      state == UpdateLifecycleState.migrating ||
+      state == UpdateLifecycleState.healthCheck ||
+      state == UpdateLifecycleState.rebooting;
 
   bool get isTerminal =>
-      this == UpdateLifecycleState.completed ||
-      this == UpdateLifecycleState.failed ||
-      this == UpdateLifecycleState.rolledBack;
+      state == UpdateLifecycleState.completed ||
+      state == UpdateLifecycleState.failed ||
+      state == UpdateLifecycleState.rolledBack;
 }
 
 /// The result of a health-check after applying an update.
@@ -85,15 +85,15 @@ class DeviceUpdateStatus {
   final DateTime? lastAppliedAt;
 
   bool get isActive =>
-      this == UpdateLifecycleState.installing ||
-      this == UpdateLifecycleState.migrating ||
-      this == UpdateLifecycleState.healthCheck ||
-      this == UpdateLifecycleState.rebooting;
+      state == UpdateLifecycleState.installing ||
+      state == UpdateLifecycleState.migrating ||
+      state == UpdateLifecycleState.healthCheck ||
+      state == UpdateLifecycleState.rebooting;
 
   bool get isTerminal =>
-      this == UpdateLifecycleState.completed ||
-      this == UpdateLifecycleState.failed ||
-      this == UpdateLifecycleState.rolledBack;
+      state == UpdateLifecycleState.completed ||
+      state == UpdateLifecycleState.failed ||
+      state == UpdateLifecycleState.rolledBack;
 
   DeviceUpdateStatus copyWith({
     UpdateLifecycleState? state,
