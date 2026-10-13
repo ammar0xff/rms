@@ -43,4 +43,23 @@ final List<LocalMigration> defaultLocalMigrations = [
       }
     },
   ),
+
+  /// Introduces the stock ledger. No stock existed before this step, but any
+  /// hand-written inventory record is stamped with the revision/sync defaults
+  /// the ledger reads, so it stays consistent after the upgrade.
+  LocalMigration(
+    from: 2,
+    to: 3,
+    id: 'stock-ledger',
+    description: 'Introduce the stock ledger and stamp revision defaults.',
+    run: (txn) async {
+      final items = await LocalStores.inventory.find(txn);
+      for (final snapshot in items) {
+        final record = Map<String, Object?>.from(snapshot.value);
+        record.putIfAbsent('localRevision', () => 1);
+        record.putIfAbsent('syncStatus', () => 'pendingSync');
+        await LocalStores.inventory.record(snapshot.key).put(txn, record);
+      }
+    },
+  ),
 ];

@@ -7,15 +7,17 @@
 Cross-platform, **offline-first** restaurant management system.
 Flutter frontend, Firebase backend, local-first persistence with transactional outbox and idempotent synchronization.
 
-> Status: **Phase 3 — Accounting, Administration and Controlled Upgrades**. Phase 0 (local-first
+> Status: **Phase 4 — Inventory and Advanced Operations**. Phase 0 (local-first
 > persistence: document store + transactional outbox + idempotent sync engine) and Phase 1
 > (POS, menu cache, kitchen KDS, local printing, sync monitoring) are in place, together with
 > conflicts, settings and server-assigned order identity. Phase 2 adds offline delivery events,
 > an append-only collection log, conflict-aware reassignment, and an outstanding settlement queue
 > that is finalized only on a server acknowledgement. Phase 3 adds cashier drawer sessions,
 > refund/payment approvals, an append-only audit trail, forward-only local schema migrations, and
-> cached release manifests with server-controlled feature flags. Source of truth for behavior is
-> `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
+> cached release manifests with server-controlled feature flags. Phase 4 begins with an offline
+> stock ledger: append-only movements whose sum is the on-hand balance, and conflict-aware physical
+> counts that are flagged for review rather than overwriting a newer balance. Source of truth for
+> behavior is `docs/Restaurant_Management_System_PRD_v1.1.pdf`.
 >
 > **Live demo:** https://ammar0xff.github.io/rms/ (built and deployed from `main` via GitHub Actions).
 
@@ -94,6 +96,24 @@ trace and pending offline work is never lost by an upgrade.
   `approval_repository_test.dart`, `feature_flags_test.dart`, `release_upgrade_test.dart` (the last
   one proves pending offline delivery work survives a schema upgrade).
 
+## Inventory & advanced operations (Phase 4)
+The stock ledger follows the same offline-first contract as the rest of the app: a movement, its
+outbox command and its audit row commit in **one** transaction, and on-hand is always the sum of the
+ledger.
+
+- **Stock ledger** (`LocalInventoryRepository`) — `recordMovement` appends a signed movement and
+  updates the cached balance atomically. Relative movements commute, so concurrent offline edits
+  from several devices can never corrupt the total.
+- **Conflict-aware counts** (`adjustToCount`) — a physical count carries the item revision it was
+  based on; a stale count is kept for explicit review (item marked `conflict`, a `stockCountConflict`
+  outbox entry, a `stockConflict` audit row) instead of silently overwriting a newer balance.
+- **Sync reconciliation** — on acknowledgement a movement is stamped synced and its item is marked
+  synced only once no movements for it remain pending.
+- **Migration v3** (`stock-ledger`) — introduces the ledger and stamps revision/sync defaults on any
+  pre-existing item; pending offline work still survives.
+- Tests: `inventory_repository_test.dart`, plus the v3 cases in `migration_test.dart` and
+  `release_upgrade_test.dart`.
+
 ## Layout
 ```
 lib/
@@ -113,7 +133,7 @@ lib/
       repositories/     # auth repository (Firebase + demo)
       sync/             # sync engine, retry, conflict resolver
     domain/
-      models/           # order, payment, delivery, cash session, approval, ...
+      models/           # order, payment, delivery, cash session, approval, stock, ...
       offline/          # offline capability policy
     features/
       auth/ dashboard/ pos/ kitchen/ delivery/
@@ -129,7 +149,8 @@ test/
 - **Kitchen (KDS)** — queued / preparing / ready columns, local tickets routed from POS orders
 - **Delivery** — deliveries, drivers, offline collections, settlement queue
 - **Accounting** — cash session, approvals, append-only ledger
-- **Menu** — cached catalog with offline reads · **Inventory / Customers** — management tables
+- **Menu** — cached catalog with offline reads · **Inventory** — offline stock ledger, movements
+  and conflict-aware counts · **Customers** — management tables
 - **Reports** — sales trend, category breakdown, payment mix
 - **Sync Center** — outbox operations, sync order, idempotency/retry policy
 - **Conflicts** — detected conflicts and per-entity resolution strategy

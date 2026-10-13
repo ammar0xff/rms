@@ -10,6 +10,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/cash_session_repository.dart';
 import '../../data/repositories/delivery_repository.dart';
 import '../../data/repositories/feature_flag_repository.dart';
+import '../../data/repositories/inventory_repository.dart';
 import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
 import '../../data/repositories/order_repository.dart';
@@ -37,6 +38,7 @@ class AppServices {
     this.approvals,
     this.features,
     this.migration,
+    this.inventory,
   });
 
 
@@ -87,6 +89,9 @@ class AppServices {
 
   /// Result of the last local schema migration attempt, or null when no store.
   final MigrationOutcome? migration;
+
+  /// Stock items and the append-only stock ledger, or null when unavailable.
+  final InventoryRepository? inventory;
 
   /// True when running without a backend (demo data, local sessions).
   bool get isDemo => !config.isConfigured || !firebaseReady;

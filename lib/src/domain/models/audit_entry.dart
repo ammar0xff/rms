@@ -10,6 +10,8 @@ enum AuditAction {
   requestApproval('طلب اعتماد مالي'),
   approveRequest('اعتماد طلب مالي'),
   rejectRequest('رفض طلب مالي'),
+  recordStockMovement('تسجيل حركة مخزون'),
+  stockConflict('تعارض جرد مخزون'),
   schemaMigration('ترحيل المخطط المحلي');
 
   const AuditAction(this.label);

@@ -135,4 +135,28 @@ void main() {
     expect(outcome.applied, ['a']);
     expect(await runner.currentVersion(), 1);
   });
+
+  test('applies the stock-ledger step and stamps inventory defaults', () async {
+    await LocalStores.inventory.record('I1').put(db.db, {
+      'id': 'I1',
+      'name': 'دقيق',
+      'unit': 'كجم',
+      'onHand': 4.0,
+      'reorderAt': 2.0,
+    });
+
+    final runner = LocalMigrationRunner(db, defaultLocalMigrations);
+    final outcome = await runner.run(targetVersion: 3);
+
+    expect(outcome.succeeded, isTrue);
+    expect(outcome.toVersion, 3);
+    expect(outcome.applied, ['baseline', 'settlement-split', 'stock-ledger']);
+    expect(await runner.currentVersion(), 3);
+
+    final record = await LocalStores.inventory.record('I1').get(db.db);
+    expect(record, isNotNull);
+    expect(record!['localRevision'], 1);
+    expect(record['syncStatus'], 'pendingSync');
+    expect(record['onHand'], 4.0);
+  });
 }

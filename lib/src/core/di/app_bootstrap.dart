@@ -18,6 +18,7 @@ import '../../data/repositories/local_approval_repository.dart';
 import '../../data/repositories/local_cash_session_repository.dart';
 import '../../data/repositories/local_delivery_repository.dart';
 import '../../data/repositories/local_feature_flag_repository.dart';
+import '../../data/repositories/local_inventory_repository.dart';
 import '../../data/repositories/local_kitchen_repository.dart';
 import '../../data/repositories/local_menu_repository.dart';
 import '../../data/repositories/local_order_repository.dart';
@@ -26,10 +27,12 @@ import '../../domain/models/approval_request.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/models/inventory_item.dart';
 import '../../domain/models/kitchen_ticket.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/payment.dart';
 import '../../domain/models/release_manifest.dart';
+import '../../domain/models/stock_movement.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
 import '../../data/sync/firestore_sync_transport.dart';
@@ -102,6 +105,9 @@ Future<AppServices> _resolveAuth(
       : LocalApprovalRepository(database, outbox: outbox, audit: audit);
   final features =
       database == null ? null : LocalFeatureFlagRepository(database);
+  final inventory = (database == null || outbox == null)
+      ? null
+      : LocalInventoryRepository(database, outbox: outbox, audit: audit);
   await _primeMenuCache(menu);
   await _primeKitchenCache(kitchen);
   await _primeDeliveryData(deliveries);
@@ -109,6 +115,7 @@ Future<AppServices> _resolveAuth(
   await _primeCashData(cashSessions);
   await _primeApprovalData(approvals);
   await _primeFeatureFlags(features);
+  await _primeInventoryData(inventory);
 
   // Surface local outbox state even without a backend (demo mode); the
   // Firebase branch below re-attaches with the sync loop.
@@ -137,14 +144,15 @@ Future<AppServices> _resolveAuth(
       approvals: approvals,
       features: features,
       migration: migration,
+      inventory: inventory,
     );
   }
 
   try {
     await Firebase.initializeApp(options: config.toOptions());
     AppLogger.info('Firebase initialized (env=${config.environment}).');
-    final sync =
-        _buildSync(outbox, orders, payments, deliveries, cashSessions, approvals);
+    final sync = _buildSync(
+        outbox, orders, payments, deliveries, cashSessions, approvals, inventory);
     if (sync != null) unawaited(sync.start());
     try {
       SyncMonitor.instance.attach(sync: sync, outbox: outbox);
@@ -167,6 +175,7 @@ Future<AppServices> _resolveAuth(
       approvals: approvals,
       features: features,
       migration: migration,
+      inventory: inventory,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -191,6 +200,7 @@ Future<AppServices> _resolveAuth(
       approvals: approvals,
       features: features,
       migration: migration,
+      inventory: inventory,
     );
   }
 }
@@ -204,6 +214,7 @@ SyncService? _buildSync(
   LocalDeliveryRepository? deliveries,
   LocalCashSessionRepository? cashSessions,
   LocalApprovalRepository? approvals,
+  LocalInventoryRepository? inventory,
 ) {
   if (outbox == null || orders == null) return null;
   final engine = SyncEngine(
@@ -215,6 +226,7 @@ SyncService? _buildSync(
       await deliveries?.applySynced(entry);
       await cashSessions?.applySynced(entry);
       await approvals?.applySynced(entry);
+      await inventory?.applySynced(entry);
     },
   );
   return SyncService(
@@ -491,8 +503,8 @@ Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
     await features.cacheManifest(
       ReleaseManifest(
         channel: 'stable',
-        version: '0.3.0',
-        minSupportedVersion: '0.2.0',
+        version: '0.4.0',
+        minSupportedVersion: '0.3.0',
         rolloutPercent: 25,
         mandatory: false,
         publishedAt: DateTime.now(),
@@ -533,5 +545,51 @@ Future<void> _primeFeatureFlags(LocalFeatureFlagRepository? features) async {
     );
   } catch (error, stackTrace) {
     AppLogger.error('Failed to cache feature flags', error, stackTrace);
+  }
+}
+
+/// Seeds inventory items and their opening ledger lines when the store is
+/// empty, so on-hand always equals the sum of the movements in demo mode.
+Future<void> _primeInventoryData(LocalInventoryRepository? inventory) async {
+  if (inventory == null) return;
+  try {
+    final cached = await inventory.listItems();
+    if (cached.isNotEmpty) return;
+    final now = DateTime.now();
+    final items = <InventoryItemModel>[];
+    final movements = <StockMovementModel>[];
+    final rows = mock.MockData.inventory;
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      final suffix = (i + 1).toString().padLeft(3, '0');
+      final id = 'INV-$suffix';
+      items.add(
+        InventoryItemModel(
+          id: id,
+          name: row.item,
+          unit: row.unit,
+          onHand: row.onHand,
+          reorderAt: row.reorderAt,
+          localRevision: 1,
+          syncStatus: SyncStatus.synced,
+        ),
+      );
+      movements.add(
+        StockMovementModel(
+          id: 'MV-$suffix',
+          itemId: id,
+          delta: row.onHand,
+          reason: StockMovementReason.opening,
+          at: now.subtract(Duration(hours: 6 - (i % 6))),
+          reference: 'رصيد افتتاحي',
+          baseRevision: 1,
+          syncStatus: SyncStatus.synced,
+        ),
+      );
+    }
+    await inventory.seedItems(items);
+    await inventory.seedMovements(movements);
+  } catch (error, stackTrace) {
+    AppLogger.error('Failed to prime inventory data', error, stackTrace);
   }
 }

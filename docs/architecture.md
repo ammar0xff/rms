@@ -64,6 +64,7 @@ through an `AppScope` inherited widget.
 - `localAppMetadata`
 - `deliveries` / `drivers` / `collections` (Phase 2)
 - `cashSessions` / `approvals` / `audit` / `meta` / `config` (Phase 3)
+- `inventory` / `stockMovements` (Phase 4)
 
 ## Phase 3 — accounting, administration & controlled upgrades
 - **Cash sessions** — `data/repositories/local_cash_session_repository.dart` derives the expected
@@ -80,6 +81,17 @@ through an `AppScope` inherited widget.
 - **Feature flags** — `data/repositories/local_feature_flag_repository.dart` caches the last
   server-provided `ReleaseManifest`; flags gate optional workflows but never override a backend
   capability check.
+
+## Phase 4 — inventory & advanced operations
+- **Stock ledger** — `data/repositories/local_inventory_repository.dart` appends signed movements in
+  one transaction with the cached balance, the outbox command and the audit row. Because relative
+  movements commute, on-hand stays consistent under concurrent offline edits.
+- **Conflict-aware counts** — a physical count carries the item revision it was based on; a stale
+  count is flagged (`conflict` item status + a `stockCountConflict` outbox entry) and never
+  overwrites a newer balance.
+- **Sync reconciliation** — an acknowledged movement is marked synced and its item synced only once
+  no movements remain pending.
+- **Migration v3** — `stock-ledger` introduces the ledger and stamps defaults on pre-existing items.
 
 ## Sync engine responsibilities
 - Detect connectivity and confirm reachability.

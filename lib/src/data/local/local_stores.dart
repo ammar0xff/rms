@@ -43,4 +43,12 @@ abstract final class LocalStores {
   /// Cached server configuration (release manifest / feature flags).
   static final StoreRef<String, Map<String, Object?>> config =
       stringMapStoreFactory.store('config');
+
+  /// Stock-keeping units with their cached on-hand balance.
+  static final StoreRef<String, Map<String, Object?>> inventory =
+      stringMapStoreFactory.store('inventory');
+
+  /// Append-only stock ledger (the source of truth for on-hand).
+  static final StoreRef<String, Map<String, Object?>> stockMovements =
+      stringMapStoreFactory.store('stock_movements');
 }
