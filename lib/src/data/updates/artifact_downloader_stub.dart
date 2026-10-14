@@ -13,6 +13,13 @@ import '../../domain/update/update_decision.dart';
 /// Reporting `failed` is deliberate: the lifecycle coordinator stops before
 /// install when the download does not succeed, so a device is never handed an
 /// artifact it could not fetch.
+/// Returns the downloader this platform supports.
+///
+/// Web has no artifact delivery, so this reports a failure rather than
+/// pretending to download.
+ArtifactDownloader createArtifactDownloader() =>
+    const UnsupportedArtifactDownloader();
+
 class UnsupportedArtifactDownloader implements ArtifactDownloader {
   const UnsupportedArtifactDownloader();
 

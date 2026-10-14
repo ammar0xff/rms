@@ -11,6 +11,7 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/delivery/delivery_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
 import '../../features/kitchen/kitchen_screen.dart';
+import '../di/app_services.dart';
 import '../../features/menu/menu_screen.dart';
 import '../../features/pos/pos_screen.dart';
 import '../../features/purchasing/purchasing_screen.dart';

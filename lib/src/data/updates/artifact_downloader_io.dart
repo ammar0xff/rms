@@ -32,6 +32,20 @@ typedef ArtifactTokenProvider = Future<String?> Function();
 /// Web is excluded: artifact delivery is mobile and desktop only, and `dart:io`
 /// is unavailable there. The conditional import in `artifact_downloader.dart`
 /// resolves the stub on that platform instead.
+/// Returns the HTTP downloader for mobile and desktop.
+ArtifactDownloader createArtifactDownloader({
+  HttpClient? client,
+  Uri Function(String reference)? resolveUri,
+  ArtifactTokenProvider? tokenProvider,
+  String storageBucket = 'teletunnal.firebasestorage.app',
+}) =>
+    HttpArtifactDownloader(
+      client: client,
+      resolveUri: resolveUri,
+      tokenProvider: tokenProvider,
+      storageBucket: storageBucket,
+    );
+
 class HttpArtifactDownloader implements ArtifactDownloader {
   HttpArtifactDownloader({
     HttpClient? client,

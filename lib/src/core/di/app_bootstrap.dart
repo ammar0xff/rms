@@ -134,10 +134,11 @@ Future<AppServices> _resolveAuth(
   final updateAcknowledgement =
       database == null ? null : LocalUpdateAcknowledgementStore(database);
 
-  // The update flow's collaborators. The runtime assembles them into a fresh
-  // service per check, so the readiness gate always judges the local-work
-  // backlog as it is at that moment.
-  final updateDownloader = HttpArtifactDownloader();
+  // The update flow's collaborators. The concrete downloader is
+  // platform-specific, so the factory resolves it; the runtime below assembles
+  // the rest into a fresh service per check, so the readiness gate always
+  // judges the local-work backlog as it is at that moment.
+  final updateDownloader = createArtifactDownloader();
   final updateInstaller = AndroidUpdateInstaller();
   final updateMigrator =
       database == null ? null : LocalSchemaMigrator(database: database);
@@ -146,31 +147,6 @@ Future<AppServices> _resolveAuth(
       : LocalHealthChecker(
           database: database,
           expectedSchemaVersion: AppVersion.localSchemaVersion,
-        );
-  final updateRuntime = database == null
-      ? null
-      : UpdateRuntime(
-          cache: updates,
-          outbox: outbox,
-          acknowledgement: updateAcknowledgement,
-          remote: FirestoreUpdateSource(
-            platform: currentUpdatePlatform(),
-            firestore: firebaseReady ? FirebaseFirestore.instance : null,
-          ),
-          // Web ships through its hosting provider and takes no artifact.
-          artifactDeliverySupported:
-              currentUpdatePlatform() != UpdatePlatform.web,
-          online: () => SyncMonitor.instance.online,
-          branchId: () async => branches?.activeBranch()?.id ?? '',
-          buildService: () => UpdateDeps(
-            downloader: updateDownloader,
-            installer: updateInstaller,
-            migrator: updateMigrator!,
-            healthChecker: updateHealthCheck!,
-            outbox: outbox,
-            auditSink: updateAudit,
-            statusStore: updateStatus,
-          ),
         );
   final inventory = (database == null || outbox == null)
       ? null
@@ -219,6 +195,34 @@ Future<AppServices> _resolveAuth(
   await _primePurchasingData(suppliers, purchases);
   await _primeBranchData(branches);
   await _primeUpdateManifest(updates);
+
+  // Built here rather than alongside the other repositories: it needs
+  // `branches` for the rollout cohort seed, and `config` to decide whether a
+  // remote manifest source exists at all.
+  final updateRuntime = database == null || updates == null
+      ? null
+      : UpdateRuntime(
+          cache: updates,
+          outbox: outbox,
+          acknowledgement: updateAcknowledgement,
+          remote: FirestoreUpdateSource(
+            platform: currentUpdatePlatform(),
+            firestore: config.isConfigured ? FirebaseFirestore.instance : null,
+          ),
+          // Web ships through its hosting provider and takes no artifact.
+          artifactDeliverySupported: currentUpdatePlatform() != UpdatePlatform.web,
+          online: () => SyncMonitor.instance.online,
+          branchId: () async => branches?.activeBranch()?.id ?? '',
+          buildService: () => UpdateDeps(
+            downloader: updateDownloader,
+            installer: updateInstaller,
+            migrator: updateMigrator!,
+            healthChecker: updateHealthCheck!,
+            outbox: outbox,
+            auditSink: updateAudit,
+            statusStore: updateStatus,
+          ),
+        );
 
   // Surface local outbox state even without a backend (demo mode); the
   // Firebase branch below re-attaches with the sync loop.
