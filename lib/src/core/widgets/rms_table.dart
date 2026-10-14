@@ -73,16 +73,18 @@ class RmsTable extends StatelessWidget {
     );
     return LayoutBuilder(
       builder: (context, c) {
-        // An unbounded ancestor (a table nested in a horizontal scroll) hands
-        // down an infinite viewport; forwarding it into the constraint crashes
-        // layout. Fall back to the columns' own minimum in that case.
+        // The horizontal scroll hands down an unbounded width, which a Column
+        // would expand into infinitely and crash on. Pin the table to an
+        // exact finite width instead: the viewport when the columns fit, the
+        // columns' own minimum when they need to scroll.
         final viewport = c.maxWidth;
-        final width =
-            viewport.isFinite && minWidth < viewport ? viewport : minWidth;
+        final width = viewport.isFinite && minWidth < viewport
+            ? viewport
+            : minWidth;
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: width),
+            constraints: BoxConstraints(minWidth: width, maxWidth: width),
             child: table,
           ),
         );
