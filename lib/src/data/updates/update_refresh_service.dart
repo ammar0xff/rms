@@ -27,13 +27,17 @@ enum UpdateRefreshOutcome {
 /// update check is a convenience, never a dependency. This is what lets the app
 /// start and classify releases with no connectivity at all.
 class UpdateRefreshService {
-  const UpdateRefreshService({required this.remote, required this.cache});
+  const UpdateRefreshService({
+    required this.remote,
+    required this.cache,
+    this.artifactDeliverySupported = true,
+  });
 
   final RemoteUpdateSource remote;
   final UpdateRepository cache;
 
   /// False on platforms that take no release artifact, which then skip polling.
-  final bool artifactDeliverySupported = true;
+  final bool artifactDeliverySupported;
 
   Future<UpdateRefreshOutcome> refresh() async {
     if (!artifactDeliverySupported) return UpdateRefreshOutcome.skipped;

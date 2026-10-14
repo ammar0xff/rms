@@ -28,8 +28,6 @@ class FirestoreUpdateSource implements RemoteUpdateSource {
 
   final FirebaseFirestore? _firestore;
 
-  FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
-
   @override
   Future<RemoteUpdateResult> fetch() async {
     final db = _firestore;
