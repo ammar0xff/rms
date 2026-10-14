@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Grants the system package installer temporary read access to a downloaded
+  update APK.
+
+  Only the temporary cache directory is exposed. Nothing else on the device is
+  reachable through this provider, and the grant is per-install-intent and
+  revocable, so it does not outlive the update.
+-->
+<paths>
+    <cache-path
+        name="updates"
+        path="." />
+</paths>
