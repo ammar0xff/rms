@@ -1,5 +1,9 @@
 # Roadmap
 
+Superseded by [production-checklist.md](production-checklist.md), which carries
+the same remaining work plus the phases needed to reach a running restaurant.
+Kept for the update subsystem history.
+
 Ordered by what unblocks the most downstream work. Items marked **blocked** need
 something only the owner can supply.
 
