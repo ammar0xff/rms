@@ -82,16 +82,17 @@ class ResponsiveRow extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, c) {
         if (c.maxWidth >= breakpoint) {
-          return IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < children.length; i++) ...[
-                  if (i > 0) SizedBox(width: gap),
-                  Expanded(child: children[i]),
-                ],
+          // No IntrinsicHeight here: descendants such as RmsTable contain a
+          // LayoutBuilder, which cannot provide intrinsic dimensions and
+          // crashes the intrinsic pass. Cards size independently instead.
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) SizedBox(width: gap),
+                Expanded(child: children[i]),
               ],
-            ),
+            ],
           );
         }
         return Column(
