@@ -61,11 +61,17 @@ class UpdateAcknowledgement {
     if (at is! String) return null;
     final parsed = DateTime.tryParse(at);
     if (parsed == null) return null;
+    // Tested rather than cast: these two are free-text, so a row written by an
+    // older or partial version could hold a number here. A cast would throw and
+    // take the whole sync down, where this must degrade to "no acknowledgement"
+    // so the gate falls back to demanding a fresh sign-off.
+    final by = record['acknowledgedBy'];
+    final note = record['note'];
     return UpdateAcknowledgement(
       stuckCount: count,
       acknowledgedAt: parsed,
-      acknowledgedBy: record['acknowledgedBy'] as String? ?? '',
-      note: record['note'] as String? ?? '',
+      acknowledgedBy: by is String ? by : '',
+      note: note is String ? note : '',
     );
   }
 }
