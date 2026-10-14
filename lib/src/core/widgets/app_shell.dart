@@ -133,10 +133,6 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
-  void _select(String id) {
-    setState(() => _selected = id);
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
