@@ -90,8 +90,16 @@ Every artifact was previously unsigned, so no update was distributable.
       `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` as repository secrets
 - [x] Confirm the password really signs, via a `jarsigner` sign-and-verify
       round-trip, and that a wrong password is rejected
-- [ ] Publish a **signed** release and confirm the APK's fingerprint matches the
-      pin above — this is the step that proves CI used the secrets
+- [x] Publish a **signed** release and confirm the APK's fingerprint matches the
+      pin above — `v0.10.0`, signer `03:B0:F1:8C:…:9C`, `notBefore` matching the
+      keystore creation time. The workflow log did **not** print the debug-key
+      fallback line, and the published sha256 matches the downloaded artifact.
+- [ ] Reconcile `buildNumber`: the APK's real `versionCode` is `6`, but the
+      manifest published `2`, and `UpdatePrompt` shows the manifest's value to
+      the operator. Two counters are in play — `GITHUB_RUN_NUMBER` in the build
+      step, a Firestore sequence in `tool/publish_release.mjs`. Harmless for
+      install ordering, since Android compares `versionCode` and the decision
+      engine compares version strings, but it misreports the build.
 - [ ] Windows Authenticode certificate — later, when a Windows installer exists
 - [ ] macOS Developer ID + notarisation — later
 

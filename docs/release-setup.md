@@ -209,8 +209,16 @@ and ignoring the colons.
 
 If `apksigner` is not installed, `keytool -printcert -jarfile app-release.apk`
 is a fallback, but it only reads v1 (JAR) signatures. A build signed with v2/v3
-alone carries no `META-INF/*.SF`, so the command reports nothing and its silence
+alone carries no `META-INF/*.SF`, so the command prints nothing and its silence
 does not mean the APK is unsigned — prefer `apksigner`.
+
+When neither is available, the signer can be read straight out of the APK
+Signing Block: it sits immediately before the central directory, is terminated
+by the magic `APK Sig Block 42`, and holds one entry per scheme
+(`0x7109871a` for v2, `0xf05368c0` for v3). The v2 entry's signed-data record
+carries the certificate as a length-prefixed DER sequence. Note that
+`AndroidManifest.xml` is deflated inside the APK, so searching the raw file for
+the version string finds nothing — inflate it first.
 
 Then confirm CI agreed, by checking the workflow log:
 
