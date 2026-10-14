@@ -49,6 +49,7 @@ class PosScreen extends StatefulWidget {
 class _PosScreenState extends State<PosScreen> {
   final _cart = <CartLine>[];
   String _category = 'الكل';
+  String _query = '';
   int _orderType = 0;
   bool _submitting = false;
   List<MenuItemModel> _items = const [];
@@ -96,9 +97,17 @@ class _PosScreenState extends State<PosScreen> {
   List<String> get _categories =>
       ['الكل', ...{for (final m in _items) m.category}];
 
-  List<MenuItemModel> get _visible => _category == 'الكل'
-      ? _items
-      : _items.where((m) => m.category == _category).toList();
+  List<MenuItemModel> get _visible {
+    final inCategory = _category == 'الكل'
+        ? _items
+        : _items.where((m) => m.category == _category).toList();
+    final q = _query.trim();
+    if (q.isEmpty) return inCategory;
+    // Name matches, or an exact id scan from the barcode reader.
+    return inCategory
+        .where((m) => m.name.contains(q) || m.id == q)
+        .toList();
+  }
 
   double get _subtotal => _cart.fold(0, (s, l) => s + l.total);
   double get _tax => _subtotal * 0.08;
@@ -281,6 +290,8 @@ class _PosScreenState extends State<PosScreen> {
           categories: _categories,
           selected: _category,
           items: _visible,
+          query: _query,
+          onQuery: (v) => setState(() => _query = v),
           onCategory: (v) => setState(() => _category = v),
           onAdd: _add,
         );
@@ -304,6 +315,10 @@ class _PosScreenState extends State<PosScreen> {
           // fixed 42% slot overflowed its footer on every real screen height.
           // Full-height cart tab means the totals and buttons are always
           // reachable, and the badge shows the line count at a glance.
+          //
+          // The menu tab keeps a sticky cart bar so the total and checkout
+          // stay one tap away without switching tabs.
+          final showBar = _cart.isNotEmpty;
           return DefaultTabController(
             length: 2,
             child: Column(
@@ -326,7 +341,36 @@ class _PosScreenState extends State<PosScreen> {
                 ),
                 Expanded(
                   child: TabBarView(
-                    children: [menu, cart],
+                    children: [
+                      Builder(
+                        builder: (tabContext) => Stack(
+                          children: [
+                            Padding(
+                              // The bar floats over the grid; keep the last
+                              // row reachable.
+                              padding: EdgeInsets.only(
+                                  bottom: showBar ? 84 : 0),
+                              child: menu,
+                            ),
+                            if (showBar)
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: _CartBar(
+                                  total: _total,
+                                  count: _cart.length,
+                                  onViewCart: () =>
+                                      DefaultTabController.of(tabContext)
+                                          .animateTo(1),
+                                  onCollect: _collect,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      cart,
+                    ],
                   ),
                 ),
               ],
@@ -346,11 +390,13 @@ class _PosScreenState extends State<PosScreen> {
   }
 }
 
-class _MenuPane extends StatelessWidget {
+class _MenuPane extends StatefulWidget {
   const _MenuPane({
     required this.categories,
     required this.selected,
     required this.items,
+    required this.query,
+    required this.onQuery,
     required this.onCategory,
     required this.onAdd,
   });
@@ -358,22 +404,49 @@ class _MenuPane extends StatelessWidget {
   final List<String> categories;
   final String selected;
   final List<MenuItemModel> items;
+  final String query;
+  final ValueChanged<String> onQuery;
   final ValueChanged<String> onCategory;
   final ValueChanged<MenuItemModel> onAdd;
 
   @override
+  State<_MenuPane> createState() => _MenuPaneState();
+}
+
+class _MenuPaneState extends State<_MenuPane> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // The field owns its text; the parent owns the filter. They only meet at
+    // the clear button, which empties both.
+    if (_search.text != widget.query && widget.query.isEmpty) {
+      _search.clear();
+    }
+    final categories = widget.categories;
+    final selected = widget.selected;
+    final items = widget.items;
+    final query = widget.query;
+    final onQuery = widget.onQuery;
+    final onCategory = widget.onCategory;
+    final onAdd = widget.onAdd;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _OfflineBanner(),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
           child: Row(
             children: [
               Expanded(
                 child: Container(
-                  height: 32,
+                  height: 48,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
@@ -383,14 +456,36 @@ class _MenuPane extends StatelessWidget {
                   child: Row(
                     children: [
                       const Icon(Icons.search,
-                          size: 16, color: AppColors.fgGhost),
+                          size: 18, color: AppColors.fgGhost),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text('ابحث في القائمة أو امسح الباركود',
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.caption
-                                .copyWith(color: AppColors.fgDim)),
+                        child: TextField(
+                          controller: _search,
+                          onChanged: onQuery,
+                          textInputAction: TextInputAction.search,
+                          style: AppText.body
+                              .copyWith(color: AppColors.fgBright),
+                          decoration: InputDecoration(
+                            hintText: 'ابحث في القائمة أو امسح الباركود',
+                            hintStyle: AppText.caption
+                                .copyWith(color: AppColors.fgDim),
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                        ),
                       ),
+                      if (query.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                            _search.clear();
+                            onQuery('');
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Icon(Icons.clear,
+                                size: 18, color: AppColors.fgGhost),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -505,11 +600,22 @@ class _ProductTileState extends State<_ProductTile> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.bodyStrong,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.bodyStrong,
+                      ),
+                    ),
+                    // A dimmed tile alone does not say why it cannot be tapped.
+                    if (!item.available) ...[
+                      const SizedBox(width: 6),
+                      const Tag(label: 'نفد', tone: StatusTone.negative),
+                    ],
+                  ],
                 ),
                 const Spacer(),
                 Row(
@@ -531,6 +637,71 @@ class _ProductTileState extends State<_ProductTile> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The sticky checkout bar floating over the menu tab on phones.
+///
+/// Without it the total and التحصيل are a tab-switch away, which is where the
+/// thumb already is. Tapping the total opens the cart; the button collects.
+class _CartBar extends StatelessWidget {
+  const _CartBar({
+    required this.total,
+    required this.count,
+    required this.onViewCart,
+    required this.onCollect,
+  });
+
+  final double total;
+  final int count;
+  final VoidCallback onViewCart;
+  final VoidCallback onCollect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: const Border(top: BorderSide(color: AppColors.borderStrong)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onViewCart,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('الإجمالي · $count ${count == 1 ? 'صنف' : 'أصناف'}',
+                      style: AppText.caption),
+                  Text(money(total),
+                      style: AppText.h1.copyWith(fontSize: 18)),
+                ],
+              ),
+            ),
+          ),
+          const Spacer(),
+          RmsButton(
+            label: 'تحصيل',
+            icon: Icons.payments_outlined,
+            variant: BtnVariant.primary,
+            onPressed: onCollect,
+            dense: false,
+          ),
+        ],
       ),
     );
   }
@@ -648,28 +819,12 @@ class _CartPane extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: RmsButton(
-                        label: 'إيقاف مؤقت',
-                        icon: Icons.pause_rounded,
-                        onPressed: null,
-                        dense: false,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: RmsButton(
-                        label: 'إرسال للمطبخ',
-                        icon: Icons.send_rounded,
-                        variant: BtnVariant.secondary,
-                        onPressed: (cart.isEmpty || submitting) ? null : onSend,
-                        dense: false,
-                      ),
-                    ),
-                  ],
+                RmsButton(
+                  label: 'إرسال للمطبخ',
+                  icon: Icons.send_rounded,
+                  variant: BtnVariant.secondary,
+                  onPressed: (cart.isEmpty || submitting) ? null : onSend,
+                  dense: false,
                 ),
                 const SizedBox(height: 8),
                 RmsButton(
