@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/data/updates/artifact_paths.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
 
+const _sha = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
 UpdateManifest _manifest(int buildNumber) => UpdateManifest(
       releaseId: 'android-$buildNumber',
       version: '1.0.0',
@@ -12,10 +14,10 @@ UpdateManifest _manifest(int buildNumber) => UpdateManifest(
       rolloutPercent: 100,
       severity: UpdateSeverity.optional,
       publishedAt: DateTime(2026, 10, 13),
-      artifact: const ReleaseArtifact(
+      artifact: ReleaseArtifact(
         reference: 'releases/android/1.0.0/7/app-release.apk',
         sizeBytes: 1024,
-        sha256: 'a' * 64,
+        sha256: _sha,
       ),
     );
 
