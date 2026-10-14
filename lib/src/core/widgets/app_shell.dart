@@ -190,47 +190,46 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: AppSpacing.topBarHeight,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: AppColors.brand,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'R',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFFFFFBF2),
-                      ),
+          // No fixed height: the two header texts must fit whatever the font
+          // metrics give them. A rigid 48px box overflowed by 1px the moment
+          // the branch name wrapped to two lines.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: AppColors.brand,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'R',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFFFFBF2),
                     ),
                   ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      // Shrink-wrap: the Row centers this vertically, so the
-                      // texts can never overflow the 48px header box no matter
-                      // the font metrics.
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('RMS',
-                            style: AppText.bodyStrong.copyWith(height: 1.1)),
-                        Text('فرع بوابة الشمال',
-                            style: AppText.caption),
-                      ],
-                    ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('RMS',
+                          style: AppText.bodyStrong.copyWith(height: 1.1)),
+                      Text('فرع بوابة الشمال',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const Divider(height: 1, color: AppColors.borderStrong),
