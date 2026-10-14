@@ -1,4 +1,3 @@
-import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
 import 'package:rms/src/domain/update/artifact_verifier.dart';
@@ -22,14 +21,12 @@ final _shaAbc =
 final _shaTwoBlocks =
     '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1';
 
-/// The digest the verifier must produce.
-///
-/// This file used to carry its own copy of SHA-256 — a third implementation,
-/// alongside the one in the verifier — so the tests confirmed the copy agreed
-/// with itself rather than with anything published. It now delegates to the
-/// same vetted library the verifier uses; the FIPS vectors above are what stop
-/// the two from merely agreeing with each other.
-String _shaHex(List<int> bytes) => sha256.convert(bytes).toString();
+// These digests are literals rather than computed values on purpose. This file
+// used to carry its own copy of SHA-256 — a third implementation, alongside the
+// one in the verifier — and fed that copy's own output into the tests. They
+// confirmed the copy agreed with itself, and never with anything published.
+// Pinning published vectors is what stops the verifier and the expectation from
+// merely agreeing with each other.
 
 UpdateManifest _manifest({
   String sha256 = '',
