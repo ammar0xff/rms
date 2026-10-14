@@ -10,6 +10,7 @@ import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
 import '../local/outbox/outbox_status.dart';
 import '../local/outbox/outbox_store.dart';
+import '../sync/sync_ack.dart';
 import 'order_repository.dart';
 
 /// Local-first order repository backed by the on-device store.
@@ -88,9 +89,9 @@ class LocalOrderRepository implements OrderRepository {
     if (existing == null) return;
     final order = Order.fromRecord(existing);
     order.syncStatus = SyncStatus.synced;
-    final serverId = entry.payload['serverId'] as String?;
+    final serverId = SyncAckReader.serverId(entry.payload);
     if (serverId != null) order.serverId = serverId;
-    final canonicalOrderNumber = entry.payload['canonicalOrderNumber'] as String?;
+    final canonicalOrderNumber = SyncAckReader.canonicalOrderNumber(entry.payload);
     if (canonicalOrderNumber != null) {
       order.canonicalOrderNumber = canonicalOrderNumber;
     }

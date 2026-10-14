@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../local/outbox/outbox_entry.dart';
+import 'sync_ack.dart';
 import 'sync_engine.dart';
 
 /// Pushes outbox entries to Cloud Firestore.
@@ -14,6 +15,9 @@ import 'sync_engine.dart';
 /// (`canonicalOrderNumber`) drawn from a `counters/orders` document. Counter
 /// assignment is best-effort: if the transaction fails the order still syncs
 /// with its server id, and the canonical number is filled in on a later pass.
+///
+/// The shape of that acknowledgement is [SyncAck]'s, shared with the in-memory
+/// transport, so demo mode cannot rehearse a contract production does not honour.
 class FirestoreSyncTransport implements SyncTransport {
   FirestoreSyncTransport({
     FirebaseFirestore? firestore,
@@ -29,7 +33,7 @@ class FirestoreSyncTransport implements SyncTransport {
 
   @override
   Future<Map<String, dynamic>> push(OutboxEntry entry) async {
-    final ref = _db.collection(collection).doc(entry.idempotencyKey);
+    final ref = _db.collection(collection).doc(SyncAck.documentId(entry));
     await ref.set({
       'operationId': entry.operationId,
       'entityType': entry.entityType,
@@ -41,31 +45,33 @@ class FirestoreSyncTransport implements SyncTransport {
       'clientPushedAt': FieldValue.serverTimestamp(),
     });
 
-    final ack = <String, dynamic>{
-      'serverId': ref.id,
-      'serverReceivedAt': DateTime.now().toIso8601String(),
-    };
-    if (entry.entityType == 'order' && entry.operationType == 'createOrder') {
-      final canonical = await _assignCanonicalOrderNumber();
-      if (canonical != null) ack['canonicalOrderNumber'] = canonical;
+    // Only order creations draw on the counter, and only a successful
+    // reservation contributes the number.
+    int? canonicalSequence;
+    if (SyncAck.assignsCanonicalOrderNumber(entry)) {
+      canonicalSequence = await _reserveCanonicalSequence();
     }
-    return ack;
+    return SyncAck.build(
+      entry: entry,
+      serverId: ref.id,
+      receivedAt: DateTime.now(),
+      canonicalSequence: canonicalSequence,
+    );
   }
 
   /// Atomically reserves the next order number from `counters/orders`.
   /// Returns null when the reservation cannot be made, so a missing counter
   /// document or a restrictive security rule never blocks order sync.
-  Future<String?> _assignCanonicalOrderNumber() async {
+  Future<int?> _reserveCanonicalSequence() async {
     try {
       final counter = _db.collection(countersCollection).doc('orders');
-      final next = await _db.runTransaction<int>((txn) async {
+      return _db.runTransaction<int>((txn) async {
         final snapshot = await txn.get(counter);
         final current = (snapshot.data()?['value'] as num?)?.toInt() ?? 0;
         final value = current + 1;
         txn.set(counter, {'value': value}, SetOptions(merge: true));
         return value;
       });
-      return 'ORD-${next.toString().padLeft(5, '0')}';
     } catch (_) {
       return null;
     }

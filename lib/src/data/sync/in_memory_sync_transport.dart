@@ -1,4 +1,5 @@
 import '../local/outbox/outbox_entry.dart';
+import 'sync_ack.dart';
 import 'sync_engine.dart';
 
 /// A backend double for demo mode and tests.
@@ -44,14 +45,18 @@ class InMemorySyncTransport implements SyncTransport {
   }
 
   Map<String, dynamic> _ackFor(OutboxEntry entry) {
-    final ack = <String, dynamic>{
-      'serverId': 'srv-${entry.idempotencyKey}',
-      'serverReceivedAt': DateTime.now().toIso8601String(),
-    };
-    if (entry.entityType == 'order' && entry.operationType == 'createOrder') {
-      _orderSeq++;
-      ack['canonicalOrderNumber'] = 'ORD-${_orderSeq.toString().padLeft(5, '0')}';
+    int? sequence;
+    if (SyncAck.assignsCanonicalOrderNumber(entry)) {
+      sequence = ++_orderSeq;
     }
-    return ack;
+    return SyncAck.build(
+      entry: entry,
+      // The id itself is the backend's business — Firestore mints a document id
+      // — so only the rules around it are shared. What must match is the key
+      // name, and which entries draw on the order counter.
+      serverId: 'srv-${entry.idempotencyKey}',
+      receivedAt: DateTime.now(),
+      canonicalSequence: sequence,
+    );
   }
 }
