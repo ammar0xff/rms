@@ -638,9 +638,9 @@ class _CartPane extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Row(
-                  children: const [
-                    StatusDot(tone: StatusTone.warning),
-                    SizedBox(width: 6),
+                  children: [
+                    const StatusDot(tone: StatusTone.warning),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text('يُحفظ محليًا أولاً ثم تتم المزامنة عند الاتصال',
                           style: AppText.caption.copyWith(color: AppColors.fgDim)),
