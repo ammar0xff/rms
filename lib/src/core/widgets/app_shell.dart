@@ -217,7 +217,10 @@ class _Sidebar extends StatelessWidget {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      // Shrink-wrap: the Row centers this vertically, so the
+                      // texts can never overflow the 48px header box no matter
+                      // the font metrics.
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text('RMS',
                             style: AppText.bodyStrong.copyWith(height: 1.1)),
@@ -373,40 +376,56 @@ class _TopBar extends StatelessWidget {
       height: AppSpacing.topBarHeight,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            if (showMenu) ...[
-              IconBtn(icon: Icons.menu, onPressed: onMenu),
-              const SizedBox(width: 10),
-            ],
-            Text(title, style: AppText.pageTitle),
-            const SizedBox(width: 10),
-            Container(width: 1, height: 14, color: AppColors.borderStrong),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.borderStrong),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Row(
-                children: [
-                  Text('الفرع', style: AppText.caption),
-                  const SizedBox(width: 4),
-                  Text('بوابة الشمال',
-                      style: AppText.tableCellPrimary),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.unfold_more, size: 12, color: AppColors.fgGhost),
+        child: LayoutBuilder(
+          builder: (context, c) {
+            // Phones cannot fit title + branch pill + sync chip + two icon
+            // buttons in 360px. Narrow keeps menu, title, sync state and
+            // search; the branch pill and notifications stay on wide screens.
+            final narrow = c.maxWidth < 600;
+            return Row(
+              children: [
+                if (showMenu) ...[
+                  IconBtn(icon: Icons.menu, onPressed: onMenu),
+                  const SizedBox(width: 10),
                 ],
-              ),
-            ),
-            const Spacer(),
-            const SyncChip(),
-            const SizedBox(width: 10),
-            const IconBtn(icon: Icons.search, tooltip: 'بحث'),
-            const SizedBox(width: 8),
-            const IconBtn(icon: Icons.notifications_none, tooltip: 'الإشعارات'),
-          ],
+                Flexible(
+                  child: Text(title,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.pageTitle),
+                ),
+                if (!narrow) ...[
+                  const SizedBox(width: 10),
+                  Container(width: 1, height: 14, color: AppColors.borderStrong),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.borderStrong),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Row(
+                      children: [
+                        Text('الفرع', style: AppText.caption),
+                        const SizedBox(width: 4),
+                        Text('بوابة الشمال',
+                            style: AppText.tableCellPrimary),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.unfold_more, size: 12, color: AppColors.fgGhost),
+                      ],
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                const SyncChip(),
+                const SizedBox(width: 10),
+                const IconBtn(icon: Icons.search, tooltip: 'بحث'),
+                if (!narrow) ...[
+                  const SizedBox(width: 8),
+                  const IconBtn(icon: Icons.notifications_none, tooltip: 'الإشعارات'),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );

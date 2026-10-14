@@ -29,7 +29,7 @@ class SyncChip extends StatelessWidget {
             onTap: onTap ?? monitor.toggleConnectivity,
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             child: Container(
-              height: 28,
+              height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.06),
@@ -43,8 +43,8 @@ class SyncChip extends StatelessWidget {
                   const SizedBox(width: 7),
                   Text(
                     label,
+                    overflow: TextOverflow.ellipsis,
                     style: AppText.caption.copyWith(
-                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: color.withValues(alpha: 0.9),
                     ),
