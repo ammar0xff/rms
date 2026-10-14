@@ -78,21 +78,30 @@ prompt must not reopen a path around the gate.
 
 ## Phase 3 — Signing
 
-Every artifact is currently unsigned, so no update is distributable.
+Every artifact was previously unsigned, so no update was distributable.
 
-- [ ] **Generate the Android keystore** — `docs/release-setup.md`
-- [ ] **Back it up outside the repository.** Losing it makes every future
-      update a different app, forcing reinstalls and losing all local data
-- [ ] Add `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+- [x] **Generate the Android keystore** — `docs/release-setup.md`.
+      RSA 4096 / SHA256withRSA, PKCS12, alias `rms-release`, valid to 2054.
+      Certificate SHA-256 pinned in `docs/release-setup.md`.
+- [x] **Back it up outside the repository.** Copy of the keystore and its
+      password at `~/.local/share/rms-signing/` (mode 600).
+      *GitHub secrets are not a backup — they cannot be read back out.*
+- [x] Add `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
       `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` as repository secrets
-- [ ] Verify: `keytool -printcert -jarfile app-release.apk | grep -i owner`
-      must show your alias, not `Android Debug`
-- [ ] Publish a **signed** release (Phase 1 again)
+- [x] Confirm the password really signs, via a `jarsigner` sign-and-verify
+      round-trip, and that a wrong password is rejected
+- [ ] Publish a **signed** release and confirm the APK's fingerprint matches the
+      pin above — this is the step that proves CI used the secrets
 - [ ] Windows Authenticode certificate — later, when a Windows installer exists
 - [ ] macOS Developer ID + notarisation — later
 
 `dev.rms.app` is fixed permanently. Changing the package name or the signing key
 after a release forces an uninstall and discards local data.
+
+One consequence of doing this after `v0.9.0` was already published: that release
+is debug-signed, so it cannot be updated in place by the newly signed build. It
+has never been installed on a device, so nothing is stranded — but it is a
+reminder that the first published artifact fixes the identity forever.
 
 ---
 

@@ -20,3 +20,15 @@ google-services.json
 GoogleService-Info.plist
 firebase_options.dart
 .playwright-mcp/
+
+# Android release signing material. The keystore is what identifies this app to
+# an installed device: committing it would let anyone publish an update that
+# Android accepts as ours. `android/.gitignore` covers the paths the release
+# workflow actually uses, so these rules are defence in depth for a key that
+# gets created somewhere else. Losing a keystore is just as serious as leaking
+# one — without it no new release can update an existing install — so the real
+# backup lives outside the repository, documented in docs/release-setup.md.
+*.keystore
+*.jks
+key.properties
+local.properties
