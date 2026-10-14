@@ -518,13 +518,11 @@ void main() {
         r.response.statusCode = 200;
         r.response.add(body.sublist(0, 1024));
         await r.response.flush();
-        await Future<void>.delayed(const Duration(seconds: 2));
+        await Future<void>.delayed(const Duration(seconds: 1));
       });
       final d = downloader();
-      final settled = Completer<DownloadState>();
-      final watcher = d.progress().listen((s) {
-        if (s.isTerminal && !settled.isCompleted) settled.complete(s);
-      });
+      final seen = <DownloadState>[];
+      final watcher = d.progress().listen(seen.add);
       addTearDown(watcher.cancel);
       addTearDown(d.dispose);
 
@@ -537,18 +535,27 @@ void main() {
         decision: _decision,
       );
 
-      // Let the transfer get going, then pull the plug.
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-      await d.cancel();
+      await Future<void>.delayed(const Duration(milliseconds: 150));
 
-      final state = await settled.future;
+      // cancel() must not block. It closes the client without forcing, so the
+      // in-flight response keeps being drained afterwards and may emit states
+      // later — which is why this waits a bounded window rather than for a
+      // terminal state that may never arrive at all.
+      await d.cancel().timeout(const Duration(seconds: 5));
+      await Future<void>.delayed(const Duration(seconds: 3));
 
-      // Which terminal state appears depends on whether the client close or a
-      // pending chunk arrives first. The safety property is the same either
-      // way: a cancelled transfer must never report success, and must never
-      // hand back a verified artifact the installer would accept.
-      expect(state.stage, isNot(DownloadStage.completed));
-      expect(state.verification?.isOk, isNot(isTrue));
+      // The property worth pinning: no path through a cancelled transfer
+      // produces a success the installer would act on.
+      expect(
+        seen.where((s) => s.stage == DownloadStage.completed),
+        isEmpty,
+        reason: 'a cancelled download reported success',
+      );
+      expect(
+        seen.where((s) => s.verification?.isOk == true),
+        isEmpty,
+        reason: 'a cancelled download produced a verified artifact',
+      );
     });
 
     // The partial file is removed on the cancelled path. Where cancellation

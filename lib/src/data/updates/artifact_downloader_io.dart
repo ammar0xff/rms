@@ -301,7 +301,12 @@ class HttpArtifactDownloader implements ArtifactDownloader {
   @override
   Future<void> cancel() async {
     _cancelled = true;
-    _client?.close();
+    // Forced: a plain close only stops the client accepting new requests and
+    // leaves the in-flight response draining, so "cancel" would keep pulling
+    // bytes off the socket and writing them to disk until the server chose to
+    // finish. Forcing terminates the connection, which is what cancelling a
+    // transfer has to mean.
+    _client?.close(force: true);
     _client = null;
   }
 
