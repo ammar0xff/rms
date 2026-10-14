@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rms/src/data/local/update_store_contracts.dart';
 import 'package:rms/src/data/updates/update_service.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
 import 'package:rms/src/domain/update/artifact_verifier.dart';
@@ -50,9 +51,7 @@ UpdateContext _context(UpdatePlatform platform) => UpdateContext(
     );
 
 class _Downloader implements ArtifactDownloader {
-  _Downloader({this.stage = DownloadStage.completed});
-
-  DownloadStage stage;
+  DownloadStage stage = DownloadStage.completed;
   int starts = 0;
 
   @override
@@ -81,9 +80,7 @@ class _Downloader implements ArtifactDownloader {
 }
 
 class _Installer implements UpdateInstaller {
-  _Installer([this.result = InstallResult.ok]);
-
-  InstallResult result;
+  InstallResult result = InstallResult.ok;
   int calls = 0;
 
   @override
@@ -94,9 +91,7 @@ class _Installer implements UpdateInstaller {
 }
 
 class _Migrator implements UpdateMigrator {
-  _Migrator([this.result = MigrationResult.ok]);
-
-  MigrationResult result;
+  MigrationResult result = MigrationResult.ok;
   int calls = 0;
 
   @override

@@ -1,3 +1,5 @@
+import 'package:sembast/sembast.dart';
+
 import '../../domain/models/update_manifest.dart';
 import '../../domain/update/device_update_status.dart';
 import '../../domain/update/update_health_checker.dart';
