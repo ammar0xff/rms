@@ -3,6 +3,7 @@ import '../../domain/update/artifact_verifier.dart';
 import '../../domain/update/device_update_status.dart';
 import '../../domain/update/update_acknowledgement.dart';
 import '../../domain/update/update_audit_sink.dart';
+import '../../domain/update/update_check_result.dart';
 import '../../domain/update/update_decision.dart';
 import '../../domain/update/update_health_checker.dart';
 import '../../domain/update/update_installer.dart';
@@ -38,24 +39,6 @@ class UpdateDeps {
 
   final UpdateAuditSink? auditSink;
   final UpdateStatusStore? statusStore;
-}
-
-/// The outcome of asking "is there anything to do about updates?".
-class UpdateCheckResult {
-  const UpdateCheckResult({required this.decision, required this.readiness});
-
-  final UpdateDecision decision;
-  final UpdateReadiness readiness;
-
-  bool get hasWork => decision.isUpdate;
-
-  bool get canInstall => readiness.allowsInstall;
-
-  bool get isMandatory => readiness.mandatory;
-
-  /// True when the gate is withholding an install only because local work is
-  /// still owed to the backend (AC-35).
-  bool get isBlockedByLocalWork => readiness.isPending;
 }
 
 /// Sequences the update flow for a device.
