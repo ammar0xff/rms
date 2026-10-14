@@ -151,15 +151,34 @@ Ordered by risk. Six closed; the rest remain.
       fail-closed `inconclusive` path
 - [x] `update_acknowledgement_store.dart` — persistence; found a cast that
       could throw a corrupt row out of the sync loop
-- [ ] `firebase_auth_repository.dart` — authentication
-- [ ] `local_schema_migrator.dart` — runs during updates
-- [ ] `firestore_update_source.dart` — reads published manifests
-- [ ] `app_bootstrap.dart` — wiring
+- [x] `local_schema_migrator.dart` — runs between install and the health
+      check, so its failure modes decide whether an upgrade is rolled back
+- [x] `firestore_update_source.dart` — covered through a
+      `ManifestDocumentReader` seam; both the Firestore and test paths now share
+      one `_resolve`
+- [x] `firebase_auth_repository.dart` — covered behind an `AuthBackend`
+      interface, since `FirebaseAuth` cannot be constructed without a configured
+      Firebase app
+- [ ] `app_bootstrap.dart` — **deliberately not unit-tested.** It is 934 lines
+      behind three things a unit test cannot supply: a `path_provider` platform
+      channel, a configured Firebase app, and live Auth. A test here would assert
+      almost nothing. Its wiring is exercised by every widget test that boots the
+      app, and properly by Phase 4 on a device.
 - [ ] Add `fake_cloud_firestore` as a dev dependency (approved, never added).
-      Not needed for anything closed so far; still the only practical route for
-      the transaction behaviour in `firestore_sync_transport.dart`
+      No longer blocking: every file it would have served is now covered through
+      a seam. It would only add value for the transaction semantics inside
+      `firestore_sync_transport.dart` itself.
 - [ ] `offline_capability.dart` — pure, cheap
 - [ ] Optional: widget tests for the remaining feature screens
+
+### The pattern the closed items share
+
+Where a class was untestable because a third-party SDK sat directly underneath
+it, the fix was a narrow interface in domain terms, with the SDK confined to a
+private adapter: `ArtifactFileReader`, `ManifestDocumentReader`, `AuthBackend`,
+plus `tempDirectory` on the downloader. Each one also removed a place where the
+production path and the test path could have drifted apart — which is how the
+sync ack contract ended up duplicated in the first place.
 
 ### Defects found by writing the downloader test
 
