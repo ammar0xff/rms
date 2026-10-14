@@ -10,12 +10,24 @@ import '../../domain/update/download_state.dart';
 import '../../domain/update/update_decision.dart';
 import 'artifact_paths.dart';
 
+/// Supplies the Firebase ID token that authorises a download.
+///
+/// Returning null falls back to an unauthenticated fetch, which a private
+/// bucket rejects.
+typedef ArtifactTokenProvider = Future<String?> Function();
+
 /// Downloads a release artifact over HTTP and verifies its checksum.
 ///
 /// [ArtifactDownloader.start] returns immediately with a `starting` state; the
 /// transfer runs in the background and reports through [progress]. The download
 /// is only ever handed to an installer after [ArtifactVerifier] confirms the
 /// SHA-256, so a truncated or tampered payload is rejected before it can run.
+///
+/// When a [tokenProvider] is supplied the artifact is fetched through the
+/// Firebase Storage REST API, where security rules are enforced. That keeps the
+/// bucket private while still letting an authenticated device fetch a release.
+/// With no provider it falls back to the public Cloud Storage URL, which only
+/// works when the bucket is public.
 ///
 /// Web is excluded: artifact delivery is mobile and desktop only, and `dart:io`
 /// is unavailable there. The conditional import in `artifact_downloader.dart`
@@ -24,16 +36,17 @@ class HttpArtifactDownloader implements ArtifactDownloader {
   HttpArtifactDownloader({
     HttpClient? client,
     this.resolveUri,
+    this.tokenProvider,
     this.storageBucket = 'teletunnal.firebasestorage.app',
   }) : _client = client ?? HttpClient();
 
   /// Turns the manifest's artifact reference into a fetchable URI.
-  ///
-  /// Defaults to the public Cloud Storage URL. Override this to use signed
-  /// URLs or an authenticated endpoint when the bucket is private.
   final Uri Function(String reference)? resolveUri;
 
-  /// Bucket used by the default resolver.
+  /// Authorises the download. Null means an unauthenticated fetch.
+  final ArtifactTokenProvider? tokenProvider;
+
+  /// Bucket used by the default resolvers.
   final String storageBucket;
 
   final StreamController<DownloadState> _controller =
@@ -45,9 +58,26 @@ class HttpArtifactDownloader implements ArtifactDownloader {
   @override
   Stream<DownloadState> progress() => _controller.stream;
 
+  /// The Firebase Storage REST download URL.
+  ///
+  /// Unlike the plain `storage.googleapis.com` form, this endpoint evaluates
+  /// Cloud Storage security rules against the supplied ID token, which is what
+  /// lets the bucket stay private. `alt=media` returns the bytes rather than
+  /// object metadata.
+  Uri _authenticatedUri(String reference) {
+    final encoded = Uri.encodeComponent(reference);
+    return Uri.parse(
+      'https://firebasestorage.googleapis.com/v0/b/$storageBucket/o/$encoded'
+      '?alt=media',
+    );
+  }
+
   Uri _uriFor(UpdateManifest manifest) {
     final resolve = resolveUri;
     if (resolve != null) return resolve(manifest.artifact.reference);
+    if (tokenProvider != null) {
+      return _authenticatedUri(manifest.artifact.reference);
+    }
     return Uri.parse(
       'https://storage.googleapis.com/$storageBucket/'
       '${manifest.artifact.reference}',
@@ -90,9 +120,24 @@ class HttpArtifactDownloader implements ArtifactDownloader {
       );
 
       final request = await _client!.getUrl(_uriFor(manifest));
+      final token = await tokenProvider?.call();
+      if (token != null && token.isNotEmpty) {
+        // The Firebase Storage REST API expects the ID token under the
+        // `Firebase` scheme, not `Bearer`, and evaluates security rules
+        // against it.
+        request.headers.set(HttpHeaders.authorizationHeader, 'Firebase $token');
+      }
       final response = await request.close();
       if (response.statusCode != 200) {
-        _fail('HTTP ${response.statusCode}', total);
+        // 401/403 here almost always means the session is missing, expired, or
+        // not entitled by the bucket rules — worth saying plainly rather than
+        // leaving the operator with a bare status code.
+        final hint = switch (response.statusCode) {
+          401 || 403 => ' (not signed in, or not permitted to read this release)',
+          404 => ' (no artifact at the published path)',
+          _ => '',
+        };
+        _fail('HTTP ${response.statusCode}$hint', total);
         return;
       }
 
