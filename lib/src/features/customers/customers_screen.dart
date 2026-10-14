@@ -17,16 +17,11 @@ class CustomersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return PageBody(
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: SectionHeader(
-                title: 'العملاء',
-                subtitle: 'قراءة مخزنة مع إنشاء محلي · مزامنة عند الاتصال',
-              ),
-            ),
-            RmsButton(label: 'إضافة عميل', icon: Icons.person_add_alt, onPressed: () {}),
-          ],
+        // No add button: the screen reads cached data with no backing store,
+        // so a dialog would pretend to persist. It returns with the store.
+        const SectionHeader(
+          title: 'العملاء',
+          subtitle: 'قراءة مخزنة مع إنشاء محلي · مزامنة عند الاتصال',
         ),
         SurfaceCard(
           padding: EdgeInsets.zero,
@@ -38,7 +33,6 @@ class CustomersScreen extends StatelessWidget {
               RmsColumn('الطلبات', flex: 2, align: TextAlign.right),
               RmsColumn('إجمالي الإنفاق', flex: 3, align: TextAlign.right),
               RmsColumn('آخر زيارة', flex: 2, align: TextAlign.right),
-              RmsColumn('', flex: 2),
             ],
             rows: [
               for (final c in MockData.customers)
@@ -60,7 +54,6 @@ class CustomersScreen extends StatelessWidget {
                   Text('${c.orders}', style: AppText.tableCell),
                   Text(money(c.spend), style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
                   Text(c.lastVisit, style: AppText.caption),
-                  const RmsButton(label: 'عرض', onPressed: null),
                 ],
             ],
           ),

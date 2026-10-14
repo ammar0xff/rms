@@ -81,8 +81,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final metrics = DashboardMetrics.fromOrders(_orders);
     final monitor = SyncMonitor.instance;
 
-    return PageBody(
-      children: [
+    // _load already returns a Future, so it plugs straight into the refresh
+    // indicator: pull down for fresh orders and branch totals.
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: PageBody(
+        children: [
         HeroKpi(
           label: 'صافي مبيعات اليوم',
           value: useMock ? '8,412.50 ج.م' : money(metrics.todayTotal),
@@ -136,7 +140,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _BranchCard(snapshot: _snapshot),
           ],
         ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -322,9 +327,11 @@ class _RecentOrders extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+            // No trailing action: عرض الكل used to sit here wired to a no-op,
+            // a button that looks alive and does nothing. There is no orders
+            // list destination to point it at; when there is, it goes back.
             child: SectionHeader(
               title: 'آخر الطلبات',
-              trailing: RmsButton(label: 'عرض الكل', variant: BtnVariant.ghost, onPressed: () {}),
             ),
           ),
           if (orders == null) _mockTable() else _realTable(),

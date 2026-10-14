@@ -310,10 +310,11 @@ class _AccountingScreenState extends State<AccountingScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+            // No trailing action: تصدير was wired to a no-op. Export returns
+            // when there is a destination for the file.
             child: SectionHeader(
               title: 'سجل المعاملات',
               subtitle: 'إضافة فقط · إزالة التكرار عند المزامنة',
-              trailing: RmsButton(label: 'تصدير', icon: Icons.download, onPressed: () {}),
             ),
           ),
           RmsTable(
@@ -451,7 +452,6 @@ class _ApprovalRow extends StatelessWidget {
           Text(money(amount),
               style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(width: 8),
-        const RmsButton(label: 'مراجعة', onPressed: null),
       ],
     );
   }
