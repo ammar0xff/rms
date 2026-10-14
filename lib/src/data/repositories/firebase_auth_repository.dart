@@ -1,16 +1,44 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../domain/models/app_user.dart';
 import 'auth_repository.dart';
 
-/// Backend-backed authentication using Firebase Auth (email/password).
-class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({FirebaseAuth? auth})
-      : _auth = auth ?? FirebaseAuth.instance;
+/// A failure reported by the auth backend, carrying its code.
+///
+/// The codes are Firebase's own vocabulary. The repository translates them into
+/// something an operator can act on, so the raw code stops here.
+class AuthBackendFailure implements Exception {
+  const AuthBackendFailure(this.code);
+
+  final String code;
+
+  @override
+  String toString() => 'AuthBackendFailure($code)';
+}
+
+/// The auth operations this repository needs, in domain terms.
+///
+/// `FirebaseAuth` cannot be constructed without a configured Firebase app, so
+/// the calls are narrowed behind this interface. That is what makes the error
+/// mapping, the email trimming, and the guards testable without a live project —
+/// none of which were reachable before, because `FirebaseAuthRepository` had
+/// zero tests.
+abstract interface class AuthBackend {
+  AppUser? get currentUser;
+  Stream<AppUser?> authStateChanges();
+  Future<AppUser?> signIn({required String email, required String password});
+  Future<void> signOut();
+}
+
+/// Wraps [FirebaseAuth], translating its exceptions into [AuthBackendFailure].
+class _FirebaseAuthBackend implements AuthBackend {
+  _FirebaseAuthBackend(FirebaseAuth auth) : _auth = auth;
 
   final FirebaseAuth _auth;
 
-  AppUser _map(User user) => AppUser(
+  AppUser? _map(User user) => AppUser(
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
@@ -27,44 +55,76 @@ class FirebaseAuthRepository implements AuthRepository {
       _auth.authStateChanges().map((user) => user == null ? null : _map(user));
 
   @override
-  Future<AppUser> signInWithEmail({
+  Future<AppUser?> signIn({
     required String email,
     required String password,
   }) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
+        email: email,
         password: password,
       );
       final user = credential.user;
-      if (user == null) {
-        throw const AuthException('تعذّر إنشاء الجلسة.');
-      }
-      return _map(user);
+      return user == null ? null : _map(user);
     } on FirebaseAuthException catch (e) {
-      throw AuthException(_messageFor(e));
+      throw AuthBackendFailure(e.code);
     }
   }
 
   @override
   Future<void> signOut() => _auth.signOut();
-
-  String _messageFor(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return 'صيغة البريد الإلكتروني غير صحيحة.';
-      case 'user-disabled':
-        return 'تم تعطيل هذا الحساب.';
-      case 'user-not-found':
-      case 'wrong-password':
-      case 'invalid-credential':
-        return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
-      case 'too-many-requests':
-        return 'محاولات كثيرة. حاول لاحقًا.';
-      case 'network-request-failed':
-        return 'تعذّر الاتصال. تحقق من الشبكة.';
-      default:
-        return 'فشل تسجيل الدخول (${e.code}).';
-    }
-  }
 }
+
+/// Backend-backed authentication using Firebase Auth (email/password).
+class FirebaseAuthRepository implements AuthRepository {
+  FirebaseAuthRepository({FirebaseAuth? auth, AuthBackend? backend})
+      : _backend =
+            backend ?? _FirebaseAuthBackend(auth ?? FirebaseAuth.instance);
+
+  final AuthBackend _backend;
+
+  @override
+  AppUser? get currentUser => _backend.currentUser;
+
+  @override
+  Stream<AppUser?> authStateChanges() => _backend.authStateChanges();
+
+  @override
+  Future<AppUser> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final AppUser? user;
+    try {
+      user = await _backend.signIn(email: email.trim(), password: password);
+    } on AuthBackendFailure catch (e) {
+      throw AuthException(authFailureMessage(e.code));
+    }
+    if (user == null) {
+      // The backend accepted the call but produced no session, which is not
+      // something the form can explain.
+      throw const AuthException('تعذّر إنشاء الجلسة.');
+    }
+    return user;
+  }
+
+  @override
+  Future<void> signOut() => _backend.signOut();
+}
+
+/// The operator-facing message for a Firebase Auth error [code].
+///
+/// `user-not-found` and `wrong-password` deliberately share a message: telling
+/// them apart would turn the sign-in form into a way to discover which email
+/// addresses have accounts.
+String authFailureMessage(String code) => switch (code) {
+      'invalid-email' => 'صيغة البريد الإلكتروني غير صحيحة.',
+      'user-disabled' => 'تم تعطيل هذا الحساب.',
+      'user-not-found' ||
+      'wrong-password' ||
+      'invalid-credential' =>
+        'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+      'too-many-requests' => 'محاولات كثيرة. حاول لاحقًا.',
+      'network-request-failed' => 'تعذّر الاتصال. تحقق من الشبكة.',
+      _ => 'فشل تسجيل الدخول ($code).',
+    };
