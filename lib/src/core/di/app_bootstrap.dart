@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../config/app_version.dart';
+import '../config/app_version_reader.dart';
 import '../config/device_update_context.dart';
 import '../config/firebase_config.dart';
 import '../di/app_services.dart';
@@ -73,6 +74,11 @@ Future<AppServices> bootstrapApp() async {
   final config = FirebaseConfig.fromEnvironment();
   final database = await _openLocalDatabase();
   final migration = await _runMigrations(database);
+
+  // Before anything reads the version, so the update engine compares the
+  // manifest against what is genuinely installed rather than against whatever
+  // constant was compiled in.
+  await AppVersionReader.hydrate();
 
   return _resolveAuth(config, database, migration);
 }

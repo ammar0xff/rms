@@ -58,6 +58,31 @@ class MainActivity : FlutterActivity() {
                             result.error("install_failed", e.message, null)
                         }
                     }
+                    // The version the update engine compares itself against. This
+                    // must come from the installed package, not a Dart constant:
+                    // the release workflow sets versionName and versionCode via
+                    // --build-name/--build-number, so anything compiled into the
+                    // app goes stale the moment a new version is published.
+                    "appVersion" -> {
+                        try {
+                            @Suppress("DEPRECATION")
+                            val info = packageManager.getPackageInfo(packageName, 0)
+                            val code =
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                    info.longVersionCode.toInt()
+                                } else {
+                                    info.versionCode
+                                }
+                            result.success(
+                                mapOf(
+                                    "versionName" to (info.versionName ?: ""),
+                                    "versionCode" to code,
+                                ),
+                            )
+                        } catch (e: Exception) {
+                            result.error("app_version_failed", e.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
