@@ -65,7 +65,11 @@ class FirestoreSyncTransport implements SyncTransport {
   Future<int?> _reserveCanonicalSequence() async {
     try {
       final counter = _db.collection(countersCollection).doc('orders');
-      return _db.runTransaction<int>((txn) async {
+      // Must be awaited inside the try: returning the Future unawaited lets a
+      // failed transaction escape this catch and propagate to the caller, so a
+      // restrictive security rule would fail the whole push instead of
+      // degrading to an order that syncs without its canonical number.
+      return await _db.runTransaction<int>((txn) async {
         final snapshot = await txn.get(counter);
         final current = (snapshot.data()?['value'] as num?)?.toInt() ?? 0;
         final value = current + 1;
