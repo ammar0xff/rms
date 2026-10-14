@@ -134,21 +134,51 @@ behaviour. Every step below needs physical hardware.
 
 ## Phase 5 — Test coverage of what runs in production
 
-Fifteen files hold real logic with no direct test. Ordered by risk:
+Ordered by risk. Six closed; the rest remain.
 
-- [ ] `firestore_sync_transport.dart` — the backend sync path: idempotency,
-      canonical order numbers, best-effort counters
+- [x] `firestore_sync_transport.dart` — covered through `SyncAck`, the
+      acknowledgement contract now shared with the in-memory transport. The
+      finding was that both had been assembling their own ack map, so a contract
+      change passed every test and still failed against Firestore.
+- [x] `artifact_downloader_io.dart` — **found two defects that made updates
+      non-functional**, see below. Covered end to end against a loopback HTTP
+      server and the real file on disk.
+- [x] `artifact_verifier.dart` — the SHA-256 was hand-rolled and the test held
+      a third copy of it, so the tests confirmed the copy agreed with itself.
+      Now `package:crypto` (already a dependency, never imported) pinned against
+      FIPS 180-4 vectors.
+- [x] `local_health_checker.dart` — decides rollback; now covered, including the
+      fail-closed `inconclusive` path
+- [x] `update_acknowledgement_store.dart` — persistence; found a cast that
+      could throw a corrupt row out of the sync loop
 - [ ] `firebase_auth_repository.dart` — authentication
-- [ ] `artifact_downloader_io.dart` — a 403 bug hid here; the transfer and
-      verification path is unproven
 - [ ] `local_schema_migrator.dart` — runs during updates
-- [ ] `local_health_checker.dart` — decides rollback
-- [ ] `update_acknowledgement_store.dart` — persistence
 - [ ] `firestore_update_source.dart` — reads published manifests
 - [ ] `app_bootstrap.dart` — wiring
-- [ ] Add `fake_cloud_firestore` as a dev dependency (approved, never added)
+- [ ] Add `fake_cloud_firestore` as a dev dependency (approved, never added).
+      Not needed for anything closed so far; still the only practical route for
+      the transaction behaviour in `firestore_sync_transport.dart`
 - [ ] `offline_capability.dart` — pure, cheap
 - [ ] Optional: widget tests for the remaining feature screens
+
+### Defects found by writing the downloader test
+
+Both mean the update flow could never have completed on a device. Neither was
+reachable by a unit test, and neither would have surfaced without hardware:
+
+1. **`ArtifactVerifier` could not read a file.** It held a private `_File` whose
+   methods threw `UnimplementedError`; the surrounding catch turned that into a
+   null, `verify` returned `notFound`, and the downloader reported failure after
+   a completely successful download. Every unit test passed `bytes:` and so
+   never entered that branch.
+2. **`cancel()` did not cancel.** `HttpClient.close()` without `force` leaves
+   the in-flight response draining, so a cancelled transfer kept pulling bytes
+   off the socket and writing them to disk until the server chose to stop — and
+   emitted no terminal state at all while parked on a chunk that never came.
+
+The lesson worth carrying: the download path had four hundred tests' worth of
+neighbouring coverage and was still incapable of installing an update. Coverage
+of *units* is not coverage of *paths*.
 
 ---
 
