@@ -5,7 +5,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/data/updates/artifact_downloader_io.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
-import 'package:rms/src/domain/update/artifact_verifier.dart';
 import 'package:rms/src/domain/update/download_state.dart';
 import 'package:rms/src/domain/update/update_decision.dart';
 
@@ -103,7 +102,7 @@ void main() {
       HttpArtifactDownloader(
         tokenProvider: tokenProvider,
         resolveUri: resolveUri,
-        tempDirectory: () async => _staging,
+        tempDirectory: () async => _staging(),
         storageBucket: bucket,
       );
 
