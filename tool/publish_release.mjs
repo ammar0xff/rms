@@ -1,27 +1,32 @@
-// Publishes a release manifest to Firestore and uploads the artifact to
-// Cloud Storage.
+// Publishes a release manifest to Firestore.
 //
-// Invoked by .github/workflows/release.yml after a build. Kept as a separate
-// script so the workflow stays declarative and the manifest shape lives in one
-// auditable place — it must match UpdateManifest.toRecord() on the client, or
-// the client silently treats the document as absent.
+// The artifact itself is uploaded by the workflow, which creates a GitHub
+// Release and passes the resulting download URL here. Keeping upload out of this
+// script means the manifest is written from a single, auditable place and the
+// hosting can change without touching it.
 //
 // Usage:
 //   node tool/publish_release.mjs \
-//     --artifact <path> --platform android --version 0.9.0 \
-//     --channel production --severity recommended --rollout 100
+//     --reference https://github.com/OWNER/REPO/releases/download/v1.0.0-3/app.apk \
+//     --sha256 <64 hex> --size <bytes> \
+//     --platform android --version 1.0.0
 //
 // Requires:
 //   FIREBASE_SERVICE_ACCOUNT  service-account JSON, used to authenticate
 //   FIREBASE_PROJECT_ID       target project
+//
+// Artifacts are hosted on GitHub Releases rather than Cloud Storage because
+// Cloud Storage requires a Blaze billing account. GitHub Releases needs no
+// billing and gives stable public download URLs. The trade-off is that release
+// assets on a public repository are world-readable; if a private bucket is
+// wanted later, only the hosting changes — this script already takes the URL as
+// an input.
 
-import { readFileSync, statSync } from 'node:fs';
-import { basename } from 'node:path';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 
 const COLLECTION = 'releases';
 
@@ -51,6 +56,7 @@ function required(args, key) {
   return value;
 }
 
+/** SHA-256 of a local file, so the workflow can hash without a second tool. */
 function sha256Hex(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
@@ -58,11 +64,6 @@ function sha256Hex(path) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
-  // Workflow B builds and uploads the artifact. Workflow A is the same
-  // publisher pointed at an artifact that already exists: pass --reference and
-  // nothing is uploaded, only the manifest is written.
-  const uploadLocally = !args.reference;
-  const artifactPath = uploadLocally ? required(args, 'artifact') : null;
   const platform = required(args, 'platform');
   const version = required(args, 'version');
   const channel = args.channel || 'production';
@@ -71,8 +72,6 @@ async function main() {
   const status = args.status || 'active';
   const minSupportedVersion = args['min-supported'] || '0.0.0';
   const releaseNotes = args['release-notes'] || '';
-  const forceAfter = args['force-after'] || null;
-  const rollbackTargetVersion = args['rollback-target'] || null;
 
   if (!Number.isInteger(rolloutPercent) || rolloutPercent < 1 || rolloutPercent > 100) {
     console.error('--rollout must be an integer between 1 and 100');
@@ -86,43 +85,12 @@ async function main() {
     process.exit(2);
   }
 
-  const app = initializeApp({
-    credential: cert(JSON.parse(rawServiceAccount)),
-    storageBucket: `${projectId}.firebasestorage.app`,
-  });
-  const db = getFirestore(app);
-  const bucket = getStorage(app).bucket();
-
-  // The next build number is derived from what is already published rather than
-  // taken from the caller. Android refuses an update whose versionCode is not
-  // strictly higher than the installed one, so a re-run of this workflow must
-  // always produce something installable.
-  const existing = await db.collection(COLLECTION).get();
-  const highest = existing.docs.reduce((max, doc) => {
-    const n = Number(doc.get('buildNumber') ?? 0);
-    return Number.isFinite(n) && n > max ? n : max;
-  }, 0);
-  const buildNumber = highest + 1;
-  console.log(`Build number: ${highest} -> ${buildNumber}`);
-
+  // Either a published download URL, or a local file to hash and describe.
+  let reference = args.reference;
   let digest;
   let sizeBytes;
-  let objectName;
 
-  if (uploadLocally) {
-    digest = sha256Hex(artifactPath);
-    sizeBytes = statSync(artifactPath).size;
-    objectName = `releases/${platform}/${version}/${buildNumber}/${basename(artifactPath)}`;
-    await bucket.file(objectName).save(readFileSync(artifactPath), {
-      contentType: 'application/octet-stream',
-      metadata: { cacheControl: 'private, max-age=0, no-store' },
-    });
-    console.log(`Uploaded ${objectName} (${sizeBytes} bytes, sha256 ${digest})`);
-  } else {
-    // The artifact is already in Storage. Its checksum and size must be
-    // supplied, because the manifest is the only thing the client trusts when
-    // it decides whether to install.
-    objectName = args.reference;
+  if (reference) {
     digest = required(args, 'sha256').toLowerCase();
     sizeBytes = Number(required(args, 'size'));
     if (!/^[0-9a-f]{64}$/.test(digest)) {
@@ -133,13 +101,30 @@ async function main() {
       console.error('--size must be a non-negative integer');
       process.exit(2);
     }
-    const [exists] = await bucket.file(objectName).exists();
-    if (!exists) {
-      console.error(`No such object in Storage: ${objectName}`);
-      process.exit(2);
-    }
-    console.log(`Using existing artifact ${objectName} (${sizeBytes} bytes)`);
+  } else {
+    const artifactPath = required(args, 'artifact');
+    reference = required(args, 'reference');
+    digest = sha256Hex(artifactPath);
+    sizeBytes = readFileSync(artifactPath).length;
   }
+
+  const app = initializeApp({
+    credential: cert(JSON.parse(rawServiceAccount)),
+  });
+  const db = getFirestore(app);
+
+  // The next build number is derived from what is already published rather than
+  // taken from the caller. Android refuses an update whose versionCode is not
+  // strictly higher than the installed one, so a re-run of this workflow must
+  // always produce something installable.
+  const existing = await db.collection(COLLECTION).get();
+  const highest = existing.docs.reduce((max, doc) => {
+    const n = Number(doc.get('buildNumber') ?? 0);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
+  const buildNumber = Number(args['build-number'] || 0) || highest + 1;
+  console.log(`Build number: ${buildNumber}`);
+  console.log(`Artifact: ${reference} (${sizeBytes} bytes, sha256 ${digest})`);
 
   // Matches UpdateManifest.toRecord() on the client.
   const releaseId = `${platform}-${version}-${buildNumber}`;
@@ -155,7 +140,7 @@ async function main() {
     severity,
     publishedAt: new Date().toISOString(),
     artifact: {
-      reference: objectName,
+      reference,
       sizeBytes,
       sha256: digest,
       signature: '',
@@ -171,12 +156,10 @@ async function main() {
       : null,
     releaseNotes,
     expiresAt: args['expires-at'] || null,
-    forceAfter,
-    rollbackTargetVersion,
-    targetBranchIds: args['branches'] ? args['branches'].split(',') : [],
-    targetDeviceGroups: args['device-groups']
-      ? args['device-groups'].split(',')
-      : [],
+    forceAfter: args['force-after'] || null,
+    rollbackTargetVersion: args['rollback-target'] || null,
+    targetBranchIds: args.branches ? args.branches.split(',') : [],
+    targetDeviceGroups: args['device-groups'] ? args['device-groups'].split(',') : [],
     manifestSchemaVersion: Number(args['manifest-schema'] || '1'),
     createdAt: FieldValue.serverTimestamp(),
   };
@@ -184,14 +167,10 @@ async function main() {
   await db.collection(COLLECTION).doc(releaseId).set(manifest, { merge: true });
   console.log(`Published release ${releaseId}`);
 
-  // A per-platform pointer lets the client fetch a single document instead of
+  // A per-platform pointer lets the client fetch one small document instead of
   // querying the whole collection.
   await db.collection('activeReleases').doc(platform).set(
-    {
-      releaseId,
-      channel,
-      updatedAt: FieldValue.serverTimestamp(),
-    },
+    { releaseId, channel, updatedAt: FieldValue.serverTimestamp() },
     { merge: true },
   );
   console.log(`Pointed activeReleases/${platform} at ${releaseId}`);

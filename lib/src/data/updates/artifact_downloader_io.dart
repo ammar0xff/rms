@@ -75,13 +75,19 @@ class HttpArtifactDownloader implements ArtifactDownloader {
   Uri _uriFor(UpdateManifest manifest) {
     final resolve = resolveUri;
     if (resolve != null) return resolve(manifest.artifact.reference);
-    if (tokenProvider != null) {
-      return _authenticatedUri(manifest.artifact.reference);
+    final reference = manifest.artifact.reference;
+
+    // A published release carries an absolute download URL, which is what the
+    // release workflow writes. Honour it as-is.
+    if (reference.startsWith('http://') || reference.startsWith('https://')) {
+      return Uri.parse(reference);
     }
-    return Uri.parse(
-      'https://storage.googleapis.com/$storageBucket/'
-      '${manifest.artifact.reference}',
-    );
+
+    // Otherwise treat it as a Cloud Storage object path. With a token the
+    // authenticated endpoint is used, which evaluates security rules; without
+    // one the plain public URL, which only works on a public bucket.
+    if (tokenProvider != null) return _authenticatedUri(reference);
+    return Uri.parse('https://storage.googleapis.com/$storageBucket/$reference');
   }
 
   @override

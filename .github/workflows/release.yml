@@ -47,7 +47,8 @@ on:
         default: ''
 
 permissions:
-  contents: read
+  # Creating a GitHub Release and uploading its asset needs write access.
+  contents: write
 
 concurrency:
   group: release
@@ -108,6 +109,43 @@ jobs:
       - name: Install publisher dependencies
         run: npm install --no-save firebase-admin
 
+      # Artifacts are hosted on GitHub Releases rather than Cloud Storage,
+      # which would need a Blaze billing account. The release is created here
+      # and the manifest is written from its download URL.
+      - name: Publish artifact to a GitHub Release
+        id: asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_NOTES: ${{ inputs.release-notes }}
+        run: |
+          set -euo pipefail
+          NAME=$(basename "$ARTIFACT")
+          TAG="v${VERSION}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists — replacing the asset."
+            gh release upload "$TAG" "$ARTIFACT" --clobber
+          else
+            gh release create "$TAG" "$ARTIFACT" \
+              --title "$TAG" \
+              --notes "${RELEASE_NOTES:-Automated release.}"
+          fi
+
+          URL=$(gh release view "$TAG" --json assets \
+            --jq ".assets[] | select(.name == \"$NAME\") | .url")
+          if [ -z "$URL" ]; then
+            echo "::error::could not resolve the download URL for $NAME"
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Hash the artifact
+        id: digest
+        run: |
+          echo "sha=$(sha256sum "$ARTIFACT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "size=$(stat -c%s "$ARTIFACT")" >> "$GITHUB_OUTPUT"
+
       - name: Build artifact
         env:
           PLATFORM: ${{ inputs.platform }}
@@ -142,7 +180,9 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
           node tool/publish_release.mjs \
-            --artifact "$ARTIFACT" \
+            --reference "${{ steps.asset.outputs.url }}" \
+            --sha256 "${{ steps.digest.outputs.sha }}" \
+            --size "${{ steps.digest.outputs.size }}" \
             --platform "${{ inputs.platform }}" \
             --version "${{ inputs.version }}" \
             --channel "${{ inputs.channel }}" \
