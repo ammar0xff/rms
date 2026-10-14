@@ -54,7 +54,6 @@ import '../../domain/models/purchase_order.dart';
 import '../../domain/models/release_manifest.dart';
 import '../../domain/models/stock_movement.dart';
 import '../../domain/models/supplier.dart';
-import '../../domain/models/update_manifest.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
 import '../../data/sync/firestore_sync_transport.dart';
@@ -212,7 +211,7 @@ Future<AppServices> _resolveAuth(
           // Web ships through its hosting provider and takes no artifact.
           artifactDeliverySupported: currentUpdatePlatform() != UpdatePlatform.web,
           online: () => SyncMonitor.instance.online,
-          branchId: () async => branches?.activeBranch()?.id ?? '',
+          branchId: () async => (await branches?.activeBranch())?.id ?? '',
           buildService: () => UpdateDeps(
             downloader: updateDownloader,
             installer: updateInstaller,
