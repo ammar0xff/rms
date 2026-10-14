@@ -101,6 +101,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Skipped until the signing secrets exist. Once they do, the build is
+      # signed for real; until then it falls back to the debug key so this job
+      # still proves the app compiles.
+      - name: Set up release signing
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 --decode > android/app/rms-release.keystore
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=rms-release.keystore
+          EOF
+
       - name: Build release APK
         run: flutter build apk --release
 
