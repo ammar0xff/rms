@@ -90,12 +90,30 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   String _selected = 'dashboard';
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// The five thumb-reachable destinations. Everything else lives under المزيد.
+  static const _primaryIds = ['dashboard', 'pos', 'kitchen', 'delivery'];
+
   UpdateController? _updates;
   bool _dismissedOptional = false;
 
   NavEntry get _current =>
       _flatEntries.firstWhere((e) => e.id == _selected, orElse: () => _flatEntries.first);
+
+  /// Bottom-bar index: the four primaries, or المزيد for everything else —
+  /// including the menu grid itself.
+  int get _barIndex {
+    final i = _primaryIds.indexOf(_selected);
+    return i == -1 ? 4 : i;
+  }
+
+  void _select(String id) {
+    setState(() => _selected = id);
+  }
+
+  void _onBarTap(int index) {
+    _select(index < 4 ? _primaryIds[index] : 'more');
+  }
 
   @override
   void didChangeDependencies() {
@@ -117,9 +135,6 @@ class _AppShellState extends State<AppShell> {
 
   void _select(String id) {
     setState(() => _selected = id);
-    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-      Navigator.of(context).pop();
-    }
   }
 
   @override
@@ -128,37 +143,80 @@ class _AppShellState extends State<AppShell> {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
         final updates = _updates;
+        final body = _selected == 'more'
+            ? _MoreScreen(selected: _selected, onSelect: _select)
+            : _current.builder(context);
         return Stack(
           children: [
             Scaffold(
-              key: _scaffoldKey,
-              drawer: wide ? null : Drawer(
-                backgroundColor: AppColors.base,
-                child: _Sidebar(selected: _selected, onSelect: _select),
-              ),
               body: SafeArea(
-                child: Row(
-                  children: [
-                    if (wide)
-                      _Sidebar(selected: _selected, onSelect: _select),
-                    if (wide)
-                      const VerticalDivider(width: 1, color: AppColors.borderStrong),
-                    Expanded(
-                      child: Column(
+                child: wide
+                    ? Row(
+                        children: [
+                          _Sidebar(selected: _selected, onSelect: _select),
+                          const VerticalDivider(width: 1, color: AppColors.borderStrong),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                _TopBar(
+                                  title: _selected == 'more' ? 'المزيد' : _current.label,
+                                ),
+                                const Divider(height: 1, color: AppColors.borderStrong),
+                                Expanded(child: body),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
                         children: [
                           _TopBar(
-                            title: _current.label,
-                            showMenu: !wide,
-                            onMenu: () => _scaffoldKey.currentState?.openDrawer(),
+                            title: _selected == 'more' ? 'المزيد' : _current.label,
                           ),
                           const Divider(height: 1, color: AppColors.borderStrong),
-                          Expanded(child: _current.builder(context)),
+                          Expanded(child: body),
                         ],
                       ),
-                    ),
-                  ],
-                ),
               ),
+              bottomNavigationBar: wide
+                  ? null
+                  : BottomNavigationBar(
+                      currentIndex: _barIndex,
+                      onTap: _onBarTap,
+                      type: BottomNavigationBarType.fixed,
+                      backgroundColor: AppColors.surface,
+                      selectedItemColor: AppColors.brand,
+                      unselectedItemColor: AppColors.fgMuted,
+                      selectedLabelStyle: AppText.label,
+                      unselectedLabelStyle: AppText.label,
+                      items: const [
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.space_dashboard_outlined),
+                          activeIcon: Icon(Icons.space_dashboard),
+                          label: 'الرئيسية',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.point_of_sale_outlined),
+                          activeIcon: Icon(Icons.point_of_sale),
+                          label: 'البيع',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.soup_kitchen_outlined),
+                          activeIcon: Icon(Icons.soup_kitchen),
+                          label: 'المطبخ',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.moped_outlined),
+                          activeIcon: Icon(Icons.moped),
+                          label: 'التوصيل',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.apps_outlined),
+                          activeIcon: Icon(Icons.apps),
+                          label: 'المزيد',
+                        ),
+                      ],
+                    ),
             ),
             // A mandatory update, an update in flight, or a failed attempt is
             // laid over the whole app: there is nothing useful to do until it
@@ -172,6 +230,83 @@ class _AppShellState extends State<AppShell> {
           ],
         );
       },
+    );
+  }
+}
+
+/// The menu grid behind المزيد: every destination, grouped, thumb-reachable.
+///
+/// Fourteen entries cannot fit a bottom bar, and the drawer they lived in was
+/// built for a mouse. On a phone the overflow belongs in a screen of its own.
+class _MoreScreen extends StatelessWidget {
+  const _MoreScreen({required this.selected, required this.onSelect});
+
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (final group in navGroups) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+            child: Text(group.label.toUpperCase(), style: AppText.label),
+          ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 0.92,
+            ),
+            itemCount: group.entries.length,
+            itemBuilder: (context, i) {
+              final entry = group.entries[i];
+              final active = entry.id == selected;
+              return GestureDetector(
+                onTap: () => onSelect(entry.id),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.brandSoft : AppColors.surface,
+                    border: Border.all(
+                      color: active ? AppColors.brandLine : AppColors.borderStrong,
+                    ),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        entry.icon,
+                        size: 24,
+                        color: active ? AppColors.brand : AppColors.fgSecondary,
+                      ),
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          entry.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: active ? AppColors.brand : AppColors.fgMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
@@ -363,11 +498,9 @@ class _UserRow extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, this.showMenu = false, this.onMenu});
+  const _TopBar({required this.title});
 
   final String title;
-  final bool showMenu;
-  final VoidCallback? onMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -383,10 +516,6 @@ class _TopBar extends StatelessWidget {
             final narrow = c.maxWidth < 600;
             return Row(
               children: [
-                if (showMenu) ...[
-                  IconBtn(icon: Icons.menu, onPressed: onMenu),
-                  const SizedBox(width: 10),
-                ],
                 Flexible(
                   child: Text(title,
                       overflow: TextOverflow.ellipsis,
