@@ -29,6 +29,7 @@ abstract final class ArtifactVerifier {
     required UpdateManifest manifest,
     String? path,
     List<int>? bytes,
+    ArtifactFileReader? readFile,
   }) async {
     final artifact = manifest.artifact;
     final total = artifact.sizeBytes;
@@ -40,7 +41,7 @@ abstract final class ArtifactVerifier {
       );
     }
 
-    final downloadedBytes = await _readBytes(path, bytes, total);
+    final downloadedBytes = await _readBytes(path, bytes, total, readFile);
     if (downloadedBytes == null) {
       return ArtifactVerification(
         status: ArtifactVerificationStatus.notFound,
@@ -77,33 +78,33 @@ abstract final class ArtifactVerifier {
     String? path,
     List<int>? bytes,
     int total,
+    ArtifactFileReader? readFile,
   ) async {
     if (bytes != null) return bytes;
     if (path == null || path.isEmpty) return null;
+    // Reading a file needs dart:io, which this layer deliberately does not
+    // import, so the platform layer supplies the reader. There used to be a
+    // stub here whose methods threw; the catch below turned that into a null,
+    // and every real download was therefore reported as notFound. Nothing
+    // noticed because the unit tests all passed bytes and never went near it.
+    final read = readFile;
+    if (read == null) return null;
     try {
-      final file = _File(path);
-      final length = await file.length();
-      if (length < 0) return null;
-      if (length == 0 && total > 0) return null;
-      return await file.readAsBytes();
+      final data = await read(path);
+      if (data.isEmpty && total > 0) return null;
+      return data;
     } catch (_) {
       return null;
     }
   }
 }
 
-/// Minimal file abstraction so ArtifactVerifier can be pure-tested without
-/// importing flutter/foundation or dart:io in test contexts.
-/// The real implementation wraps `dart:io`'s File; in unit tests this class is
-/// not used directly (bytes are passed in).
-class _File {
-  _File(this.path);
-
-  final String path;
-
-  Future<int> length() => throw UnimplementedError();
-  Future<List<int>> readAsBytes() => throw UnimplementedError();
-}
+/// Reads a file into memory, supplied by the platform layer.
+///
+/// The domain layer cannot read files itself without importing `dart:io`, so
+/// `ArtifactVerifier.verify` takes the reader as an argument. Passing none
+/// alongside a [path] yields `notFound` rather than an unverified success.
+typedef ArtifactFileReader = Future<List<int>> Function(String path);
 
 /// The SHA-256 of [bytes], lowercase hex.
 ///

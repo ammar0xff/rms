@@ -97,6 +97,78 @@ void main() {
       expect(result.status, ArtifactVerificationStatus.checksumMismatch);
       expect(result.downloadedBytes, data.length);
     });
+
+    // Reading a file needs dart:io, which this layer does not import, so the
+    // reader is supplied by the platform. There was once a stub here whose
+    // methods threw, and the surrounding catch turned that into a null — so
+    // every real download verified as notFound and could never install. The
+    // unit tests missed it because they all passed bytes and never reached
+    // this path at all.
+    test('reports notFound when a path is given with no reader available',
+        () async {
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: 5),
+        path: '/tmp/app.apk',
+      );
+      // Fail closed rather than claim an unverified artifact is good.
+      expect(result.status, ArtifactVerificationStatus.notFound);
+      expect(result.isOk, isFalse);
+    });
+
+    test('reads the artifact through the supplied reader', () async {
+      final data = 'hello'.codeUnits;
+      final requested = <String>[];
+
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: data.length),
+        path: '/tmp/app.apk',
+        readFile: (path) async {
+          requested.add(path);
+          return data;
+        },
+      );
+
+      expect(requested, ['/tmp/app.apk']);
+      expect(result.status, ArtifactVerificationStatus.verified);
+    });
+
+    test('reports notFound when the reader fails', () async {
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: 5),
+        path: '/tmp/app.apk',
+        readFile: (_) async => throw StateError('gone'),
+      );
+      expect(result.status, ArtifactVerificationStatus.notFound);
+    });
+
+    test('reports notFound when the reader yields nothing for a sized artifact',
+        () async {
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: 5),
+        path: '/tmp/app.apk',
+        readFile: (_) async => const <int>[],
+      );
+      expect(result.status, ArtifactVerificationStatus.notFound);
+    });
+
+    // Explicit bytes win, so a test can pin a digest without touching a disk.
+    test('explicit bytes take precedence over the reader', () async {
+      final data = 'hello'.codeUnits;
+      var called = false;
+
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: data.length),
+        path: '/tmp/app.apk',
+        bytes: data,
+        readFile: (_) async {
+          called = true;
+          return const <int>[];
+        },
+      );
+
+      expect(called, isFalse);
+      expect(result.status, ArtifactVerificationStatus.verified);
+    });
   });
 
   // The verifier is the only thing standing between a downloaded APK and being

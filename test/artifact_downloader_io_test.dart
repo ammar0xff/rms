@@ -224,7 +224,10 @@ void main() {
     test('rejects a payload whose bytes do not match the manifest digest',
         () async {
       final published = _payload(2048);
-      final tampered = _payload(2048);
+      // Same length, one byte different — the change a tampered artifact would
+      // actually carry, and the one a length check alone would miss.
+      final tampered = List<int>.of(published);
+      tampered[1024] ^= 0xff;
       expect(_sha(tampered), isNot(_sha(published)));
 
       host = await _serve((r) => _ok(r, tampered));

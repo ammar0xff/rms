@@ -16,6 +16,14 @@ import 'artifact_paths.dart';
 /// bucket rejects.
 typedef ArtifactTokenProvider = Future<String?> Function();
 
+/// Reads a downloaded artifact back off disk for verification.
+///
+/// The verifier is domain code and cannot import `dart:io`, so this is the
+/// platform side of that seam. A 56 MB APK is read whole; on a device that is
+/// acceptable next to the transfer that just wrote it, and it keeps the
+/// verifier free of platform dependencies.
+Future<List<int>> readArtifactFile(String path) => File(path).readAsBytes();
+
 /// Downloads a release artifact over HTTP and verifies its checksum.
 ///
 /// [ArtifactDownloader.start] returns immediately with a `starting` state; the
@@ -232,6 +240,10 @@ class HttpArtifactDownloader implements ArtifactDownloader {
       final verification = await ArtifactVerifier.verify(
         manifest: manifest,
         path: file.path,
+        // The domain layer cannot read files without dart:io, so the reader
+        // comes from here. Omitting it leaves the verifier unable to see the
+        // bytes it just wrote, and it then fails closed on every download.
+        readFile: readArtifactFile,
       );
 
       // A payload whose length does not match the manifest is rejected without
