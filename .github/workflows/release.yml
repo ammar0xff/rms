@@ -109,9 +109,36 @@ jobs:
       - name: Install publisher dependencies
         run: npm install --no-save firebase-admin
 
-      # Artifacts are hosted on GitHub Releases rather than Cloud Storage,
-      # which would need a Blaze billing account. The release is created here
-      # and the manifest is written from its download URL.
+      - name: Build artifact
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          case "$PLATFORM" in
+            android)
+              flutter build apk --release \
+                --build-name="$VERSION" \
+                --build-number="${GITHUB_RUN_NUMBER}"
+              echo "ARTIFACT=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_ENV"
+              ;;
+            linux)
+              sudo apt-get update
+              sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+              flutter build linux --release --build-name="$VERSION"
+              tar -czf build/rms-linux.tar.gz -C build/linux/x64/release/bundle .
+              echo "ARTIFACT=build/rms-linux.tar.gz" >> "$GITHUB_ENV"
+              ;;
+            windows|macos)
+              echo "::error::$PLATFORM cannot be built on a Linux runner."
+              echo "Run this workflow on a native runner, or add a per-OS job."
+              exit 1
+              ;;
+          esac
+
+      # Artifacts are hosted on GitHub Releases rather than Cloud Storage, which
+      # would need a Blaze billing account. The release is created here and the
+      # manifest is written from its download URL.
       - name: Publish artifact to a GitHub Release
         id: asset
         env:
@@ -145,33 +172,6 @@ jobs:
         run: |
           echo "sha=$(sha256sum "$ARTIFACT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           echo "size=$(stat -c%s "$ARTIFACT")" >> "$GITHUB_OUTPUT"
-
-      - name: Build artifact
-        env:
-          PLATFORM: ${{ inputs.platform }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          case "$PLATFORM" in
-            android)
-              flutter build apk --release \
-                --build-name="$VERSION" \
-                --build-number="${GITHUB_RUN_NUMBER}"
-              echo "ARTIFACT=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_ENV"
-              ;;
-            linux)
-              sudo apt-get update
-              sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
-              flutter build linux --release --build-name="$VERSION"
-              tar -czf build/rms-linux.tar.gz -C build/linux/x64/release/bundle .
-              echo "ARTIFACT=build/rms-linux.tar.gz" >> "$GITHUB_ENV"
-              ;;
-            windows|macos)
-              echo "::error::$PLATFORM cannot be built on a Linux runner."
-              echo "Run this workflow on a native runner, or add a per-OS job."
-              exit 1
-              ;;
-          esac
 
       - name: Publish artifact and manifest
         env:
