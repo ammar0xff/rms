@@ -292,12 +292,11 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                 deltaTone: DeltaTone.positive,
               ),
             ]),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            ResponsiveRow(
+              gap: AppSpacing.lg,
               children: [
-                Expanded(flex: 2, child: _deliveryTable()),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(child: _driversPanel()),
+                _deliveryTable(),
+                _driversPanel(),
               ],
             ),
             _settlementQueue(canFinalize),
@@ -565,7 +564,7 @@ class _DriverRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(driver.name, style: AppText.tableCellPrimary),
-              Text('$active نشطة', style: AppText.caption.copyWith(fontSize: 10)),
+              Text('$active نشطة', style: AppText.caption),
             ],
           ),
         ),
@@ -575,7 +574,7 @@ class _DriverRow extends StatelessWidget {
             Text(money(collected),
                 style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
             Text(active > 0 ? 'في التوصيل' : 'متاح',
-                style: AppText.caption.copyWith(fontSize: 10)),
+                style: AppText.caption),
           ],
         ),
       ],

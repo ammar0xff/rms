@@ -50,8 +50,10 @@ class RmsButton extends StatelessWidget {
               ? Colors.transparent
               : AppColors.hover,
           child: Container(
-            height: dense ? 28 : 36,
-            padding: EdgeInsets.symmetric(horizontal: dense ? 10 : 14),
+            // 40/48px: the minimum comfortable touch targets. dense is for
+            // toolbars and table rows; anything a thumb aims at uses normal.
+            height: dense ? 40 : 48,
+            padding: EdgeInsets.symmetric(horizontal: dense ? 12 : 14),
             decoration: BoxDecoration(
               border: border == Colors.transparent
                   ? null
@@ -62,15 +64,18 @@ class RmsButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 13, color: fg),
+                  Icon(icon, size: 16, color: fg),
                   const SizedBox(width: 6),
                 ],
-                Text(
-                  label,
-                  style: AppText.caption.copyWith(
-                    color: fg,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: fg,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -99,14 +104,14 @@ class IconBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         hoverColor: AppColors.hover,
         child: Container(
-          width: 28,
-          height: 28,
+          width: 44,
+          height: 44,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             border: Border.all(color: AppColors.control),
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           ),
-          child: Icon(icon, size: 14, color: AppColors.fgMuted),
+          child: Icon(icon, size: 18, color: AppColors.fgMuted),
         ),
       ),
     );

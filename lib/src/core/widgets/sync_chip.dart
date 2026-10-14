@@ -88,7 +88,7 @@ class SyncStatRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: AppText.label.copyWith(fontSize: 9.5)),
+        Text(label, style: AppText.label),
         const SizedBox(width: 5),
         Text(value, style: AppText.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
       ],

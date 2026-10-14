@@ -136,27 +136,53 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 _conflictCount > 0 ? DeltaTone.negative : DeltaTone.positive,
           ),
         ]),
-        Row(
-          children: [
-            const Expanded(
-              child: SectionHeader(
-                title: 'مستويات المخزون',
-                subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
-              ),
-            ),
-            RmsButton(
-              label: 'جرد',
-              icon: Icons.fact_check_outlined,
-              variant: BtnVariant.secondary,
-              onPressed: _items.isEmpty ? null : _countStock,
-            ),
-            const SizedBox(width: 8),
-            RmsButton(
-              label: 'تسجيل حركة',
-              icon: Icons.add,
-              onPressed: _items.isEmpty ? null : _recordMovement,
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, c) {
+            final actions = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RmsButton(
+                  label: 'جرد',
+                  icon: Icons.fact_check_outlined,
+                  variant: BtnVariant.secondary,
+                  onPressed: _items.isEmpty ? null : _countStock,
+                ),
+                const SizedBox(width: 8),
+                RmsButton(
+                  label: 'تسجيل حركة',
+                  icon: Icons.add,
+                  onPressed: _items.isEmpty ? null : _recordMovement,
+                ),
+              ],
+            );
+            if (c.maxWidth >= 600) {
+              return Row(
+                children: [
+                  const Expanded(
+                    child: SectionHeader(
+                      title: 'مستويات المخزون',
+                      subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
+                    ),
+                  ),
+                  actions,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionHeader(
+                  title: 'مستويات المخزون',
+                  subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: actions,
+                ),
+              ],
+            );
+          },
         ),
         if (_items.isEmpty)
           const SurfaceCard(
@@ -326,7 +352,7 @@ class _MovementDialogState extends State<_MovementDialog> {
       backgroundColor: AppColors.surface,
       title: const Text('تسجيل حركة مخزون'),
       content: SizedBox(
-        width: 380,
+        width: double.maxFinite,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -447,7 +473,7 @@ class _CountDialogState extends State<_CountDialog> {
       backgroundColor: AppColors.surface,
       title: const Text('جرد المخزون'),
       content: SizedBox(
-        width: 380,
+        width: double.maxFinite,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

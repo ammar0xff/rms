@@ -122,20 +122,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ('غير متزامنة', '${metrics.unsyncedOrders}'),
                 ],
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        ResponsiveRow(
+          gap: AppSpacing.lg,
           children: [
-            Expanded(flex: 2, child: _RecentOrders(orders: useMock ? null : _orders)),
-            const SizedBox(width: AppSpacing.lg),
-            const Expanded(child: _AlertsPanel()),
+            _RecentOrders(orders: useMock ? null : _orders),
+            const _AlertsPanel(),
           ],
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        ResponsiveRow(
+          gap: AppSpacing.lg,
           children: [
-            const Expanded(flex: 2, child: _SyncHealthCard()),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _BranchCard(snapshot: _snapshot)),
+            const _SyncHealthCard(),
+            _BranchCard(snapshot: _snapshot),
           ],
         ),
       ],
@@ -216,7 +214,7 @@ class _SalesCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         for (final v in ticks)
-                          Text(_fmtTick(v), style: AppText.caption.copyWith(fontSize: 9)),
+                          Text(_fmtTick(v), style: AppText.caption),
                       ],
                     ),
                   ),
@@ -233,11 +231,17 @@ class _SalesCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 62, right: 20, top: 4),
+            // Mirrored for RTL: the y-axis gutter is the Row's first child,
+            // which lays out on the right. Every third label only — twelve
+            // Arabic hour names in ~230px collide.
+            padding: const EdgeInsets.only(right: 62, left: 20, top: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                for (final d in _hours) Text(d, style: AppText.caption.copyWith(fontSize: 9)),
+                for (var i = 0; i < _hours.length; i++)
+                  i % 3 == 0
+                      ? Text(_hours[i], style: AppText.caption)
+                      : const SizedBox(width: 8),
               ],
             ),
           ),
@@ -271,17 +275,19 @@ class _FooterStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Stacked: label over value. Side-by-side in a ~90px lane truncated both.
     return Expanded(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: AppText.caption)),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              value,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(color: AppColors.fgSecondary, fontWeight: FontWeight.w500),
-            ),
+          Text(label, overflow: TextOverflow.ellipsis, style: AppText.caption),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(
+                color: AppColors.fgSecondary, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -292,8 +298,12 @@ class _FooterStat extends StatelessWidget {
 class _VDivider extends StatelessWidget {
   const _VDivider();
   @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 12, color: AppColors.borderStrong);
+  Widget build(BuildContext context) => Container(
+        width: 1,
+        height: 24,
+        color: AppColors.borderStrong,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+      );
 }
 
 class _RecentOrders extends StatelessWidget {

@@ -88,6 +88,8 @@ class _KitchenScreenState extends State<KitchenScreen> {
     return PageBody(
       scrollable: false,
       children: [
+        // The filter scrolls inside a bounded lane; the recall button keeps
+        // its own space so a long station list cannot push it off-screen.
         Row(
           children: [
             const Expanded(
@@ -96,26 +98,45 @@ class _KitchenScreenState extends State<KitchenScreen> {
                 subtitle: 'التذاكر تنجو من إعادة التشغيل · الطباعة مستقلة عن المزامنة',
               ),
             ),
-            SizedBox(height: 30, child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s))),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160),
+              child: SizedBox(
+                height: 44,
+                child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s)),
+              ),
+            ),
+            const SizedBox(width: 8),
             RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: _load),
           ],
         ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _load,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final state in [TicketState.queued, TicketState.preparing, TicketState.ready])
-                  Expanded(
-                    child: _KdsColumn(
-                      state: state,
-                      tickets: columns[state]!,
-                      onTransition: _transition,
-                    ),
-                  ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final lanes = Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final state in [TicketState.queued, TicketState.preparing, TicketState.ready])
+                      SizedBox(
+                        // A lane narrower than this cannot show a ticket card;
+                        // scroll sideways rather than crush all three.
+                        width: c.maxWidth < 700 ? 280 : (c.maxWidth - 24) / 3,
+                        child: _KdsColumn(
+                          state: state,
+                          tickets: columns[state]!,
+                          onTransition: _transition,
+                        ),
+                      ),
+                  ],
+                );
+                if (c.maxWidth >= 700) return lanes;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: lanes,
+                );
+              },
             ),
           ),
         ),
@@ -142,7 +163,7 @@ class _StationFilter extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onSelect(s),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: s == selected ? AppColors.brandSoft : Colors.transparent,
                   border: Border.all(color: s == selected ? AppColors.brandLine : AppColors.borderStrong),
@@ -151,7 +172,7 @@ class _StationFilter extends StatelessWidget {
                 child: Center(
                   child: Text(s,
                       style: AppText.caption.copyWith(
-                        fontSize: 11,
+                        fontSize: 13,
                         color: s == selected ? AppColors.brand : AppColors.fgMuted,
                       )),
                 ),

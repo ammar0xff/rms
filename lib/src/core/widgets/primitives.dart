@@ -143,30 +143,36 @@ class Segmented extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
       padding: const EdgeInsets.all(2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < options.length; i++)
-            GestureDetector(
-              onTap: () => onChanged(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: i == index ? Colors.black.withValues(alpha: 0.05) : null,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  options[i],
-                  style: AppText.caption.copyWith(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: i == index ? AppColors.fgBright : AppColors.fgMuted,
+      // Options are Arabic words of unpredictable width; scroll rather than
+      // overflow when they exceed the available space.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < options.length; i++)
+              GestureDetector(
+                onTap: () => onChanged(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: i == index ? Colors.black.withValues(alpha: 0.05) : null,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    options[i],
+                    style: AppText.caption.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: i == index ? AppColors.fgBright : AppColors.fgMuted,
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

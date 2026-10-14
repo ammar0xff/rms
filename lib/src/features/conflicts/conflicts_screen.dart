@@ -185,7 +185,7 @@ class _ConflictTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(entry.entityId, style: AppText.mono.copyWith(fontSize: 10.5)),
+                    Text(entry.entityId, style: AppText.mono),
                     const SizedBox(width: 8),
                     Tag(label: _severity, tone: _tone),
                   ],
@@ -195,7 +195,7 @@ class _ConflictTile extends StatelessWidget {
                     style: AppText.tableCellPrimary),
                 Text(
                   '${entry.lastError ?? 'بانتظار المراجعة'} · ${entry.attemptCount} محاولات',
-                  style: AppText.caption.copyWith(fontSize: 10),
+                  style: AppText.caption,
                 ),
               ],
             ),
@@ -238,8 +238,8 @@ class _StrategyCard extends StatelessWidget {
             rows: [
               for (final (entity, strategy) in _strategies)
                 [
-                  Text(entity, style: AppText.tableCellPrimary.copyWith(fontSize: 11)),
-                  Text(strategy, style: AppText.tableCell.copyWith(fontSize: 11)),
+                  Text(entity, style: AppText.tableCellPrimary),
+                  Text(strategy, style: AppText.tableCell),
                 ],
             ],
           ),

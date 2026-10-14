@@ -74,30 +74,28 @@ class SyncCenterScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         _PrintQueueSection(),
-        const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const ResponsiveRow(
+          gap: AppSpacing.lg,
           children: [
-            Expanded(flex: 2, child: _OutboxTable()),
-            SizedBox(width: AppSpacing.lg),
-            Expanded(child: _SequenceCard()),
+            _OutboxTable(),
+            _SequenceCard(),
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
         _PrintQueueSection(),
-        const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const ResponsiveRow(
+          gap: AppSpacing.lg,
           children: [
-            Expanded(child: _PolicyCard(
+            _PolicyCard(
               title: 'التكرار الآمن',
               icon: Icons.fingerprint,
               body: 'يحمل كل أمر مفتاح تكرار آمن ثابت. يحتفظ الخادم بإيصالات العمليات ويعيد النتيجة القائمة للطلبات المكررة — يطبَّق على الطلبات والمدفوعات والاستردادات والتذاكر والإسنادات والتحصيلات والمخزون.',
-            )),
-            SizedBox(width: AppSpacing.lg),
-            Expanded(child: _PolicyCard(
+            ),
+            _PolicyCard(
               title: 'سياسة إعادة المحاولة',
               icon: Icons.replay,
               body: 'الفشل العابر يُعاد بمهلة تصاعدية مع تشتيت. الأخطاء الدائمة لا تُعاد إلى ما لا نهاية، وتبقى العمليات المحظورة مرئية مع أسباب قابلة للتنفيذ بدلاً من إهمالها.',
-            )),
+            ),
           ],
         ),
       ],
@@ -134,7 +132,7 @@ class _OutboxTable extends StatelessWidget {
             rows: [
               for (final op in MockData.syncOperations)
                 [
-                  Text(op.operationId, style: AppText.mono.copyWith(fontSize: 10.5)),
+                  Text(op.operationId, style: AppText.mono),
                   Text(op.entity, style: AppText.tableCell),
                   Text(op.type, style: AppText.tableCell),
                   Text('${op.attempts}', style: AppText.tableCell),
@@ -143,7 +141,7 @@ class _OutboxTable extends StatelessWidget {
                     children: [
                       StatusText(label: _opStatus(op.status).$1, tone: _opStatus(op.status).$2),
                       if (op.lastError != null)
-                        Text(op.lastError!, style: AppText.caption.copyWith(fontSize: 9.5, color: AppColors.fgGhost)),
+                        Text(op.lastError!, style: AppText.caption.copyWith(color: AppColors.fgGhost)),
                     ],
                   ),
                 ],
@@ -191,7 +189,7 @@ class _SequenceCard extends StatelessWidget {
                       border: Border.all(color: AppColors.borderStrong),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('${i + 1}', style: AppText.caption.copyWith(fontSize: 9)),
+                    child: Text('${i + 1}', style: AppText.caption),
                   ),
                   const SizedBox(width: 10),
                   Expanded(child: Text(_steps[i], style: AppText.tableCell.copyWith(color: AppColors.fgSecondary))),

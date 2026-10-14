@@ -31,7 +31,15 @@ class RmsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    // The minimum width the columns need to stay readable: fixed columns keep
+    // their width, each flex unit gets ~92px (enough for an Arabic label or a
+    // Tag). On a wide screen the table fills the viewport exactly as before;
+    // on a phone it scrolls horizontally instead of crushing every column.
+    var minWidth = 32.0;
+    for (final c in columns) {
+      minWidth += c.width ?? c.flex * 92.0;
+    }
+    final table = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
@@ -62,6 +70,18 @@ class RmsTable extends StatelessWidget {
             onTap: onRowTap == null ? null : () => onRowTap!(i),
           ),
       ],
+    );
+    return LayoutBuilder(
+      builder: (context, c) {
+        final width = minWidth < c.maxWidth ? c.maxWidth : minWidth;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: width),
+            child: table,
+          ),
+        );
+      },
     );
   }
 
@@ -128,7 +148,7 @@ class _BodyRowState extends State<_BodyRow> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 90),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: _hover ? Colors.white.withValues(alpha: 0.012) : null,
             border: widget.last

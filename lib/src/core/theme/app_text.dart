@@ -46,14 +46,14 @@ abstract final class AppText {
   );
 
   static const sectionHeading = TextStyle(
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: FontWeight.w500,
     color: AppColors.fgSecondary,
     fontFeatures: _num,
   );
 
   static const body = TextStyle(
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: FontWeight.w400,
     height: 1.45,
     color: AppColors.fgSecondary,
@@ -61,43 +61,43 @@ abstract final class AppText {
   );
 
   static const bodyStrong = TextStyle(
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: FontWeight.w500,
     color: AppColors.fgBright,
     fontFeatures: _num,
   );
 
   static const tableCell = TextStyle(
-    fontSize: 11.5,
+    fontSize: 13,
     color: AppColors.fgMuted,
     fontFeatures: _num,
   );
 
   static const tableCellPrimary = TextStyle(
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: FontWeight.w500,
     color: AppColors.fgBright,
     fontFeatures: _num,
   );
 
   static const tableHeader = TextStyle(
-    fontSize: 9.5,
+    fontSize: 11,
     fontWeight: FontWeight.w500,
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
     color: AppColors.fgDim,
     fontFeatures: _num,
   );
 
   static const label = TextStyle(
-    fontSize: 10,
+    fontSize: 11.5,
     fontWeight: FontWeight.w500,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
     color: AppColors.fgMuted,
     fontFeatures: _num,
   );
 
   static const caption = TextStyle(
-    fontSize: 10.5,
+    fontSize: 12,
     color: AppColors.fgDim,
     fontFeatures: _num,
   );
@@ -111,14 +111,14 @@ abstract final class AppText {
   );
 
   static const navItem = TextStyle(
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: FontWeight.w500,
     fontFeatures: _num,
   );
 
   static const mono = TextStyle(
     fontFamily: 'monospace',
-    fontSize: 11,
+    fontSize: 12,
     color: AppColors.fgMuted,
   );
 }

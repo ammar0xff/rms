@@ -300,14 +300,37 @@ class _PosScreenState extends State<PosScreen> {
         );
 
         if (narrow) {
-          return Column(
-            children: [
-              Expanded(child: menu),
-              SizedBox(
-                height: MediaQuery.sizeOf(context).height * 0.42,
-                child: cart,
-              ),
-            ],
+          // Phones get tabs, not two stacked panes: squeezing the cart into a
+          // fixed 42% slot overflowed its footer on every real screen height.
+          // Full-height cart tab means the totals and buttons are always
+          // reachable, and the badge shows the line count at a glance.
+          return DefaultTabController(
+            length: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  color: AppColors.surface,
+                  child: TabBar(
+                    labelStyle: AppText.bodyStrong,
+                    unselectedLabelStyle: AppText.body,
+                    tabs: [
+                      const Tab(text: 'القائمة'),
+                      Tab(
+                        text: _cart.isEmpty
+                            ? 'السلة'
+                            : 'السلة (${_cart.length})',
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [menu, cart],
+                  ),
+                ),
+              ],
+            ),
           );
         }
         return Row(
@@ -359,12 +382,15 @@ class _MenuPane extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, size: 14, color: AppColors.fgGhost),
+                      const Icon(Icons.search,
+                          size: 16, color: AppColors.fgGhost),
                       const SizedBox(width: 8),
-                      Text('ابحث في القائمة أو امسح الباركود',
-                          style: AppText.caption.copyWith(color: AppColors.fgDim)),
-                      const Spacer(),
-                      Text('F2', style: AppText.caption.copyWith(fontSize: 9)),
+                      Expanded(
+                        child: Text('ابحث في القائمة أو امسح الباركود',
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption
+                                .copyWith(color: AppColors.fgDim)),
+                      ),
                     ],
                   ),
                 ),
@@ -373,10 +399,10 @@ class _MenuPane extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 30,
+          height: 48,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
               for (final c in categories)
                 Padding(
@@ -395,7 +421,7 @@ class _MenuPane extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 200,
-              mainAxisExtent: 92,
+              mainAxisExtent: 100,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
@@ -423,7 +449,7 @@ class _CategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: active ? AppColors.brandSoft : Colors.transparent,
           border: Border.all(
@@ -434,7 +460,7 @@ class _CategoryChip extends StatelessWidget {
         child: Text(
           label,
           style: AppText.caption.copyWith(
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.w500,
             color: active ? AppColors.brand : AppColors.fgMuted,
           ),
@@ -483,7 +509,7 @@ class _ProductTileState extends State<_ProductTile> {
                   item.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.bodyStrong.copyWith(fontSize: 12),
+                  style: AppText.bodyStrong,
                 ),
                 const Spacer(),
                 Row(
@@ -494,7 +520,11 @@ class _ProductTileState extends State<_ProductTile> {
                           color: AppColors.brand,
                         )),
                     const Spacer(),
-                    Text(item.station, style: AppText.caption.copyWith(fontSize: 9)),
+                    Flexible(
+                      child: Text(item.station,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption),
+                    ),
                   ],
                 ),
               ],
@@ -613,7 +643,7 @@ class _CartPane extends StatelessWidget {
                     SizedBox(width: 6),
                     Expanded(
                       child: Text('يُحفظ محليًا أولاً ثم تتم المزامنة عند الاتصال',
-                          style: TextStyle(fontSize: 10, color: AppColors.fgDim)),
+                          style: AppText.caption.copyWith(color: AppColors.fgDim)),
                     ),
                   ],
                 ),
@@ -675,16 +705,20 @@ class _CartRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(line.item.name, style: AppText.tableCellPrimary),
+                Text(line.item.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.tableCellPrimary),
                 const SizedBox(height: 2),
                 Text('${money(line.item.price)} · ${line.item.station}',
-                    style: AppText.caption.copyWith(fontSize: 10)),
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption),
               ],
             ),
           ),
           _QtyButton(icon: Icons.remove, onTap: onDec),
           SizedBox(
-            width: 28,
+            width: 32,
             child: Text(
               '${line.quantity}',
               textAlign: TextAlign.center,
@@ -696,9 +730,10 @@ class _CartRow extends StatelessWidget {
           _QtyButton(icon: Icons.add, onTap: onAdd),
           const SizedBox(width: 10),
           SizedBox(
-            width: 58,
+            width: 76,
             child: Text(money(line.total),
                 textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
                 style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -717,14 +752,14 @@ class _QtyButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 22,
-        height: 22,
+        width: 36,
+        height: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.borderStrong),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Icon(icon, size: 13, color: AppColors.fgSecondary),
+        child: Icon(icon, size: 16, color: AppColors.fgSecondary),
       ),
     );
   }
@@ -813,11 +848,14 @@ class _PaymentDialogState extends State<_PaymentDialog> {
       backgroundColor: AppColors.surface,
       title: Text('تحصيل ${money(widget.total)}'),
       content: SizedBox(
-        width: 360,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        // Fill the dialog's available width instead of demanding 360px the
+        // phone does not have.
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             Segmented(
               options: _methods,
               index: PaymentMethod.values.indexOf(_method),
@@ -864,7 +902,8 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                 'سيتم تسجيل الدفعة على جهاز نقاط البيع.',
                 style: AppText.caption,
               ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

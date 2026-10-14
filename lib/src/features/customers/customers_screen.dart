@@ -50,7 +50,7 @@ class CustomersScreen extends StatelessWidget {
                         height: 22,
                         decoration: const BoxDecoration(color: AppColors.hover, shape: BoxShape.circle),
                         alignment: Alignment.center,
-                        child: Text(c.name.substring(0, 1), style: AppText.caption.copyWith(fontSize: 10)),
+                        child: Text(c.name.substring(0, 1), style: AppText.caption),
                       ),
                       const SizedBox(width: 8),
                       Flexible(child: Text(c.name, style: AppText.tableCellPrimary, overflow: TextOverflow.ellipsis)),

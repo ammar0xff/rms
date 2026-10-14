@@ -222,7 +222,7 @@ class _Sidebar extends StatelessWidget {
                         Text('RMS',
                             style: AppText.bodyStrong.copyWith(height: 1.1)),
                         Text('فرع بوابة الشمال',
-                            style: AppText.caption.copyWith(fontSize: 9.5)),
+                            style: AppText.caption),
                       ],
                     ),
                   ),
@@ -348,8 +348,8 @@ class _UserRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('أمّار', style: AppText.bodyStrong.copyWith(fontSize: 11.5)),
-                Text('مدير', style: AppText.caption.copyWith(fontSize: 9.5)),
+                Text('أمّار', style: AppText.bodyStrong),
+                Text('مدير', style: AppText.caption),
               ],
             ),
           ),
@@ -391,10 +391,10 @@ class _TopBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Text('الفرع', style: AppText.caption.copyWith(fontSize: 10)),
+                  Text('الفرع', style: AppText.caption),
                   const SizedBox(width: 4),
                   Text('بوابة الشمال',
-                      style: AppText.tableCellPrimary.copyWith(fontSize: 10.5)),
+                      style: AppText.tableCellPrimary),
                   const SizedBox(width: 4),
                   const Icon(Icons.unfold_more, size: 12, color: AppColors.fgGhost),
                 ],

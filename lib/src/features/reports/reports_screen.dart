@@ -124,20 +124,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _hero(snapshot),
           _kpiGrid(snapshot),
           _trendCard(snapshot.sales),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          ResponsiveRow(
+            gap: AppSpacing.lg,
             children: [
-              Expanded(child: _inventoryCard(snapshot.inventory)),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(child: _paymentMixCard(snapshot.payments)),
+              _inventoryCard(snapshot.inventory),
+              _paymentMixCard(snapshot.payments),
             ],
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          ResponsiveRow(
+            gap: AppSpacing.lg,
             children: [
-              Expanded(child: _purchasingCard(snapshot.purchasing)),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(child: _cashCard(snapshot.cash)),
+              _purchasingCard(snapshot.purchasing),
+              _cashCard(snapshot.cash),
             ],
           ),
           _auditCard(snapshot.recentAudit),
@@ -259,7 +257,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         for (final fraction in const [1.0, 0.75, 0.5, 0.25, 0.0])
                           Text(
                             _compact(top * fraction),
-                            style: AppText.caption.copyWith(fontSize: 9),
+                            style: AppText.caption,
                           ),
                       ],
                     ),
@@ -277,15 +275,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 68, right: 20, top: 6),
+            // Mirrored for RTL, and only alternate days are labelled: seven
+            // full Arabic day names in ~270px collide.
+            padding: const EdgeInsets.only(right: 68, left: 20, top: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                for (final day in days)
-                  Text(
-                    _weekday(day.day),
-                    style: AppText.caption.copyWith(fontSize: 9),
-                  ),
+                for (var i = 0; i < days.length; i++)
+                  i.isEven
+                      ? Flexible(
+                          child: Text(
+                            _weekday(days[i].day),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: AppText.caption,
+                          ),
+                        )
+                      : const Spacer(),
               ],
             ),
           ),
@@ -576,19 +582,20 @@ class _FooterStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Stacked like the dashboard footer: label over value survives ~90px lanes.
     return Expanded(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: AppText.caption),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              value,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.caption.copyWith(
-                color: AppColors.fgSecondary,
-                fontWeight: FontWeight.w500,
-              ),
+          Text(label, overflow: TextOverflow.ellipsis, style: AppText.caption),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(
+              color: AppColors.fgSecondary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -600,8 +607,12 @@ class _FooterStat extends StatelessWidget {
 class _VDivider extends StatelessWidget {
   const _VDivider();
   @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 12, color: AppColors.borderStrong);
+  Widget build(BuildContext context) => Container(
+        width: 1,
+        height: 24,
+        color: AppColors.borderStrong,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+      );
 }
 
 class _MixRow extends StatelessWidget {

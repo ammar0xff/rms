@@ -109,28 +109,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: 'الإعدادات والنظام',
           subtitle: 'إظهار الإصدار والترحيلات والمؤشرات وسياسة العمل دون اتصال',
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        ResponsiveRow(
+          gap: AppSpacing.lg,
           children: [
-            Expanded(child: _VersionCard(migration: services.migration)),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: _UpdateCard(
-                decision: _decision,
-                readiness: _readiness,
-                lastStatus: _lastStatus,
-                trail: _auditTrail,
-                onAcknowledge: _acknowledgeStuckWork,
-              ),
+            _VersionCard(migration: services.migration),
+            _UpdateCard(
+              decision: _decision,
+              readiness: _readiness,
+              lastStatus: _lastStatus,
+              trail: _auditTrail,
+              onAcknowledge: _acknowledgeStuckWork,
             ),
           ],
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        ResponsiveRow(
+          gap: AppSpacing.lg,
           children: [
-            Expanded(child: _MigrationCard(outcome: services.migration)),
-            const SizedBox(width: AppSpacing.lg),
-            const Expanded(child: _OfflinePolicyCard()),
+            _MigrationCard(outcome: services.migration),
+            const _OfflinePolicyCard(),
           ],
         ),
         _FlagsCard(manifest: _manifest),
@@ -265,7 +261,7 @@ class _UpdateCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         body,
-                        style: AppText.caption.copyWith(fontSize: 10.5),
+                        style: AppText.caption,
                       ),
                     ],
                   ),
@@ -468,7 +464,7 @@ class _OfflinePolicyCard extends StatelessWidget {
             ),
             child: Text(
               'لا يمكن للجهاز المنفصل معرفة وجود تحديث إلزامي. تُخزَّن سياسة آخر إصدار صالح، ويتتبع التطبيق عمرها، ولا تُهمل السجلات غير المتزامنة أبدًا.',
-              style: AppText.caption.copyWith(fontSize: 10.5, height: 1.5),
+              style: AppText.caption.copyWith(height: 1.5),
             ),
           ),
         ],
@@ -540,7 +536,7 @@ class _FlagRow extends StatelessWidget {
               children: [
                 Text(name, style: AppText.tableCellPrimary),
                 if (scope.isNotEmpty)
-                  Text(scope, style: AppText.caption.copyWith(fontSize: 10)),
+                  Text(scope, style: AppText.caption),
               ],
             ),
           ),

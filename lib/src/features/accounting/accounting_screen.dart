@@ -385,7 +385,7 @@ class _ApprovalRequestRow extends StatelessWidget {
                   style: AppText.tableCellPrimary),
               Text(
                 request.reason,
-                style: AppText.caption.copyWith(fontSize: 10),
+                style: AppText.caption,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -441,7 +441,7 @@ class _ApprovalRow extends StatelessWidget {
                   style: AppText.tableCellPrimary),
               Text(
                 entry.lastError ?? entry.operationType,
-                style: AppText.caption.copyWith(fontSize: 10),
+                style: AppText.caption,
                 overflow: TextOverflow.ellipsis,
               ),
             ],

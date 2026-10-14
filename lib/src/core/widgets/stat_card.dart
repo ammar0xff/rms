@@ -42,7 +42,15 @@ class HeroKpi extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(value, style: AppText.hero),
+                    // 44px hero figures overflow narrow cards; scale down
+                    // rather than clip.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(value, style: AppText.hero),
+                      ),
+                    ),
                     if (unit != null) ...[
                       const SizedBox(width: 6),
                       Text(unit!,
@@ -58,18 +66,27 @@ class HeroKpi extends StatelessWidget {
                   Row(
                     children: [
                       if (delta != null)
-                        Text(
-                          delta!,
-                          style: AppText.caption.copyWith(
-                            color: deltaTone.color,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            delta!,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                              color: deltaTone.color,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       if (delta != null && subtext != null)
                         const SizedBox(width: 8),
                       if (subtext != null)
-                        Text(subtext!, style: AppText.caption),
+                        Expanded(
+                          child: Text(
+                            subtext!,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption,
+                          ),
+                        ),
                     ],
                   ),
                 ],
@@ -124,9 +141,12 @@ class StatCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: AppText.label.copyWith(color: AppColors.fgMuted)),
+                Text(label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.label.copyWith(color: AppColors.fgMuted)),
                 const SizedBox(height: 6),
                 Text(value,
+                    overflow: TextOverflow.ellipsis,
                     style: AppText.kpiValue.copyWith(
                       color: tone ?? AppColors.fgBright,
                     )),
@@ -134,12 +154,15 @@ class StatCard extends StatelessWidget {
             ),
           ),
           if (delta != null)
-            Text(
-              delta!,
-              style: AppText.caption.copyWith(
-                color: deltaTone.color,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                delta!,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption.copyWith(
+                  color: deltaTone.color,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
         ],

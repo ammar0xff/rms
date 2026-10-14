@@ -112,23 +112,51 @@ class _MenuScreenState extends State<MenuScreen> {
 
     return PageBody(
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: SectionHeader(
-                title: 'القائمة والأسعار',
-                subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
-              ),
-            ),
-            const Tag(label: 'الإعدادات v24', tone: StatusTone.neutral),
-            const SizedBox(width: 8),
-            const StatusText(label: 'آخر مزامنة', tone: StatusTone.positive),
-            const SizedBox(width: 12),
-            RmsButton(label: 'صنف جديد', icon: Icons.add, onPressed: _createItem),
-          ],
+        LayoutBuilder(
+          builder: (context, c) {
+            final actions = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Tag(label: 'الإعدادات v24', tone: StatusTone.neutral),
+                const SizedBox(width: 8),
+                const StatusText(label: 'آخر مزامنة', tone: StatusTone.positive),
+                const SizedBox(width: 12),
+                RmsButton(label: 'صنف جديد', icon: Icons.add, onPressed: _createItem),
+              ],
+            );
+            if (c.maxWidth >= 600) {
+              return Row(
+                children: [
+                  const Expanded(
+                    child: SectionHeader(
+                      title: 'القائمة والأسعار',
+                      subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
+                    ),
+                  ),
+                  actions,
+                ],
+              );
+            }
+            // Phones: title on its own line, actions scroll sideways rather
+            // than crushing the title to ~30px.
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionHeader(
+                  title: 'القائمة والأسعار',
+                  subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: actions,
+                ),
+              ],
+            );
+          },
         ),
         SizedBox(
-          height: 30,
+          height: 48,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
@@ -138,7 +166,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   child: GestureDetector(
                     onTap: () => setState(() => _category = c),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: c == _category ? AppColors.brandSoft : Colors.transparent,
                         border: Border.all(
@@ -178,8 +206,9 @@ class _MenuScreenState extends State<MenuScreen> {
                   Text(m.station, style: AppText.tableCell),
                   GestureDetector(
                     onTap: () => _toggleAvailability(m),
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       child: StatusText(
                         label: m.available ? 'متاح' : 'نفد المخزون',
                         tone: m.available ? StatusTone.positive : StatusTone.negative,
@@ -266,11 +295,13 @@ class _MenuItemDialogState extends State<_MenuItemDialog> {
       backgroundColor: AppColors.surface,
       title: const Text('صنف جديد'),
       content: SizedBox(
-        width: 360,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        width: double.maxFinite,
+        // Scrolls when the keyboard takes half the screen.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             _Field(controller: _name, label: 'اسم الصنف', autofocus: true),
             const SizedBox(height: 10),
             _Field(controller: _category, label: 'الفئة'),
@@ -292,7 +323,8 @@ class _MenuItemDialogState extends State<_MenuItemDialog> {
               const SizedBox(height: 8),
               Text(_error!, style: AppText.caption.copyWith(color: AppColors.negative)),
             ],
-          ],
+            ],
+          ),
         ),
       ),
       actions: [

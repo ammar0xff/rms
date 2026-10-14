@@ -201,7 +201,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
                           style: AppText.tableCellPrimary),
                       Text(
                         '${breakdown.branch.code} · ${breakdown.branch.city}',
-                        style: AppText.caption.copyWith(fontSize: 10),
+                        style: AppText.caption,
                       ),
                     ],
                   ),
