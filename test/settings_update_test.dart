@@ -33,13 +33,15 @@ class _FakeUpdates implements UpdateRepository {
 
 UpdateManifest _manifest({
   UpdatePlatform? platform,
-  String version = '0.9.0',
+  // Far-future for the same reason as update_controller_test: this must stay
+  // newer than AppVersion.number across version bumps.
+  String version = '99.0.0',
   UpdateSeverity severity = UpdateSeverity.recommended,
 }) =>
     UpdateManifest(
       releaseId: 'rel-1',
       version: version,
-      buildNumber: 2,
+      buildNumber: 999,
       platform: platform ?? currentUpdatePlatform(),
       channel: currentUpdateChannel(),
       status: ReleaseStatus.active,
@@ -86,7 +88,7 @@ void main() {
     expect(find.text('التحديثات'), findsOneWidget);
     expect(find.text('مُوصى به'), findsOneWidget);
     expect(find.text('الإصدار المعلن'), findsOneWidget);
-    expect(find.text('0.9.0'), findsOneWidget);
+    expect(find.text('99.0.0'), findsOneWidget);
     expect(find.textContaining('تحديث مُوصى به'), findsOneWidget);
   });
 

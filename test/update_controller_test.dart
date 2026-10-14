@@ -25,9 +25,12 @@ const _sha =
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 UpdateManifest _manifest(UpdateSeverity severity) => UpdateManifest(
-      releaseId: 'android-0.9.0-1',
-      version: '0.9.0',
-      buildNumber: 1,
+      // Deliberately far-future: the decision engine compares this against
+      // AppVersion.number, so a fixture pinned to a real version breaks every
+      // time the app version is bumped. 99.0.0 is always newer.
+      releaseId: 'android-99.0.0-1',
+      version: '99.0.0',
+      buildNumber: 999,
       platform: UpdatePlatform.android,
       channel: UpdateChannel.production,
       status: ReleaseStatus.active,
@@ -36,7 +39,7 @@ UpdateManifest _manifest(UpdateSeverity severity) => UpdateManifest(
       publishedAt: DateTime(2026, 10, 14),
       artifact: const ReleaseArtifact(
         reference:
-            'https://github.com/ammar0xff/rms/releases/download/v0.9.0/app.apk',
+            'https://github.com/ammar0xff/rms/releases/download/v99.0.0/app.apk',
         sizeBytes: 1024,
         sha256: _sha,
       ),
@@ -186,7 +189,7 @@ void main() {
     expect(controller.state.mode, UpdatePromptMode.dismissible);
     expect(controller.state.mode.isEnforced, isFalse);
     expect(controller.state.canApply, isTrue);
-    expect(controller.state.release?.version, '0.9.0');
+    expect(controller.state.release?.version, '99.0.0');
   });
 
   test('a mandatory release surfaces a blocking prompt', () async {
