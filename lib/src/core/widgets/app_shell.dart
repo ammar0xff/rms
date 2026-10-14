@@ -17,6 +17,8 @@ import '../../features/purchasing/purchasing_screen.dart';
 import '../../features/reports/reports_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/sync/sync_center_screen.dart';
+import '../../features/updates/update_controller.dart';
+import '../../features/updates/update_prompt.dart';
 import 'buttons.dart';
 import 'sync_chip.dart';
 
@@ -88,9 +90,29 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   String _selected = 'dashboard';
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  UpdateController? _updates;
+  bool _dismissedOptional = false;
 
   NavEntry get _current =>
       _flatEntries.firstWhere((e) => e.id == _selected, orElse: () => _flatEntries.first);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_updates != null) return;
+    final runtime = AppScope.of(context).updateRuntime;
+    if (runtime == null) return;
+    final controller = UpdateController(runtime: runtime);
+    _updates = controller;
+    // A check after the first frame, so startup is never blocked on the network.
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.refresh());
+  }
+
+  @override
+  void dispose() {
+    _updates?.dispose();
+    super.dispose();
+  }
 
   void _select(String id) {
     setState(() => _selected = id);
@@ -104,35 +126,49 @@ class _AppShellState extends State<AppShell> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
-        return Scaffold(
-          key: _scaffoldKey,
-          drawer: wide ? null : Drawer(
-            backgroundColor: AppColors.base,
-            child: _Sidebar(selected: _selected, onSelect: _select),
-          ),
-          body: SafeArea(
-            child: Row(
-              children: [
-                if (wide)
-                  _Sidebar(selected: _selected, onSelect: _select),
-                if (wide)
-                  const VerticalDivider(width: 1, color: AppColors.borderStrong),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _TopBar(
-                        title: _current.label,
-                        showMenu: !wide,
-                        onMenu: () => _scaffoldKey.currentState?.openDrawer(),
+        final updates = _updates;
+        return Stack(
+          children: [
+            Scaffold(
+              key: _scaffoldKey,
+              drawer: wide ? null : Drawer(
+                backgroundColor: AppColors.base,
+                child: _Sidebar(selected: _selected, onSelect: _select),
+              ),
+              body: SafeArea(
+                child: Row(
+                  children: [
+                    if (wide)
+                      _Sidebar(selected: _selected, onSelect: _select),
+                    if (wide)
+                      const VerticalDivider(width: 1, color: AppColors.borderStrong),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _TopBar(
+                            title: _current.label,
+                            showMenu: !wide,
+                            onMenu: () => _scaffoldKey.currentState?.openDrawer(),
+                          ),
+                          const Divider(height: 1, color: AppColors.borderStrong),
+                          Expanded(child: _current.builder(context)),
+                        ],
                       ),
-                      const Divider(height: 1, color: AppColors.borderStrong),
-                      Expanded(child: _current.builder(context)),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+            // A mandatory update, an update in flight, or a failed attempt is
+            // laid over the whole app: there is nothing useful to do until it
+            // is resolved. An optional release is a dialog the operator may
+            // defer, and a deferral lasts for the rest of this session.
+            if (updates != null && !_dismissedOptional)
+              UpdatePrompt(
+                controller: updates,
+                onDismissed: () => setState(() => _dismissedOptional = true),
+              ),
+          ],
         );
       },
     );

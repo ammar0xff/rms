@@ -15,6 +15,7 @@ import '../../data/repositories/inventory_repository.dart';
 import '../../data/repositories/kitchen_repository.dart';
 import '../../data/repositories/menu_repository.dart';
 import '../../data/local/update_store_contracts.dart';
+import '../../data/updates/update_runtime.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
@@ -53,6 +54,7 @@ class AppServices {
     this.updateAudit,
     this.updateStatus,
     this.updateAcknowledgement,
+    this.updateRuntime,
   });
 
   final FirebaseConfig config;
@@ -96,6 +98,10 @@ class AppServices {
 
   /// Operator acknowledgement of stuck local work, or null when unavailable.
   final UpdateAcknowledgementStore? updateAcknowledgement;
+
+  /// Assembles the update flow against live device state, or null when the
+  /// local store is unavailable.
+  final UpdateRuntime? updateRuntime;
 
   /// Append-only local audit trail, or null when the store is unavailable.
   final AuditLog? audit;

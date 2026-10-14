@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../config/app_version.dart';
@@ -16,6 +17,14 @@ import '../../data/local/outbox/outbox_store.dart';
 import '../../data/local/release_audit_log.dart';
 import '../../data/local/update_acknowledgement_store.dart';
 import '../../data/local/update_status_store.dart';
+import '../../domain/models/update_manifest.dart';
+import '../../data/updates/android_update_installer.dart';
+import '../../data/updates/artifact_downloader.dart';
+import '../../data/updates/firestore_update_source.dart';
+import '../../data/updates/local_health_checker.dart';
+import '../../data/updates/local_schema_migrator.dart';
+import '../../data/updates/update_runtime.dart';
+import '../../data/updates/update_service.dart';
 import '../../data/repositories/demo_auth_repository.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
 import '../../data/repositories/local_approval_repository.dart';
@@ -124,6 +133,45 @@ Future<AppServices> _resolveAuth(
       database == null ? null : LocalUpdateStatusStore(database);
   final updateAcknowledgement =
       database == null ? null : LocalUpdateAcknowledgementStore(database);
+
+  // The update flow's collaborators. The runtime assembles them into a fresh
+  // service per check, so the readiness gate always judges the local-work
+  // backlog as it is at that moment.
+  final updateDownloader = HttpArtifactDownloader();
+  final updateInstaller = AndroidUpdateInstaller();
+  final updateMigrator =
+      database == null ? null : LocalSchemaMigrator(database: database);
+  final updateHealthCheck = database == null
+      ? null
+      : LocalHealthChecker(
+          database: database,
+          expectedSchemaVersion: AppVersion.localSchemaVersion,
+        );
+  final updateRuntime = database == null
+      ? null
+      : UpdateRuntime(
+          cache: updates,
+          outbox: outbox,
+          acknowledgement: updateAcknowledgement,
+          remote: FirestoreUpdateSource(
+            platform: currentUpdatePlatform(),
+            firestore: firebaseReady ? FirebaseFirestore.instance : null,
+          ),
+          // Web ships through its hosting provider and takes no artifact.
+          artifactDeliverySupported:
+              currentUpdatePlatform() != UpdatePlatform.web,
+          online: () => SyncMonitor.instance.online,
+          branchId: () async => branches?.activeBranch()?.id ?? '',
+          buildService: () => UpdateDeps(
+            downloader: updateDownloader,
+            installer: updateInstaller,
+            migrator: updateMigrator!,
+            healthChecker: updateHealthCheck!,
+            outbox: outbox,
+            auditSink: updateAudit,
+            statusStore: updateStatus,
+          ),
+        );
   final inventory = (database == null || outbox == null)
       ? null
       : LocalInventoryRepository(database, outbox: outbox, audit: audit);
@@ -208,6 +256,7 @@ Future<AppServices> _resolveAuth(
       updateAudit: updateAudit,
       updateStatus: updateStatus,
       updateAcknowledgement: updateAcknowledgement,
+      updateRuntime: updateRuntime,
     );
   }
 
@@ -247,6 +296,7 @@ Future<AppServices> _resolveAuth(
       updateAudit: updateAudit,
       updateStatus: updateStatus,
       updateAcknowledgement: updateAcknowledgement,
+      updateRuntime: updateRuntime,
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -280,6 +330,7 @@ Future<AppServices> _resolveAuth(
       updateAudit: updateAudit,
       updateStatus: updateStatus,
       updateAcknowledgement: updateAcknowledgement,
+      updateRuntime: updateRuntime,
     );
   }
 }

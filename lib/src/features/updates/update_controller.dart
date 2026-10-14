@@ -2,34 +2,29 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../data/updates/update_service.dart';
-import '../../domain/models/update_manifest.dart';
+import '../../data/updates/update_runtime.dart';
 import '../../domain/update/device_update_status.dart';
 import '../../domain/update/download_state.dart';
-import '../../domain/update/update_check_result.dart';
 import '../../domain/update/update_prompt_mode.dart';
 import '../../domain/update/update_prompt_state.dart';
 
 /// Drives the update flow and exposes what the UI should show.
 ///
 /// Owns the state machine the prompt reacts to: check, apply, record. Progress
-/// comes from the downloader rather than being simulated, so what the operator
-/// sees is the real transfer.
+/// comes from the real downloader rather than being simulated, so what the
+/// operator sees is the actual transfer.
+///
+/// Every check builds a fresh [UpdateService] through the runtime, so AC-35 is
+/// judged against the backlog as it is now — an operator cannot be offered an
+/// install that was safe five minutes ago but is not any more.
 class UpdateController extends ChangeNotifier {
-  UpdateController({
-    required this.service,
-    required this.manifest,
-    this.now,
-  });
+  UpdateController({required this.runtime});
 
-  /// Supplies the manifest to act on. Called on every check so a newly
-  /// published release is picked up without recreating the controller.
-  final UpdateManifest? Function() manifest;
+  final UpdateRuntime runtime;
 
-  final UpdateService service;
-  final DateTime Function()? now;
-
-  UpdateCheckResult? _check;
+  UpdatePromptState _state = const UpdatePromptState(
+    mode: UpdatePromptMode.none,
+  );
   UpdatePromptMode? _inFlight;
   DeviceUpdateStatus? _lastStatus;
   double _progress = 0.0;
@@ -37,51 +32,47 @@ class UpdateController extends ChangeNotifier {
   StreamSubscription<DownloadState>? _downloads;
   bool _checking = false;
 
-  UpdatePromptState get state => UpdatePromptState.derive(
-        check: _check ?? UpdateCheckResult.empty,
-        inFlight: _inFlight,
-        detail: _detail,
-        progress: _progress,
-      );
-
-  UpdateCheckResult? get check => _check;
+  UpdatePromptState get state => _state;
 
   DeviceUpdateStatus? get lastStatus => _lastStatus;
 
   bool get isChecking => _checking;
 
-  /// Classifies the release currently held by the cache or backend.
+  /// True once a check has run at least once.
+  bool get hasChecked => _state.mode != UpdatePromptMode.none || _checkedOnce;
+  bool _checkedOnce = false;
+
+  /// Classifies the release currently published or cached.
   Future<void> refresh() async {
+    if (_checking) return;
     _checking = true;
     notifyListeners();
     try {
-      final result = service.check(manifest());
-      _check = result;
-      _detail = result.isBlockedByLocalWork
-          ? result.readiness.status.label
-          : '';
+      final check = await runtime.check();
+      _checkedOnce = true;
+      _derive(check);
     } finally {
       _checking = false;
       notifyListeners();
     }
   }
 
-  /// Applies the release, if the gate allows it.
+  /// Applies the release the last check approved.
   ///
-  /// Returns without touching the network when the gate is closed, so the
-  /// button being wrong cannot install past AC-35.
+  /// Returns without touching the network when there is nothing checked or the
+  /// gate is closed, so a stale button cannot install past AC-35.
   Future<void> apply() async {
-    final current = _check;
-    if (current == null || !current.canInstall) return;
+    if (!_state.canApply) return;
 
     _inFlight = UpdatePromptMode.working;
     _progress = 0.0;
     _detail = '';
-    notifyListeners();
+    _rebuild();
 
     await _subscribeToDownloads();
     try {
-      final status = await service.apply(current);
+      final service = await runtime.service();
+      final status = await service.apply(_state.check!);
       _lastStatus = status;
       _inFlight = switch (status.state) {
         UpdateLifecycleState.completed => UpdatePromptMode.completed,
@@ -95,28 +86,53 @@ class UpdateController extends ChangeNotifier {
     } finally {
       await _downloads?.cancel();
       _downloads = null;
-      notifyListeners();
+      _rebuild();
     }
   }
 
-  /// Clears a completed or failed attempt so the prompt stops showing.
-  void acknowledge() {
+  /// Clears a completed or failed attempt so the prompt stops showing, then
+  /// re-checks so a newer release can surface.
+  Future<void> acknowledge() async {
     _inFlight = null;
     _detail = '';
     _progress = 0.0;
+    _rebuild();
+    await refresh();
+  }
+
+  void _derive(dynamic check) {
+    _state = UpdatePromptState.derive(
+      check: check,
+      inFlight: _inFlight,
+      detail: _detail,
+      progress: _progress,
+    );
+  }
+
+  /// Recomputes the prompt against the last check, keeping the in-flight state.
+  void _rebuild() {
+    final check = _state.check;
+    _state = check == null
+        ? const UpdatePromptState(mode: UpdatePromptMode.none)
+        : UpdatePromptState.derive(
+            check: check,
+            inFlight: _inFlight,
+            detail: _detail,
+            progress: _progress,
+          );
     notifyListeners();
   }
 
   Future<void> _subscribeToDownloads() async {
     await _downloads?.cancel();
-    _downloads = service.deps.downloader.progress().listen((download) {
+    _downloads = runtime.buildService().downloader.progress().listen((download) {
       switch (download.stage) {
         case DownloadStage.downloading || DownloadStage.verifying:
           _progress = download.progress;
-          notifyListeners();
+          _rebuild();
         case DownloadStage.failed:
           _detail = download.error;
-          notifyListeners();
+          _rebuild();
         default:
           break;
       }
