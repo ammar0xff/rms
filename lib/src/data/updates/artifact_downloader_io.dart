@@ -37,12 +37,14 @@ ArtifactDownloader createArtifactDownloader({
   HttpClient? client,
   Uri Function(String reference)? resolveUri,
   ArtifactTokenProvider? tokenProvider,
+  Future<Directory> Function()? tempDirectory,
   String storageBucket = 'teletunnal.firebasestorage.app',
 }) =>
     HttpArtifactDownloader(
       client: client,
       resolveUri: resolveUri,
       tokenProvider: tokenProvider,
+      tempDirectory: tempDirectory,
       storageBucket: storageBucket,
     );
 
@@ -51,6 +53,7 @@ class HttpArtifactDownloader implements ArtifactDownloader {
     HttpClient? client,
     this.resolveUri,
     this.tokenProvider,
+    this.tempDirectory,
     this.storageBucket = 'teletunnal.firebasestorage.app',
   }) : _client = client ?? HttpClient();
 
@@ -59,6 +62,13 @@ class HttpArtifactDownloader implements ArtifactDownloader {
 
   /// Authorises the download. Null means an unauthenticated fetch.
   final ArtifactTokenProvider? tokenProvider;
+
+  /// Supplies the directory a download is staged in.
+  ///
+  /// Defaults to the platform's temporary directory. Injectable so the download
+  /// path can be exercised without standing up the `path_provider` plugin, and
+  /// so a caller could point staging at a volume it controls.
+  final Future<Directory> Function()? tempDirectory;
 
   /// Bucket used by the default resolvers.
   final String storageBucket;
@@ -86,7 +96,11 @@ class HttpArtifactDownloader implements ArtifactDownloader {
     );
   }
 
-  Uri _uriFor(UpdateManifest manifest) {
+  /// The URI a manifest's artifact will be fetched from.
+  ///
+  /// Public so the resolution rules can be checked directly rather than only
+  /// inferred from a request that happened to succeed.
+  Uri uriFor(UpdateManifest manifest) {
     final resolve = resolveUri;
     if (resolve != null) return resolve(manifest.artifact.reference);
     final reference = manifest.artifact.reference;
@@ -127,7 +141,7 @@ class HttpArtifactDownloader implements ArtifactDownloader {
     final total = manifest.artifact.sizeBytes;
     IOSink? sink;
     try {
-      final dir = await getTemporaryDirectory();
+      final dir = await (tempDirectory?.call() ?? getTemporaryDirectory());
       final file = File(p.join(dir.path, artifactFileName(manifest)));
       if (await file.exists()) await file.delete();
 
@@ -139,7 +153,7 @@ class HttpArtifactDownloader implements ArtifactDownloader {
         ),
       );
 
-      final request = await _client!.getUrl(_uriFor(manifest));
+      final request = await _client!.getUrl(uriFor(manifest));
       final token = await tokenProvider?.call();
       if (token != null && token.isNotEmpty) {
         // The Firebase Storage REST API expects the ID token under the
