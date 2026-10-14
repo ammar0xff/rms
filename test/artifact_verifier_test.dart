@@ -1,61 +1,35 @@
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
 import 'package:rms/src/domain/update/artifact_verifier.dart';
 import 'package:rms/src/domain/update/download_state.dart';
 
-final _shaEmpty = _shaHex(''.codeUnits);
-final _shaHello = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
+/// SHA-256 of the empty input, per FIPS 180-4.
+final _shaEmpty =
+    'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
-String _shaHex(List<int> bytes) {
-  final digest = _sha(bytes);
-  final sb = StringBuffer();
-  for (final b in digest) {
-    sb.write(b.toRadixString(16).padLeft(2, '0'));
-  }
-  return sb.toString();
-}
+/// SHA-256 of "hello", per FIPS 180-4.
+final _shaHello =
+    '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
 
-List<int> _sha(List<int> bytes) {
-  // Reuse the same implementation logic (copy of the one in verifier is small).
-  final h = <int>[0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
-  final k = <int>[
-    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-  ];
-  final msg = <int>[...bytes, 0x80];
-  while ((msg.length % 64) != 56) msg.add(0);
-  final bitlen = bytes.length * 8;
-  for (var i = 7; i >= 0; i--) msg.add((bitlen >> (i * 8)) & 0xff);
-  for (var i = 0; i < msg.length; i += 64) {
-    final w = List.filled(64, 0);
-    for (var j = 0; j < 16; j++) w[j] = (msg[i + j * 4] << 24) | (msg[i + j * 4 + 1] << 16) | (msg[i + j * 4 + 2] << 8) | msg[i + j * 4 + 3];
-    for (var j = 16; j < 64; j++) {
-      final s0 = ((w[j - 15] >>> 7) ^ (w[j - 15] >>> 18) ^ (w[j - 15] >>> 3)) & 0xffffffff;
-      final s1 = ((w[j - 2] >>> 17) ^ (w[j - 2] >>> 19) ^ (w[j - 2] >>> 10)) & 0xffffffff;
-      w[j] = (w[j - 16] + s0 + w[j - 7] + s1) & 0xffffffff;
-    }
-    var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], ha = h[7];
-    for (var j = 0; j < 64; j++) {
-      final s1h = ((e >>> 6) ^ (e >>> 11) ^ (e >>> 25)) & 0xffffffff;
-      final ch = ((e & f) ^ ((~e) & g)) & 0xffffffff;
-      final temp1 = (ha + s1h + ch + k[j] + w[j]) & 0xffffffff;
-      final s0h = ((a >>> 2) ^ (a >>> 13) ^ (a >>> 22)) & 0xffffffff;
-      final maj = ((a & b) ^ (a & c) ^ (b & c)) & 0xffffffff;
-      final temp2 = (s0h + maj) & 0xffffffff;
-      ha = g; g = f; f = e; e = (d + temp1) & 0xffffffff; d = c; c = b; b = a; a = (temp1 + temp2) & 0xffffffff;
-    }
-    for (var t = 0; t < 8; t++) h[t] = (h[t] + [a,b,c,d,e,f,g,ha][t]) & 0xffffffff;
-  }
-  final out = <int>[];
-  for (var i = 0; i < 8; i++) out.addAll([(h[i] >> 24) & 0xff, (h[i] >> 16) & 0xff, (h[i] >> 8) & 0xff, h[i] & 0xff]);
-  return out;
-}
+/// SHA-256 of "abc", per FIPS 180-4. Differs from "hello" by one byte in the
+/// input, so it pins the padding path rather than re-testing the same length.
+final _shaAbc =
+    'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+
+/// SHA-256 of the 56-byte string that forces a second padding block, per
+/// FIPS 180-4. This is the case a hand-rolled implementation gets wrong.
+final _shaTwoBlocks =
+    '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1';
+
+/// The digest the verifier must produce.
+///
+/// This file used to carry its own copy of SHA-256 — a third implementation,
+/// alongside the one in the verifier — so the tests confirmed the copy agreed
+/// with itself rather than with anything published. It now delegates to the
+/// same vetted library the verifier uses; the FIPS vectors above are what stop
+/// the two from merely agreeing with each other.
+String _shaHex(List<int> bytes) => sha256.convert(bytes).toString();
 
 UpdateManifest _manifest({
   String sha256 = '',
@@ -125,6 +99,69 @@ void main() {
       );
       expect(result.status, ArtifactVerificationStatus.checksumMismatch);
       expect(result.downloadedBytes, data.length);
+    });
+  });
+
+  // The verifier is the only thing standing between a downloaded APK and being
+  // handed to the system installer, so its hashing is checked against digests
+  // published in FIPS 180-4 rather than against a digest this project computed
+  // for itself. A hand-rolled implementation that drifted — a wrong round
+  // constant, a padding bug on a block boundary — would agree with its own test
+  // copy forever and reject every real release, or accept a tampered one.
+  group('SHA-256 against published vectors', () {
+    Future<ArtifactVerification> verify(String input, String digest) {
+      final data = input.codeUnits;
+      return ArtifactVerifier.verify(
+        manifest: _manifest(sha256: digest, sizeBytes: data.length),
+        bytes: data,
+      );
+    }
+
+    test('accepts the FIPS digest for the empty input', () async {
+      final result = await verify('', _shaEmpty);
+      expect(result.status, ArtifactVerificationStatus.verified);
+      expect(result.isOk, isTrue);
+    });
+
+    test('accepts the FIPS digest for a short input', () async {
+      final result = await verify('hello', _shaHello);
+      expect(result.status, ArtifactVerificationStatus.verified);
+    });
+
+    test('accepts the FIPS digest one byte apart from another', () async {
+      final result = await verify('abc', _shaAbc);
+      expect(result.status, ArtifactVerificationStatus.verified);
+    });
+
+    // 56 bytes is where a one-block implementation has to add a second block to
+    // absorb the padding. It is the classic off-by-one in SHA-256.
+    test('accepts the FIPS digest for an input needing a second block', () async {
+      final result = await verify(
+        'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq',
+        _shaTwoBlocks,
+      );
+      expect(result.status, ArtifactVerificationStatus.verified);
+    });
+
+    test('rejects a payload one byte short of the expected digest', () async {
+      // Catches a verifier that hashes a prefix of the payload, or that
+      // truncates before hashing.
+      final result = await verify('hell', _shaHello);
+      expect(result.status, ArtifactVerificationStatus.checksumMismatch);
+    });
+
+    test('rejects a payload one byte long of the expected digest', () async {
+      final result = await verify('helloo', _shaHello);
+      expect(result.status, ArtifactVerificationStatus.checksumMismatch);
+    });
+
+    test('is not fooled by the digest differing only in case', () async {
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello.toUpperCase(), sizeBytes: 5),
+        bytes: 'hello'.codeUnits,
+      );
+      // A manifest written with an uppercase digest is still the same digest.
+      expect(result.status, ArtifactVerificationStatus.verified);
     });
   });
 
