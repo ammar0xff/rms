@@ -194,9 +194,6 @@ class _AppShellState extends State<AppShell> {
   UpdateController? _updates;
   bool _dismissedOptional = false;
 
-  NavEntry get _current =>
-      _flatEntries.firstWhere((e) => e.id == _selected, orElse: () => _flatEntries.first);
-
   /// Bottom-bar index: the role's tabs, or المزيد for everything else —
   /// including the menu grid itself.
   int _barIndex(List<String> tabs) {
