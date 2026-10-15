@@ -8,10 +8,10 @@ different navigation, different landing screen, different reach.
 | Role | Demo email | Tabs | Sees |
 |---|---|---|---|
 | Driver | `driver.*@` | التوصيل + المزيد | deliveries, sync center, settings |
-| Cashier | `cashier.*@` (default) | البيع + الرئيسية + المزيد | dashboard, POS, menu, customers, sync, settings |
-| Chef | `chef.*@` | المطبخ + القائمة + المزيد | kitchen, menu, dashboard, sync, settings |
+| Cashier | `cashier.*@` (default) | الوردية + البيع + المزيد | shift board, POS, dashboard, menu, customers, sync, settings |
+| Chef | `chef.*@` | المطبخ + القائمة + المزيد | kitchen (+day strip), menu, dashboard, sync, settings |
 | Manager | anything else | full bar | everything, incl. team |
-| Developer | `dev.*@`, `developer.*@` | الرئيسية + المزامنة + المزيد | everything, incl. team + database tools |
+| Developer | `dev.*@`, `developer.*@` | النظام + المزامنة + المزيد | system board, everything, incl. team + database tools |
 
 Anything not listed for a role is unreachable — bottom bar, More grid, and
 (wide screens) the filtered sidebar all enforce the same sets. The install

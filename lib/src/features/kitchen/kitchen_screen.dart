@@ -131,7 +131,13 @@ class _KitchenScreenState extends State<KitchenScreen> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: _load,
-            child: LayoutBuilder(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DayStrip(tickets: _tickets),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: LayoutBuilder(
               builder: (context, c) {
                 final lanes = Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,10 +163,90 @@ class _KitchenScreenState extends State<KitchenScreen> {
               },
             ),
           ),
+        ],
+        ),
+          ),
         ),
       ],
     );
   }
+}
+
+/// The chef's day at a glance: open tickets by lane. Shared by all roles —
+/// it answers "how deep are we" before anyone opens a lane.
+class _DayStrip extends StatelessWidget {
+  const _DayStrip({required this.tickets});
+
+  final List<KitchenTicketModel> tickets;
+
+  @override
+  Widget build(BuildContext context) {
+    var queued = 0;
+    var preparing = 0;
+    var ready = 0;
+    for (final ticket in tickets) {
+      switch (ticket.state) {
+        case TicketState.queued:
+          queued++;
+        case TicketState.preparing:
+          preparing++;
+        case TicketState.ready:
+          ready++;
+        case TicketState.completed:
+          break;
+      }
+    }
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          _DayCount(label: 'بانتظار', count: queued),
+          _DayDivider(),
+          _DayCount(label: 'قيد التحضير', count: preparing),
+          _DayDivider(),
+          _DayCount(label: 'جاهز', count: ready),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCount extends StatelessWidget {
+  const _DayCount({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis, style: AppText.caption),
+          ),
+          const SizedBox(width: 6),
+          Text('$count',
+              style: AppText.bodyStrong.copyWith(
+                  color: count > 0 ? AppColors.brand : AppColors.fgMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayDivider extends StatelessWidget {
+  const _DayDivider();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 1,
+        height: 16,
+        color: AppColors.borderStrong,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+      );
 }
 
 class _StationFilter extends StatelessWidget {

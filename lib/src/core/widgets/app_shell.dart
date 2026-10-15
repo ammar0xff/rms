@@ -23,6 +23,8 @@ import '../../features/pos/pos_screen.dart';
 import '../../features/purchasing/purchasing_screen.dart';
 import '../../features/reports/reports_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/shift/shift_screen.dart';
+import '../../features/system/system_screen.dart';
 import '../../features/sync/sync_center_screen.dart';
 import '../../features/updates/update_controller.dart';
 import '../../domain/update/update_prompt_mode.dart';
@@ -47,6 +49,7 @@ class NavGroup {
 
 final navGroups = <NavGroup>[
   NavGroup('العمليات', [
+    NavEntry('shift', 'الوردية', Icons.today_outlined, _shift),
     NavEntry('dashboard', 'لوحة التحكم', Icons.space_dashboard_outlined,
         _dashboard),
     NavEntry('pos', 'نقطة البيع', Icons.point_of_sale_outlined, _pos),
@@ -113,9 +116,12 @@ _RoleNav _navFor(AppRole role) => switch (role) {
           home: 'delivery',
         ),
       AppRole.cashier => const _RoleNav(
-          tabs: ['pos', 'dashboard'],
-          more: ['dashboard', 'pos', 'menu', 'customers', 'sync', 'settings'],
-          home: 'pos',
+          tabs: ['shift', 'pos'],
+          more: [
+            'shift', 'dashboard', 'pos', 'menu', 'customers', 'sync',
+            'settings',
+          ],
+          home: 'shift',
         ),
       AppRole.chef => const _RoleNav(
           tabs: ['kitchen', 'menu'],
@@ -124,13 +130,13 @@ _RoleNav _navFor(AppRole role) => switch (role) {
         ),
       AppRole.manager => const _RoleNav(
           tabs: ['dashboard', 'pos', 'kitchen', 'delivery'],
-          more: _allIds,
+          more: [..._allIds, 'system'],
           home: 'dashboard',
         ),
       AppRole.developer => const _RoleNav(
-          tabs: ['dashboard', 'sync'],
-          more: [..._allIds, 'database'],
-          home: 'dashboard',
+          tabs: ['system', 'sync'],
+          more: [..._allIds, 'database', 'system'],
+          home: 'system',
         ),
     };
 
@@ -150,6 +156,8 @@ Widget _database(BuildContext c) => const DatabaseScreen();
 Widget _conflicts(BuildContext c) => const ConflictsScreen();
 Widget _team(BuildContext c) => const TeamScreen();
 Widget _settings(BuildContext c) => const SettingsScreen();
+Widget _shift(BuildContext c) => const ShiftScreen();
+Widget _system(BuildContext c) => const SystemScreen();
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -386,6 +394,8 @@ class _AppShellState extends State<AppShell> {
 /// Short thumb-sized labels for bottom tabs. The full entry labels stay in the
 /// sidebar and the More grid, where there is room for them.
 String _tabLabel(String id) => switch (id) {
+      'shift' => 'الوردية',
+      'system' => 'النظام',
       'dashboard' => 'الرئيسية',
       'pos' => 'البيع',
       'kitchen' => 'المطبخ',

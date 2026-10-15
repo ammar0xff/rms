@@ -106,12 +106,23 @@ void main() {
       );
     });
 
-    testWidgets('a cashier lands on POS', (tester) async {
+    testWidgets('a cashier lands on the shift board', (tester) async {
       await signInAs(tester, 'cashier.sara@rms.dev');
 
-      // POS-first: its menu/cart tabs are on screen, and the bar carries
-      // sale, home and more — not kitchen or delivery.
-      expect(find.text('السلة'), findsOneWidget);
+      // Shift-first: the board is on screen, and the bar carries shift,
+      // sale and more — not kitchen or delivery.
+      expect(find.text('وردية اليوم'), findsOneWidget);
+      expect(
+        tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+            .items,
+        hasLength(3),
+      );
+    });
+
+    testWidgets('a developer lands on the system board', (tester) async {
+      await signInAs(tester, 'dev@rms.dev');
+
+      expect(find.text('حالة النظام'), findsOneWidget);
       expect(
         tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
             .items,
