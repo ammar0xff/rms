@@ -16,6 +16,7 @@ import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/repositories/delivery_repository.dart';
 import '../../domain/assignment/delivery_assignment.dart';
+import '../../domain/models/app_role.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import '../common/format.dart';
@@ -271,9 +272,89 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     unawaited(SyncMonitor.instance.refresh());
   }
 
+  /// The driver's app: today's open jobs as cards with big advance/collect
+  /// actions, not the ops console's tables and panels.
+  ///
+  /// Jobs match the signed-in operator by display name or email; when nothing
+  /// matches (shared device, unnamed driver), every open job shows under one
+  /// heading rather than an empty screen.
+  Widget _driverView(AppServices services) {
+    final user = services.auth.currentUser;
+    final identity = (user?.displayName?.trim().isNotEmpty ?? false)
+        ? user!.displayName!.trim()
+        : (user?.email?.split('@').first.trim() ?? '');
+    final open = _open;
+    final mine = identity.isEmpty
+        ? const <DeliveryModel>[]
+        : open.where((d) => d.driver == identity).toList();
+    final showMineOnly = mine.isNotEmpty;
+    final visible = showMineOnly ? mine : open;
+    final visibleIds = {for (final d in visible) d.id};
+    final collected = _collections
+        .where((c) => visibleIds.contains(c.deliveryId))
+        .fold(0.0, (sum, c) => sum + c.amount);
+    final outstanding = visible
+        .where((d) =>
+            d.state == DeliveryState.delivered &&
+            _collectionFor(d.id) == null)
+        .fold(0.0, (sum, d) => sum + d.amount);
+    return PageBody(
+      children: [
+        SurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                showMineOnly ? 'مهامي اليوم' : 'المهمات المفتوحة',
+                style: AppText.h2,
+              ),
+              const SizedBox(height: 12),
+              GridRow(children: [
+                StatCard(label: 'مفتوحة', value: '${visible.length}'),
+                StatCard(label: 'حُصّل', value: money(collected)),
+                StatCard(
+                    label: 'معلّق',
+                    value: money(outstanding),
+                    deltaTone: DeltaTone.neutral),
+              ]),
+            ],
+          ),
+        ),
+        if (visible.isEmpty)
+          const SurfaceCard(
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_outline,
+                    size: 16, color: AppColors.positive),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'لا توجد مهمات مفتوحة. يوم موفق!',
+                    style: AppText.body,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          for (final job in visible) _DriverJobCard(
+            job: job,
+            collection: _collectionFor(job.id),
+            onAdvance: () => _advance(job),
+            onCollect: () => _collect(job),
+          ),
+        _OfflineCollectionNotice(offlineTotal: _offlineCollections),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
+    final role = services.auth.currentUser?.role ?? AppRole.cashier;
+    // Drivers get their own app, not the ops console: job cards with big
+    // actions instead of an 8-column table. Same theme, different tool.
+    if (role == AppRole.driver) return _driverView(services);
     return ListenableBuilder(
       listenable: SyncMonitor.instance,
       builder: (context, _) {
@@ -545,6 +626,112 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                             .copyWith(fontWeight: FontWeight.w600)),
                   ],
               ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One delivery job as a thumb-sized card: address, amount, state, and the
+/// next action as a full-width button. No tables, no panels, no horizontal
+/// scrolling — this is the mobile-first half of the delivery screen.
+class _DriverJobCard extends StatelessWidget {
+  const _DriverJobCard({
+    required this.job,
+    required this.collection,
+    required this.onAdvance,
+    required this.onCollect,
+  });
+
+  final DeliveryModel job;
+  final CollectionModel? collection;
+  final VoidCallback onAdvance;
+  final VoidCallback onCollect;
+
+  /// The next state the driver can move to, or null when there is none
+  /// (waiting for assignment, or already delivered).
+  String? get _advanceLabel => switch (job.state) {
+        DeliveryState.assigned => 'استلام',
+        DeliveryState.onRoute => 'تم التسليم',
+        _ => null,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final advanceLabel = _advanceLabel;
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  job.orderRef,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.bodyStrong,
+                ),
+              ),
+              Tag(label: job.state.label, tone: _stateTone(job.state)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined,
+                  size: 16, color: AppColors.fgMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  job.address,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(money(job.amount), style: AppText.h1.copyWith(fontSize: 22)),
+          if (collection != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'حُصّل ${money(collection!.amount)} · ${collection!.method.label}',
+              style: AppText.caption.copyWith(color: AppColors.positive),
+            ),
+          ],
+          const SizedBox(height: 12),
+          if (advanceLabel != null)
+            RmsButton(
+              label: advanceLabel,
+              icon: Icons.navigation_rounded,
+              variant: BtnVariant.primary,
+              onPressed: onAdvance,
+              dense: false,
+            ),
+          if (advanceLabel != null &&
+              job.state == DeliveryState.delivered &&
+              collection == null)
+            const SizedBox(height: 8),
+          if (job.state == DeliveryState.delivered && collection == null)
+            RmsButton(
+              label: 'تحصيل ${money(job.amount)}',
+              icon: Icons.payments_outlined,
+              variant: advanceLabel == null
+                  ? BtnVariant.primary
+                  : BtnVariant.secondary,
+              onPressed: onCollect,
+              dense: false,
+            ),
+          if (advanceLabel == null &&
+              job.state != DeliveryState.delivered)
+            Text(
+              job.state == DeliveryState.waiting
+                  ? 'بانتظار الإسناد من الإدارة'
+                  : 'مغلّقة',
+              style: AppText.caption,
             ),
         ],
       ),

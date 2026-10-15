@@ -129,6 +129,17 @@ void main() {
       );
     });
 
+    testWidgets('a driver gets a driver-built home, not the ops tables',
+        (tester) async {
+      await signInAs(tester, 'driver.ahmed@rms.dev');
+
+      // The driver branch renders its own empty state; the 8-column ops
+      // table and the drivers panel never mount for this role.
+      expect(find.text('لا توجد مهمات مفتوحة'), findsOneWidget);
+      expect(find.text('السائقون'), findsNothing);
+      expect(find.text('قائمة تسوية التحصيلات المعلقة'), findsNothing);
+    });
+
     testWidgets('sign-out returns to the sign-in screen', (tester) async {
       await signInAs(tester, 'driver.ahmed@rms.dev');
 
