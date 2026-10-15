@@ -315,7 +315,9 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     final rest =
         hero == null ? visible : visible.where((d) => d.id != hero!.id).toList();
     final accent = roleAccent(AppRole.driver);
+    // A driver console stays narrow by design, even on a wide screen.
     return PageBody(
+      maxWidth: 720,
       children: [
         if (hero != null)
           _NextStopHero(

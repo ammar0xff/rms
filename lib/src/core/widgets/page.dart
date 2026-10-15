@@ -12,10 +12,16 @@ class PageBody extends StatelessWidget {
     required this.children,
     this.scrollable = true,
     this.padding,
+    this.maxWidth = maxContentWidth,
   });
+
+
 
   final List<Widget> children;
   final bool scrollable;
+
+  /// Narrow consoles (driver) cap lower than the default.
+  final double maxWidth;
 
   /// Null means adaptive: 16px on phones, [AppSpacing.pagePadding] otherwise.
   /// 24px a side is 13% of a 360px screen gone to chrome.
@@ -43,11 +49,10 @@ class PageBody extends StatelessWidget {
               );
               // A table or hero stretched across a 1920px monitor is chrome,
               // not layout: cap the content and center it on wide screens.
-              if (c.maxWidth <= maxContentWidth) return padded;
+              if (c.maxWidth <= maxWidth) return padded;
               return Center(
                 child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(maxWidth: maxContentWidth),
+                  constraints: BoxConstraints(maxWidth: maxWidth),
                   child: padded,
                 ),
               );
