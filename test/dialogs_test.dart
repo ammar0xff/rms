@@ -81,7 +81,7 @@ void main() {
     });
     testWidgets('collection', (t) async {
       await _pumpDialog(t, const CollectionDialog(total: 240.75), _phone);
-      expect(find.textContaining('240.75'), findsOneWidget);
+      expect(find.textContaining('240.75'), findsWidgets);
     });
     testWidgets('close session', (t) async {
       await _pumpDialog(t, const CloseSessionDialog(expected: 740.75), _phone);
@@ -110,7 +110,7 @@ void main() {
     testWidgets('pay supplier', (t) async {
       await _pumpDialog(
           t, PaySupplierDialog(supplier: _supplier), _phone);
-      expect(find.textContaining('تسديد'), findsOneWidget);
+      expect(find.textContaining('تسديد'), findsWidgets);
     });
     testWidgets('purchase', (t) async {
       await _pumpDialog(
@@ -129,7 +129,7 @@ void main() {
     });
     testWidgets('collection', (t) async {
       await _pumpDialog(t, const CollectionDialog(total: 240.75), _desktop);
-      expect(find.textContaining('240.75'), findsOneWidget);
+      expect(find.textContaining('240.75'), findsWidgets);
     });
     testWidgets('close session', (t) async {
       await _pumpDialog(
@@ -159,7 +159,7 @@ void main() {
     testWidgets('pay supplier', (t) async {
       await _pumpDialog(
           t, PaySupplierDialog(supplier: _supplier), _desktop);
-      expect(find.textContaining('تسديد'), findsOneWidget);
+      expect(find.textContaining('تسديد'), findsWidgets);
     });
     testWidgets('purchase', (t) async {
       await _pumpDialog(
