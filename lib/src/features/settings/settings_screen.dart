@@ -22,6 +22,7 @@ import '../../domain/update/update_acknowledgement.dart';
 import '../../domain/update/update_decision.dart';
 import '../../domain/update/update_readiness.dart';
 import '../../data/local/outbox/outbox_snapshot.dart';
+import '../../data/updates/github_release_notes.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -186,8 +187,61 @@ class _VersionCard extends StatelessWidget {
             ),
           ])
             KeyValue(label: k, value: v, mono: true),
+          // What is published, next to what is installed. Read-only: the web
+          // app never installs artifacts, but everyone deserves to see what
+          // is new. Silent when unreachable.
+          const _LatestRelease(),
         ],
       ),
+    );
+  }
+}
+
+/// The newest published release, fetched from the release page.
+///
+/// Display-only: version plus notes, no download, no install. Resolves to
+/// nothing visible when offline, so a failed lookup never alarms anyone.
+class _LatestRelease extends StatefulWidget {
+  const _LatestRelease();
+
+  @override
+  State<_LatestRelease> createState() => _LatestReleaseState();
+}
+
+class _LatestReleaseState extends State<_LatestRelease> {
+  ReleaseNotes? _notes;
+  bool _done = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_done) return;
+    _done = true;
+    GitHubReleaseNotes().latest().then((notes) {
+      if (!mounted) return;
+      setState(() => _notes = notes);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notes = _notes;
+    if (notes == null) return const SizedBox.shrink();
+    final upToDate = notes.version == AppVersion.number;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        KeyValue(
+          label: 'أحدث إصدار معلن',
+          value: upToDate ? '${notes.tag} · أنت محدّث' : notes.tag,
+          mono: true,
+        ),
+        if (notes.notes.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(notes.notes, style: AppText.caption),
+        ],
+      ],
     );
   }
 }
