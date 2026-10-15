@@ -122,6 +122,22 @@ void main() {
     expect(await outbox.pending(), hasLength(1));
   });
 
+  test('fails when the registry ends short of the target', () async {
+    // Not a mid-chain gap but a missing tail: the app ships schema v6 with
+    // no 5->6 step. The old code reported success at v5 and ran on a stale
+    // schema indefinitely.
+    final runner = LocalMigrationRunner(db, [
+      LocalMigration(from: 0, to: 1, id: 'a', run: (txn) async {}),
+    ]);
+
+    final outcome = await runner.run(targetVersion: 2);
+
+    expect(outcome.succeeded, isFalse);
+    expect(outcome.toVersion, 1);
+    expect(outcome.applied, ['a']);
+    expect(outcome.error, contains('ends at v1'));
+  });
+
   test('stops at a gap in the migration list', () async {
     final runner = LocalMigrationRunner(db, [
       LocalMigration(from: 0, to: 1, id: 'a', run: (txn) async {}),

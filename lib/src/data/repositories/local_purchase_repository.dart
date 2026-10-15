@@ -151,9 +151,11 @@ class LocalPurchaseRepository implements PurchaseRepository {
       // post: stock and payables can never drift apart.
       final supplierRecord = LocalStores.suppliers.record(purchase.supplierId);
       final existingSupplier = await supplierRecord.get(txn);
+      double? resultingPayable;
       if (existingSupplier != null) {
         final supplier = SupplierModel.fromRecord(existingSupplier);
         supplier.payable = supplier.payable + purchase.total;
+        resultingPayable = supplier.payable;
         supplier.localRevision = supplier.localRevision + 1;
         supplier.syncStatus = SyncStatus.pendingSync;
         await supplierRecord.put(txn, supplier.toRecord());
@@ -170,6 +172,11 @@ class LocalPurchaseRepository implements PurchaseRepository {
             'id': id,
             'reference': purchase.reference,
             'total': purchase.total,
+            // The receipt is what creates the debt, so the resulting payable
+            // travels with the command: without it the server sees a stock
+            // movement with no idea what the supplier is now owed.
+            'supplierId': purchase.supplierId,
+            'supplierPayable': resultingPayable,
           },
         ),
       );
@@ -260,6 +267,38 @@ class LocalPurchaseRepository implements PurchaseRepository {
     final purchase = PurchaseOrderModel.fromRecord(existing);
     purchase.syncStatus = SyncStatus.synced;
     await record.put(_db.db, purchase.toRecord());
+    // Receiving bumped the supplier's payable without queueing a supplier
+    // command, so no supplier ack ever clears the flag. Clear it here once
+    // nothing for this supplier is still outstanding.
+    await _clearSupplierFlagWhenQuiet(purchase.supplierId);
+  }
+
+  /// Clears the supplier's dirty flag once its debt is fully pushed.
+  ///
+  /// Conservative on attribution: entries written before the receive payload
+  /// carried the supplier id cannot be attributed, so any of those blocks
+  /// clearing rather than risk stamping work synced that never went up. They
+  /// drain out on their own, so the conservatism is transient.
+  Future<void> _clearSupplierFlagWhenQuiet(String supplierId) async {
+    final entries = await _outbox.all();
+    final outstanding = entries.any((e) {
+      if (e.syncStatus == OutboxStatus.synced) return false;
+      if (e.entityType == 'supplier') return e.entityId == supplierId;
+      if (e.entityType == 'purchase') {
+        final sid = e.payload['supplierId'];
+        if (sid is! String) return true;
+        return sid == supplierId;
+      }
+      return false;
+    });
+    if (outstanding) return;
+    final record = LocalStores.suppliers.record(supplierId);
+    final existing = await record.get(_db.db);
+    if (existing == null) return;
+    final supplier = SupplierModel.fromRecord(existing);
+    if (supplier.syncStatus == SyncStatus.synced) return;
+    supplier.syncStatus = SyncStatus.synced;
+    await record.put(_db.db, supplier.toRecord());
   }
 
   /// Writes pre-existing purchase orders without queueing commands (seeding).

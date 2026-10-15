@@ -102,4 +102,43 @@ void main() {
     await repo.clearTickets();
     expect(await repo.listTickets(), isEmpty);
   });
+
+  test('moves a ticket forward through the lane states', () async {
+    await repo.upsertTicket(_ticket('T-1'));
+
+    await repo.transitionTicket('T-1', TicketState.preparing);
+    await repo.transitionTicket('T-1', TicketState.ready);
+    await repo.transitionTicket('T-1', TicketState.completed);
+
+    expect((await repo.listTickets()).single.state, TicketState.completed);
+  });
+
+  test('repeating the current state is a silent no-op', () async {
+    await repo.upsertTicket(_ticket('T-1', state: TicketState.preparing));
+
+    await repo.transitionTicket('T-1', TicketState.preparing);
+
+    expect((await repo.listTickets()).single.state, TicketState.preparing);
+  });
+
+  test('refuses to move a ticket backward', () async {
+    await repo.upsertTicket(_ticket('T-1', state: TicketState.ready));
+
+    await expectLater(
+      repo.transitionTicket('T-1', TicketState.preparing),
+      throwsA(isA<StateError>()),
+    );
+    // And the failed move changed nothing.
+    expect((await repo.listTickets()).single.state, TicketState.ready);
+  });
+
+  test('refuses to resurrect a completed ticket', () async {
+    await repo.upsertTicket(_ticket('T-1', state: TicketState.completed));
+
+    await expectLater(
+      repo.transitionTicket('T-1', TicketState.queued),
+      throwsA(isA<StateError>()),
+    );
+    expect((await repo.listTickets()).single.state, TicketState.completed);
+  });
 }

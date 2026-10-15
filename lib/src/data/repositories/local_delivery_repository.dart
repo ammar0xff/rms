@@ -367,16 +367,29 @@ class LocalDeliveryRepository implements DeliveryRepository {
 
   @override
   Future<void> finalizeSettlement(String deliveryId) async {
-    // Idempotent: never queue a second settlement for the same job.
-    final queued = await _outbox.pending();
-    final alreadyQueued = queued.any((e) =>
-        e.entityType == 'delivery' &&
-        e.entityId == deliveryId &&
-        e.operationType == 'settleDelivery');
-    if (alreadyQueued) return;
-
     final now = _clock();
     await _db.transaction((txn) async {
+      // Idempotent: never queue a second settlement for the same job. The
+      // check lives INSIDE the transaction — a pre-check outside lets two
+      // concurrent calls both pass and append two settles with distinct
+      // idempotency keys, which the server-side dedupe cannot collapse.
+      final queued = await LocalStores.outbox.find(
+        txn,
+        finder: Finder(
+          filter: Filter.and([
+            Filter.equals('entityType', 'delivery'),
+            Filter.equals('entityId', deliveryId),
+            Filter.equals('operationType', 'settleDelivery'),
+            Filter.inList('syncStatus', [
+              OutboxStatus.pending.name,
+              OutboxStatus.inProgress.name,
+              OutboxStatus.retryableFailure.name,
+            ]),
+          ]),
+        ),
+      );
+      if (queued.isNotEmpty) return;
+
       final record = LocalStores.deliveries.record(deliveryId);
       final existing = await record.get(txn);
       if (existing == null) return;
@@ -424,6 +437,14 @@ class LocalDeliveryRepository implements DeliveryRepository {
       final collection = CollectionModel.fromRecord(existing);
       collection.syncStatus = SyncStatus.synced;
       await record.put(_db.db, collection.toRecord());
+      // Recording a collection dirties its delivery, but queues no delivery
+      // command — so no delivery ack ever clears the flag. Clear it here when
+      // nothing else for this delivery is still outstanding; otherwise the
+      // delivery reads pendingSync indefinitely for work already pushed.
+      final deliveryId = entry.payload['deliveryId'];
+      if (deliveryId is String) {
+        await _clearDeliveryFlagWhenQuiet(deliveryId);
+      }
       return;
     }
     if (entry.entityType != 'delivery') return;
@@ -450,9 +471,31 @@ class LocalDeliveryRepository implements DeliveryRepository {
     await record.put(_db.db, delivery.toRecord());
   }
 
+  /// Clears the delivery's dirty flag once nothing for it remains unsynced.
+  ///
+  /// Some writes (recording a collection) dirty the delivery without queueing
+  /// a delivery command of their own. The flag must clear when the commands
+  /// that do exist are acknowledged — but only then: while any delivery or
+  /// collection command for this job is still outstanding, the flag stays.
+  Future<void> _clearDeliveryFlagWhenQuiet(String deliveryId) async {
+    final entries = await _outbox.all();
+    final outstanding = entries.any((e) =>
+        e.syncStatus != OutboxStatus.synced &&
+        ((e.entityType == 'delivery' && e.entityId == deliveryId) ||
+            (e.entityType == 'collection' &&
+                e.payload['deliveryId'] == deliveryId)));
+    if (outstanding) return;
+    final record = LocalStores.deliveries.record(deliveryId);
+    final existing = await record.get(_db.db);
+    if (existing == null) return;
+    final delivery = DeliveryModel.fromRecord(existing);
+    if (delivery.syncStatus == SyncStatus.synced) return;
+    delivery.syncStatus = SyncStatus.synced;
+    await record.put(_db.db, delivery.toRecord());
+  }
+
   /// Marks every still-pending collection of a job as settled.
-  Future<void> _settleCollections(String deliveryId) async {
-    await _db.transaction((txn) async {
+  Future<void> _settleCollections(String deliveryId) async {    await _db.transaction((txn) async {
       final snapshots = await LocalStores.collections.find(
         txn,
         finder: Finder(filter: Filter.equals('deliveryId', deliveryId)),

@@ -97,6 +97,20 @@ class LocalMigrationRunner {
       current = migration.to;
     }
 
+    // Reaching here below the target means the registry simply ends short —
+    // no step covers the remaining range. That is a gap like the mid-chain
+    // one above, not a success: reporting ok would run the app indefinitely on
+    // a stale schema stamping old versions on new outbox entries.
+    if (current < targetVersion) {
+      return MigrationOutcome(
+        fromVersion: from,
+        toVersion: current,
+        applied: applied,
+        succeeded: false,
+        error: 'no migration reaches v$targetVersion (registry ends at v$current)',
+      );
+    }
+
     return MigrationOutcome(
       fromVersion: from,
       toVersion: current,

@@ -198,6 +198,48 @@ void main() {
     expect(entry.entityType, 'collection');
     expect(entry.entityId, collection.id);
     expect(entry.payload['amount'], 12.5);
+
+    // The collection ack clears the delivery's dirty flag: recording dirtied
+    // it without queueing a delivery command, so no delivery ack would ever
+    // arrive to clear it.
+    await repo.applySynced(OutboxEntry(
+      operationId: 'op-ack',
+      entityType: 'collection',
+      entityId: collection.id,
+      operationType: 'recordCollection',
+      payload: {'deliveryId': delivery.id},
+      schemaVersion: 1,
+      idempotencyKey: 'idem-ack',
+      createdAt: DateTime(2026, 10, 13),
+      syncStatus: OutboxStatus.synced,
+    ));
+    expect(
+      (await repo.listDeliveries()).single.syncStatus,
+      SyncStatus.synced,
+    );
+  });
+
+  test('refuses to move a delivery backward', () async {
+    final delivery = await delivered('O-back');
+    // Delivered is terminal: reopening it would un-collect settled money.
+    await expectLater(
+      repo.updateState(delivery.id, DeliveryState.onRoute),
+      throwsA(isA<StateError>()),
+    );
+    expect(
+      (await repo.listDeliveries()).single.state,
+      DeliveryState.delivered,
+    );
+  });
+
+  test('advances a delivery forward through its states', () async {
+    final delivery = await delivered('O-fwd');
+    // Same-state repeats are no-ops, not errors.
+    await repo.updateState(delivery.id, DeliveryState.delivered);
+    expect(
+      (await repo.listDeliveries()).single.state,
+      DeliveryState.delivered,
+    );
   });
 
   test('finalizeSettlement queues exactly one settle command', () async {
