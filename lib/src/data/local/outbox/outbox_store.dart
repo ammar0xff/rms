@@ -106,6 +106,24 @@ class OutboxStore implements OutboxAccess {
         ),
       );
 
+  /// Deletes acknowledged entries. They accumulate forever otherwise: every
+  /// synced push leaves its row behind, and nothing else removes them. Only
+  /// `synced` rows go — anything still owed to the backend is untouched — so
+  /// pruning can never lose work, only history. Returns the removed count.
+  Future<int> pruneSynced() async {
+    final snapshots = await LocalStores.outbox.find(_db.db);
+    var removed = 0;
+    await _db.transaction((txn) async {
+      for (final snapshot in snapshots) {
+        final entry = OutboxEntry.fromRecord(snapshot.value);
+        if (entry.syncStatus != OutboxStatus.synced) continue;
+        await LocalStores.outbox.record(entry.operationId).delete(txn);
+        removed++;
+      }
+    });
+    return removed;
+  }
+
   Future<void> _update(
     String operationId,
     OutboxEntry Function(OutboxEntry) change,

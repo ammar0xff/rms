@@ -5,6 +5,9 @@ abstract final class LocalStores {
   static final StoreRef<String, Map<String, Object?>> orders =
       stringMapStoreFactory.store('orders');
 
+  static final StoreRef<String, Map<String, Object?>> customers =
+      stringMapStoreFactory.store('customers');
+
   static final StoreRef<String, Map<String, Object?>> outbox =
       stringMapStoreFactory.store('outbox');
 

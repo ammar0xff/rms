@@ -16,6 +16,7 @@ import '../../core/widgets/sync_chip.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/mock/mock_data.dart';
 import '../../domain/models/branch.dart';
+import '../../domain/models/inventory_item.dart';
 import '../../domain/models/order.dart';
 import '../common/format.dart';
 import 'dashboard_metrics.dart';
@@ -422,63 +423,81 @@ class _RecentOrders extends StatelessWidget {
   }
 }
 
-class _AlertsPanel extends StatelessWidget {
+class _AlertsPanel extends StatefulWidget {
   const _AlertsPanel();
+
+  @override
+  State<_AlertsPanel> createState() => _AlertsPanelState();
+}
+
+class _AlertsPanelState extends State<_AlertsPanel> {
+  List<InventoryItemModel> _lowStock = const [];
+  bool _hasStore = false;
+  bool _loaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loaded) return;
+    _loaded = true;
+    _load();
+  }
+
+  // Real low-stock rows from the inventory store. Previously this panel always
+  // rendered fixture rows, even in production with a live store beside it.
+  Future<void> _load() async {
+    final inventory = AppScope.of(context).inventory;
+    if (inventory == null) return;
+    final items = await inventory.listItems();
+    if (!mounted) return;
+    setState(() {
+      _hasStore = true;
+      _lowStock = items.where((i) => i.isLow).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final monitor = SyncMonitor.instance;
-    final lowStock = MockData.inventory.where((i) => i.low).toList();
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(title: 'التنبيهات'),
           const SizedBox(height: 12),
-          for (final item in lowStock) ...[
-            Row(
+          if (!_hasStore)
+            const Text(
+              'لا يوجد مخزن متاح لفحص المخزون.',
+              style: AppText.caption,
+            )
+          else if (_lowStock.isEmpty)
+            const Row(
               children: [
-                const StatusDot(tone: StatusTone.warning),
-                const SizedBox(width: 8),
+                StatusDot(tone: StatusTone.positive),
+                SizedBox(width: 8),
                 Expanded(
-                  child: Text('${item.item} أقل من حد إعادة الطلب', style: AppText.tableCellPrimary),
+                  child: Text('المخزون فوق حد إعادة الطلب',
+                      style: AppText.tableCellPrimary),
                 ),
-                Text('${item.onHand}${item.unit}', style: AppText.caption),
               ],
-            ),
-            const SizedBox(height: 10),
-          ],
-          const Divider(height: 20, color: AppColors.borderSubtle),
-          Row(
-            children: [
-              StatusDot(tone: monitor.conflicts > 0 ? StatusTone.negative : StatusTone.positive),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  monitor.conflicts > 0
-                      ? '${monitor.conflicts} تعارضات غير محلولة'
-                      : 'لا توجد تعارضات',
-                  style: AppText.tableCellPrimary,
-                ),
+            )
+          else
+            for (final item in _lowStock) ...[
+              Row(
+                children: [
+                  const StatusDot(tone: StatusTone.warning),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('${item.name} أقل من حد إعادة الطلب',
+                        style: AppText.tableCellPrimary),
+                  ),
+                  Text('${item.onHand}${item.unit}',
+                      style: AppText.caption),
+                ],
               ),
-              if (monitor.conflicts > 0)
-                const Icon(Icons.chevron_right, size: 14, color: AppColors.fgGhost),
+              const SizedBox(height: 10),
             ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const StatusDot(tone: StatusTone.info),
-              const SizedBox(width: 8),
-              const Expanded(child: Text('مزامنة القائمة: مخزنة محليًا', style: AppText.tableCellPrimary)),
-              Text(_sinceLabel(monitor), style: AppText.caption),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
+          const Divider(height: 20, color: AppColors.borderSubtle),
   String _sinceLabel(SyncMonitor monitor) {
     if (monitor.total == 0) return 'لم تتم المزامنة بعد';
     final d = monitor.sinceLastSync;

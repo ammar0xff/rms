@@ -1,15 +1,32 @@
 import 'package:sembast/sembast.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/models/menu_item.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
+import '../local/outbox/outbox_entry.dart';
+import '../local/outbox/outbox_store.dart';
+import '../sync/record_mirror.dart';
 import 'menu_repository.dart';
 
 /// Caches the menu locally for offline reads (pricing snapshots included).
 class LocalMenuRepository implements MenuRepository {
-  LocalMenuRepository(this._db);
+  LocalMenuRepository(
+    this._db, {
+    OutboxStore? outbox,
+    Uuid? uuid,
+    RecordMirror? mirror,
+  })  : _outbox = outbox ?? OutboxStore(_db),
+        _uuid = uuid ?? const Uuid(),
+        _mirror = mirror;
 
   final LocalDatabase _db;
+  final OutboxStore _outbox;
+  final Uuid _uuid;
+
+  /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
+  /// mode, where there is nowhere to mirror to.
+  final RecordMirror? _mirror;
 
   @override
   Future<void> cacheMenu(List<MenuItemModel> items, {bool replace = true}) async {
@@ -54,7 +71,55 @@ class LocalMenuRepository implements MenuRepository {
 
   @override
   Future<void> upsertMenuItem(MenuItemModel item) async {
-    await LocalStores.menu.record(item.id).put(_db.db, item.toRecord());
+    // Stamped dirty: availability toggles used to land as 'synced', which hid
+    // them from sync and let the next cache replace destroy them.
+    final dirty = item.syncStatus == 'synced'
+        ? item.copyWith(syncStatus: 'pendingSync')
+        : item;
+    final now = DateTime.now();
+    await _db.transaction((txn) async {
+      await LocalStores.menu.record(item.id).put(txn, dirty.toRecord());
+      await _outbox.append(
+        txn,
+        OutboxEntry(
+          operationId: _uuid.v4(),
+          entityType: 'menuItem',
+          entityId: item.id,
+          operationType: 'upsertMenuItem',
+          payload: {
+            'id': item.id,
+            'available': item.available,
+            'price': item.price,
+          },
+          schemaVersion: 1,
+          idempotencyKey: _uuid.v4(),
+          createdAt: now,
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<void> applySynced(OutboxEntry entry) async {
+    if (entry.entityType != 'menuItem') return;
+    final record = LocalStores.menu.record(entry.entityId);
+    final existing = await record.get(_db.db);
+    if (existing == null) return;
+    final item = MenuItemModel.fromRecord(existing);
+    if (!await _outbox.hasOutstandingFor(
+        entityType: 'menuItem', entityId: entry.entityId)) {
+      await record.put(
+        _db.db,
+        item.copyWith(syncStatus: 'synced').toRecord(),
+      );
+    }
+    final settled = await record.get(_db.db);
+    await mirrorRecord(
+      _mirror,
+      entityType: 'menuItem',
+      entityId: entry.entityId,
+      snapshot: settled ?? existing,
+    );
   }
 
   static Filter? _buildFilter({

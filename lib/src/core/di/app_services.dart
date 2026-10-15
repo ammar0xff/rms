@@ -20,6 +20,7 @@ import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
 import '../../data/repositories/reports_repository.dart';
+import '../../data/repositories/customer_repository.dart';
 import '../../data/repositories/supplier_repository.dart';
 import '../../data/repositories/update_repository.dart';
 import '../../data/sync/sync_service.dart';
@@ -47,6 +48,7 @@ class AppServices {
     this.migration,
     this.inventory,
     this.suppliers,
+    this.customers,
     this.purchases,
     this.reports,
     this.branches,
@@ -123,6 +125,7 @@ class AppServices {
 
   /// Supplier directory, or null when the store is unavailable.
   final SupplierRepository? suppliers;
+  final CustomerRepository? customers;
 
   /// Purchase orders, or null when the store is unavailable.
   final PurchaseRepository? purchases;

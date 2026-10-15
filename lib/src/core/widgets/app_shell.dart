@@ -11,6 +11,7 @@ import '../../features/accounting/accounting_screen.dart';
 import '../../features/branches/branches_screen.dart';
 import '../../features/conflicts/conflicts_screen.dart';
 import '../../features/customers/customers_screen.dart';
+import '../../features/database/database_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/delivery/delivery_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
@@ -65,6 +66,7 @@ final navGroups = <NavGroup>[
   ]),
   NavGroup('النظام', [
     NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
+    NavEntry('database', 'قاعدة البيانات', Icons.storage_outlined, _database),
     NavEntry('conflicts', 'التعارضات', Icons.call_split_outlined, _conflicts),
     NavEntry('team', 'الفريق', Icons.group_outlined, _team),
     NavEntry('settings', 'الإعدادات', Icons.settings_outlined, _settings),
@@ -127,7 +129,7 @@ _RoleNav _navFor(AppRole role) => switch (role) {
         ),
       AppRole.developer => const _RoleNav(
           tabs: ['dashboard', 'sync'],
-          more: _allIds,
+          more: [..._allIds, 'database'],
           home: 'dashboard',
         ),
     };
@@ -144,6 +146,7 @@ Widget _accounting(BuildContext c) => const AccountingScreen();
 Widget _reports(BuildContext c) => const ReportsScreen();
 Widget _branches(BuildContext c) => const BranchesScreen();
 Widget _sync(BuildContext c) => const SyncCenterScreen();
+Widget _database(BuildContext c) => const DatabaseScreen();
 Widget _conflicts(BuildContext c) => const ConflictsScreen();
 Widget _team(BuildContext c) => const TeamScreen();
 Widget _settings(BuildContext c) => const SettingsScreen();

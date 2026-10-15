@@ -31,6 +31,7 @@ import '../../data/repositories/local_approval_repository.dart';
 import '../../data/repositories/local_branch_repository.dart';
 import '../../data/repositories/local_cash_session_repository.dart';
 import '../../data/repositories/local_delivery_repository.dart';
+import '../../data/repositories/local_customer_repository.dart';
 import '../../data/repositories/local_feature_flag_repository.dart';
 import '../../data/repositories/local_inventory_repository.dart';
 import '../../data/repositories/local_kitchen_repository.dart';
@@ -130,7 +131,7 @@ Future<AppServices> _resolveAuth(
   final orders = (database == null || outbox == null)
       ? null
       : LocalOrderRepository(database, outbox: outbox, mirror: mirror);
-  final menu = database == null ? null : LocalMenuRepository(database);
+  final menu = database == null ? null : LocalMenuRepository(database, mirror: mirror);
   final kitchen = database == null
       ? null
       : LocalKitchenRepository(database, mirror: mirror);
@@ -175,6 +176,9 @@ Future<AppServices> _resolveAuth(
   final suppliers = (database == null || outbox == null)
       ? null
       : LocalSupplierRepository(database, outbox: outbox, audit: audit, mirror: mirror);
+  final customers = database == null
+      ? null
+      : LocalCustomerRepository(database, mirror: mirror);
   final purchases = (database == null || outbox == null || inventory == null)
       ? null
       : LocalPurchaseRepository(
@@ -276,6 +280,7 @@ Future<AppServices> _resolveAuth(
       migration: migration,
       inventory: inventory,
       suppliers: suppliers,
+      customers: customers,
       purchases: purchases,
       reports: reports,
       branches: branches,
@@ -291,7 +296,7 @@ Future<AppServices> _resolveAuth(
     await Firebase.initializeApp(options: config.toOptions());
     AppLogger.info('Firebase initialized (env=${config.environment}).');
     final sync = _buildSync(outbox, orders, payments, deliveries, cashSessions,
-        approvals, kitchen, inventory, suppliers, purchases);
+        approvals, kitchen, inventory, suppliers, purchases, customers);
     if (sync != null) unawaited(sync.start());
     try {
       SyncMonitor.instance.attach(sync: sync, outbox: outbox);
@@ -316,6 +321,7 @@ Future<AppServices> _resolveAuth(
       migration: migration,
       inventory: inventory,
       suppliers: suppliers,
+      customers: customers,
       purchases: purchases,
       reports: reports,
       branches: branches,
@@ -350,6 +356,7 @@ Future<AppServices> _resolveAuth(
       migration: migration,
       inventory: inventory,
       suppliers: suppliers,
+      customers: customers,
       purchases: purchases,
       reports: reports,
       branches: branches,
@@ -375,6 +382,7 @@ SyncService? _buildSync(
   LocalInventoryRepository? inventory,
   LocalSupplierRepository? suppliers,
   LocalPurchaseRepository? purchases,
+  LocalCustomerRepository? customers,
 ) {
   if (outbox == null || orders == null) return null;
   final engine = SyncEngine(
@@ -382,6 +390,7 @@ SyncService? _buildSync(
     outbox: outbox,
     onApplied: (entry) async {
       await kitchen?.applySynced(entry);
+      await menu?.applySynced(entry);
       await orders.applySynced(entry);
       await payments?.applySynced(entry);
       await deliveries?.applySynced(entry);
@@ -390,6 +399,7 @@ SyncService? _buildSync(
       await inventory?.applySynced(entry);
       await suppliers?.applySynced(entry);
       await purchases?.applySynced(entry);
+      await customers?.applySynced(entry);
     },
   );
   return SyncService(

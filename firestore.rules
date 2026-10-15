@@ -87,6 +87,12 @@ service cloud.firestore {
     match /approvals/{id} {
       allow read, write: if signedIn();
     }
+    match /customers/{id} {
+      allow read, write: if signedIn();
+    }
+    match /menu/{id} {
+      allow read, write: if signedIn();
+    }
 
     // Server-assigned order numbers. The reservation is a client-side
     // transaction (there is no server process), so denying it here does not

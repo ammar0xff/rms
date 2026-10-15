@@ -45,21 +45,10 @@ class _MenuScreenState extends State<MenuScreen> {
       }
     }
     if (!mounted) return;
-    setState(() => _items = loaded.isEmpty ? _fallbackMenu : loaded);
+    setState(() => _items = loaded);
   }
 
   /// Demo menu shown when the local store is unavailable.
-  List<MenuItemModel> get _fallbackMenu => [
-        for (final m in MockData.menu)
-          MenuItemModel(
-            id: m.name,
-            name: m.name,
-            category: m.category,
-            price: m.price,
-            station: m.station,
-            available: m.available,
-          ),
-      ];
 
   Future<void> _createItem() async {
     final menu = AppScope.of(context).menu;
@@ -190,7 +179,16 @@ class _MenuScreenState extends State<MenuScreen> {
         SurfaceCard(
           padding: EdgeInsets.zero,
           clip: true,
-          child: RmsTable(
+          child: items.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: EmptyState(
+                    icon: Icons.restaurant_menu_outlined,
+                    title: 'لا توجد أصناف',
+                    message: 'أنشئ أول صنف بزر صنف جديد.',
+                  ),
+                )
+              : RmsTable(
             columns: const [
               RmsColumn('الصنف', flex: 4),
               RmsColumn('الفئة', flex: 2),

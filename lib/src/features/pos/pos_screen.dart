@@ -91,20 +91,9 @@ class _PosScreenState extends State<PosScreen>
     // Never mutate state synchronously from within initState.
     await Future<void>.value();
     if (!mounted) return;
-    setState(() => _items = loaded.isEmpty ? _fallbackMenu : loaded);
+    setState(() => _items = loaded);
   }
 
-  List<MenuItemModel> get _fallbackMenu => [
-        for (final m in MockData.menu)
-          MenuItemModel(
-            id: m.name,
-            name: m.name,
-            category: m.category,
-            price: m.price,
-            station: m.station,
-            available: m.available,
-          ),
-      ];
 
   List<String> get _categories =>
       ['الكل', ...{for (final m in _items) m.category}];
@@ -537,7 +526,13 @@ class _MenuPaneState extends State<_MenuPane> {
           ),
         ),
         Expanded(
-          child: GridView.builder(
+          child: items.isEmpty
+              ? const EmptyState(
+                  icon: Icons.restaurant_menu_outlined,
+                  title: 'لا توجد أصناف',
+                  message: 'أضف أصنافًا من شاشة القائمة لبدء البيع.',
+                )
+              : GridView.builder(
             padding: const EdgeInsets.all(20),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 200,

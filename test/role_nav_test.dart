@@ -140,6 +140,26 @@ void main() {
       expect(find.text('قائمة تسوية التحصيلات المعلقة'), findsNothing);
     });
 
+    testWidgets('only developers see the database tools', (tester) async {
+      await signInAs(tester, 'dev@rms.dev');
+
+      await tester.tap(find.text('المزيد'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('قاعدة البيانات'), findsOneWidget);
+    });
+
+    testWidgets('managers do not see the database tools', (tester) async {
+      await signInAs(tester, 'ammar@rms.dev');
+
+      await tester.tap(find.text('المزيد'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('قاعدة البيانات'), findsNothing);
+      // But the team screen is shared with managers.
+      expect(find.text('الفريق'), findsOneWidget);
+    });
+
     testWidgets('sign-out returns to the sign-in screen', (tester) async {
       await signInAs(tester, 'driver.ahmed@rms.dev');
 
