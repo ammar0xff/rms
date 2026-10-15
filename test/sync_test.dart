@@ -131,10 +131,14 @@ void main() {
       );
 
       expect(await engine.drain(), 0);
-      // Not silently skipped: visible on the conflicts screen and countable,
-      // instead of stranded in the retry queue forever.
+      expect((await store.all()).single.syncStatus,
+          OutboxStatus.retryableFailure);
+      // Exhaustion is detected at the start of a pass: this drain parks it
+      // instead of skipping it silently forever.
+      expect(await engine.drain(), 0);
       expect((await store.all()).single.syncStatus,
           OutboxStatus.requiresUserAction);
+      // Parked entries leave the drain queue: no further attempts are burned.
       expect(await engine.drain(), 0);
       expect((await store.all()).single.attemptCount, 1);
     });
