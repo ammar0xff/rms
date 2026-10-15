@@ -143,8 +143,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const _OfflinePolicyCard(),
           ],
         ),
-        _FlagsCard(manifest: _manifest),
-        const _DiagnosticsCard(),
+        ResponsiveRow(
+          gap: AppSpacing.lg,
+          children: [
+            _FlagsCard(manifest: _manifest),
+            const _DiagnosticsCard(),
+          ],
+        ),
       ],
     );
   }
