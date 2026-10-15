@@ -438,9 +438,10 @@ class _TicketCard extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             Container(
               width: 4,
               decoration: BoxDecoration(
@@ -560,6 +561,7 @@ class _TicketCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
