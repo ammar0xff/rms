@@ -93,10 +93,15 @@ class SyncStatRow extends StatelessWidget {
   }
 
   Widget _item(BuildContext context, String label, String value, Color color) {
+    // Wrap-safe: three items plus dividers exceed 390px under wide glyphs,
+    // and a stat row must never be the thing that overflows a screen.
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: AppText.label),
+        Flexible(
+          child: Text(label,
+              overflow: TextOverflow.ellipsis, style: AppText.label),
+        ),
         const SizedBox(width: 5),
         Text(value, style: AppText.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
       ],

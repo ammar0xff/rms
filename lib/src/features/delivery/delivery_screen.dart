@@ -465,9 +465,12 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           const Divider(height: 20, color: AppColors.borderSubtle),
           Row(
             children: [
-              Text('قائمة تسوية التحصيلات المعلقة',
-                  style: AppText.bodyStrong.copyWith(fontSize: 12)),
-              const Spacer(),
+              Flexible(
+                child: Text('قائمة تسوية التحصيلات المعلقة',
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.bodyStrong),
+              ),
+              const SizedBox(width: 8),
               Tag(
                 label: '${_pendingSettlements.length} معلقة',
                 tone: _pendingSettlements.isEmpty
