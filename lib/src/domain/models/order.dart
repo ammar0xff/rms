@@ -30,6 +30,7 @@ class Order {
   /// cart used to charge tax while every record downstream ignored it, so a
   /// payment never matched its order.
   final double taxAmount;
+  String? serverId;
   String? canonicalOrderNumber;
   int localRevision;
   int? serverRevision;

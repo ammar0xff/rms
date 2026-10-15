@@ -414,39 +414,6 @@ class LocalDeliveryRepository implements DeliveryRepository {
     });
   }
 
-  /// Applies a local mutation and queues its outbox command atomically.
-  Future<void> _mutate(
-    String deliveryId,
-    void Function(DeliveryModel) change, {
-    required String operationType,
-  }) async {
-    final now = _clock();
-    await _db.transaction((txn) async {
-      final record = LocalStores.deliveries.record(deliveryId);
-      final existing = await record.get(txn);
-      if (existing == null) return;
-      final delivery = DeliveryModel.fromRecord(existing);
-      change(delivery);
-      delivery.localRevision += 1;
-      delivery.syncStatus = SyncStatus.pendingSync;
-      await record.put(txn, delivery.toRecord());
-      await _outbox.append(
-        txn,
-        _entry(
-          entityId: deliveryId,
-          operationType: operationType,
-          createdAt: now,
-          payload: {
-            'id': deliveryId,
-            'orderRef': delivery.orderRef,
-            'driver': delivery.driver,
-            'state': delivery.state.name,
-          },
-        ),
-      );
-    });
-  }
-
   /// Marks the delivery (or collection) an outbox entry refers to as synced and
   /// applies any server-confirmed settlement.
   Future<void> applySynced(OutboxEntry entry) async {
