@@ -135,7 +135,7 @@ void main() {
 
       // The driver branch renders its own empty state; the 8-column ops
       // table and the drivers panel never mount for this role.
-      expect(find.text('لا توجد مهمات مفتوحة'), findsOneWidget);
+      expect(find.text('لا توجد مهمات مفتوحة. يوم موفق!'), findsOneWidget);
       expect(find.text('السائقون'), findsNothing);
       expect(find.text('قائمة تسوية التحصيلات المعلقة'), findsNothing);
     });
