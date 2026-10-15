@@ -31,6 +31,9 @@ class _FakeUpdates implements UpdateRepository {
 
   @override
   Future<void> cache(UpdateManifest manifest) async {}
+
+  @override
+  Future<void> clear() async {}
 }
 
 UpdateManifest _manifest({

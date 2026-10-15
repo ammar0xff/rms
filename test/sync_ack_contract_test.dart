@@ -21,8 +21,6 @@ OutboxEntry _entry({
       createdAt: DateTime.utc(2026, 1, 1),
     );
 
-final _at = DateTime.utc(2026, 10, 14, 12, 30);
-
 Map<String, dynamic> _ack({
   OutboxEntry? entry,
   int? sequence,
@@ -30,7 +28,6 @@ Map<String, dynamic> _ack({
     SyncAck.build(
       entry: entry ?? _entry(),
       serverId: 'doc-1',
-      receivedAt: _at,
       canonicalSequence: sequence,
     );
 
@@ -104,10 +101,12 @@ void main() {
   });
 
   group('acknowledgement shape', () {
-    test('carries the server id and an ISO-8601 receipt time', () {
+    test('carries the server id and nothing else by default', () {
       final ack = _ack();
       expect(ack['serverId'], 'doc-1');
-      expect(ack['serverReceivedAt'], _at.toIso8601String());
+      // serverReceivedAt used to ride along, written and folded but never read
+      // by anything. A field with no reader is dead weight in every payload.
+      expect(ack.containsKey('serverReceivedAt'), isFalse);
     });
 
     test('carries the canonical number when one was reserved', () {

@@ -13,6 +13,9 @@ enum UpdateRefreshOutcome {
   /// The backend could not be reached; the cached document still stands.
   offline('تعذّر الوصول إلى الخادم'),
 
+  /// A fetched manifest replaced the cache, or a withdrawn one cleared it.
+  withdrawn('سُحب الإصدار المعلن'),
+
   /// The device is configured to ignore published releases.
   skipped('التحديثات غير مفعّلة على هذه المنصة');
 
@@ -55,7 +58,23 @@ class UpdateRefreshService {
     if (result.unreachable) return UpdateRefreshOutcome.offline;
 
     final incoming = result.manifest;
-    if (incoming == null) return UpdateRefreshOutcome.unchanged;
+    if (incoming == null) {
+      // No readable document behind the pointer. When the pointer names a
+      // release different from the cached one, the publisher moved on and the
+      // named document is gone (or unreadable): the cached release was pulled
+      // and must stop being offered, rather than installing from cache
+      // indefinitely. A pointer naming the cached release itself is treated
+      // as transient and keeps serving.
+      final current = await cache.cached();
+      final pointerId = result.pointerReleaseId;
+      if (pointerId != null &&
+          current != null &&
+          current.releaseId != pointerId) {
+        await cache.clear();
+        return UpdateRefreshOutcome.withdrawn;
+      }
+      return UpdateRefreshOutcome.unchanged;
+    }
 
     final current = await cache.cached();
     if (current != null && !_isNewer(incoming, current)) {

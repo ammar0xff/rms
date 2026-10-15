@@ -55,7 +55,6 @@ class InMemorySyncTransport implements SyncTransport {
       // — so only the rules around it are shared. What must match is the key
       // name, and which entries draw on the order counter.
       serverId: 'srv-${entry.idempotencyKey}',
-      receivedAt: DateTime.now(),
       canonicalSequence: sequence,
     );
   }

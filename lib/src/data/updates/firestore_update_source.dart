@@ -69,13 +69,17 @@ class FirestoreUpdateSource implements RemoteUpdateSource {
       }
 
       final manifest = await read(releasesCollection, releaseId);
-      if (manifest == null) return const RemoteUpdateResult.none();
+      if (manifest == null) {
+        return RemoteUpdateResult.none(pointerReleaseId: releaseId);
+      }
 
       // Defensive parse: a malformed or newer-schema document is treated as
       // absent so the cached manifest keeps serving.
-      return RemoteUpdateResult(
-        manifest: UpdateManifest.parse(manifest).manifest,
-      );
+      final parsed = UpdateManifest.parse(manifest).manifest;
+      if (parsed == null) {
+        return RemoteUpdateResult.none(pointerReleaseId: releaseId);
+      }
+      return RemoteUpdateResult(manifest: parsed);
     } catch (_) {
       // Offline, permission denied, or a transient failure. The cache stands.
       return const RemoteUpdateResult.offline();

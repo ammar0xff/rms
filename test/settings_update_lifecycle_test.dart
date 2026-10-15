@@ -46,6 +46,9 @@ class _FakeUpdates implements UpdateRepository {
 
   @override
   Future<void> cache(UpdateManifest manifest) async {}
+
+  @override
+  Future<void> clear() async {}
 }
 
 /// In-memory stand-in for the Sembast-backed status store.
@@ -182,7 +185,10 @@ void main() {
 
     expect(find.text('التحديثات'), findsOneWidget);
     expect(find.text('جاهز للتثبيت'), findsOneWidget);
-    expect(find.text('تحديث'), findsOneWidget);
+    // No install button here: the action lives in the shell-mounted prompt,
+    // which is showing whenever the gate allows. The card used to carry a
+    // duplicate button with a stale "not enabled" claim.
+    expect(find.text('تحديث'), findsNothing);
   });
 
   testWidgets('a failed attempt is surfaced with its rollback target',
@@ -294,7 +300,7 @@ void main() {
     // then allows the install.
     expect(acknowledgement.acknowledgement?.stuckCount, 3);
     expect(find.text('جاهز للتثبيت'), findsOneWidget);
-    expect(find.text('تحديث'), findsOneWidget);
+    expect(find.text('تحديث'), findsNothing);
   });
 
   testWidgets('a stale acknowledgement does not unblock new stuck work',

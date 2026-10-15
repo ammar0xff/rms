@@ -55,6 +55,11 @@ class _FakeCache implements UpdateRepository {
     writes++;
     stored = manifest;
   }
+
+  @override
+  Future<void> clear() async {
+    stored = null;
+  }
 }
 
 void main() {
@@ -214,6 +219,54 @@ void main() {
 
       expect(outcome, UpdateRefreshOutcome.unchanged);
       expect(cache.stored?.version, '2.0.0');
+    });
+
+    test('withdraws the cache when the pointer moved past an unreadable doc',
+        () async {
+      // The publisher pointed at r-2 and deleted it. Offering the cached r-1
+      // from here on would install a pulled release indefinitely.
+      final remote = _FakeRemote(
+        const RemoteUpdateResult.none(pointerReleaseId: 'r-2'),
+      );
+      final cache = _FakeCache(_manifest(buildNumber: 3));
+
+      final outcome = await UpdateRefreshService(
+        remote: remote,
+        cache: cache,
+      ).refresh();
+
+      expect(outcome, UpdateRefreshOutcome.withdrawn);
+      expect(await cache.cached(), isNull);
+    });
+
+    test('keeps serving when the pointer still names the cached release',
+        () async {
+      // Same id, unreadable doc: transient blip, not a withdrawal.
+      final remote = _FakeRemote(
+        const RemoteUpdateResult.none(pointerReleaseId: 'android-3'),
+      );
+      final cache = _FakeCache(_manifest(buildNumber: 3));
+
+      final outcome = await UpdateRefreshService(
+        remote: remote,
+        cache: cache,
+      ).refresh();
+
+      expect(outcome, UpdateRefreshOutcome.unchanged);
+      expect(cache.stored?.buildNumber, 3);
+    });
+
+    test('keeps serving when there is no pointer at all', () async {
+      final remote = _FakeRemote(const RemoteUpdateResult.none());
+      final cache = _FakeCache(_manifest(buildNumber: 3));
+
+      final outcome = await UpdateRefreshService(
+        remote: remote,
+        cache: cache,
+      ).refresh();
+
+      expect(outcome, UpdateRefreshOutcome.unchanged);
+      expect(cache.stored?.buildNumber, 3);
     });
 
     test('skips the fetch where artifact delivery is unsupported', () async {

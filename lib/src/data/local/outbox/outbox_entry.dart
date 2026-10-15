@@ -10,7 +10,6 @@ class OutboxEntry {
     required this.schemaVersion,
     required this.idempotencyKey,
     required this.createdAt,
-    this.dependencyIds = const [],
     this.attemptCount = 0,
     this.lastAttemptAt,
     this.lastError,
@@ -25,7 +24,6 @@ class OutboxEntry {
   final int schemaVersion;
   final String idempotencyKey;
   final DateTime createdAt;
-  final List<String> dependencyIds;
   final int attemptCount;
   final DateTime? lastAttemptAt;
   final String? lastError;
@@ -48,7 +46,6 @@ class OutboxEntry {
       schemaVersion: schemaVersion,
       idempotencyKey: idempotencyKey,
       createdAt: createdAt,
-      dependencyIds: dependencyIds,
       attemptCount: attemptCount ?? this.attemptCount,
       lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
       lastError: clearLastError ? null : (lastError ?? this.lastError),
@@ -65,7 +62,6 @@ class OutboxEntry {
         'schemaVersion': schemaVersion,
         'idempotencyKey': idempotencyKey,
         'createdAt': createdAt.toIso8601String(),
-        'dependencyIds': dependencyIds,
         'attemptCount': attemptCount,
         'lastAttemptAt': lastAttemptAt?.toIso8601String(),
         'lastError': lastError,

@@ -12,4 +12,9 @@ abstract class UpdateRepository {
 
   /// Replaces the cached manifest with [manifest].
   Future<void> cache(UpdateManifest manifest);
+
+  /// Drops the cached manifest, e.g. when the publisher withdraws the release
+  /// the pointer names. The device then offers nothing until a readable
+  /// release is published.
+  Future<void> clear();
 }

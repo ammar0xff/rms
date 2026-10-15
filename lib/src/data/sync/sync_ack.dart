@@ -52,12 +52,10 @@ abstract final class SyncAck {
   static Map<String, dynamic> build({
     required OutboxEntry entry,
     required String serverId,
-    required DateTime receivedAt,
     int? canonicalSequence,
   }) {
     final ack = <String, dynamic>{
       'serverId': serverId,
-      'serverReceivedAt': receivedAt.toIso8601String(),
     };
     // Reserved numbers are 1-based: the counter document starts absent and the
     // first reservation is 1. A zero here means the counter moved backwards,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/config/app_version.dart';
 import '../../core/config/device_update_context.dart';
 import '../../core/di/app_services.dart';
+import '../../core/logging/app_logger.dart';
 import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -34,6 +35,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   UpdateReadiness? _readiness;
   DeviceUpdateStatus? _lastStatus;
   List<ReleaseAuditEvent> _auditTrail = const [];
+  UpdateAcknowledgement? _lastAck;
+  bool _acking = false;
   bool _loaded = false;
 
   @override
@@ -79,25 +82,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _readiness = readiness;
       _lastStatus = lastStatus;
       _auditTrail = trail;
+      _lastAck = acknowledgement;
     });
   }
 
   /// Records an operator acknowledgement of the stuck work on hand, then
   /// re-evaluates the gate against it.
   Future<void> _acknowledgeStuckWork() async {
+    if (_acking) return;
     final services = AppScope.of(context);
     final readiness = _readiness;
     if (readiness == null) return;
-    final actor = services.auth.currentUser;
-    await services.updateAcknowledgement?.save(
-          UpdateAcknowledgement(
-            stuckCount: readiness.work.stuck,
-            acknowledgedAt: DateTime.now(),
-            acknowledgedBy: actor?.email ?? '',
-            note: 'تم الإقرار من شاشة الإعدادات',
-          ),
-        );
-    await _load();
+    setState(() => _acking = true);
+    try {
+      final actor = services.auth.currentUser;
+      await services.updateAcknowledgement?.save(
+            UpdateAcknowledgement(
+              stuckCount: readiness.work.stuck,
+              acknowledgedAt: DateTime.now(),
+              acknowledgedBy: actor?.email ?? '',
+              note: 'تم الإقرار من شاشة الإعدادات',
+            ),
+          );
+      await _load();
+    } finally {
+      if (mounted) setState(() => _acking = false);
+    }
   }
 
   @override
@@ -155,12 +165,22 @@ class _VersionCard extends StatelessWidget {
             ('مخطط البيانات المحلي', AppVersion.localSchema),
             (
               'المخطط المطبق',
-              migration == null ? 'غير معروف' : 'v${migration!.toVersion}',
+              migration == null ? 'لا يوجد مخزن' : 'v${migration!.toVersion}',
             ),
             ('عقد الـ API', AppVersion.apiContract),
             ('الإعدادات', services.config.environment),
             ('الخلفية', services.firebaseReady ? 'Firebase' : 'محلي (وضع العرض)'),
-            ('حالة Firebase', services.isDemo ? 'غير مهيأة' : 'متصلة'),
+            // Never-configured and configured-but-failed are different states
+            // with different fixes (add the keys vs check them); collapsing
+            // them sent operators to re-check keys that were never the problem.
+            (
+              'حالة Firebase',
+              !services.config.isConfigured
+                  ? 'غير مهيأة'
+                  : services.firebaseReady
+                      ? 'متصلة'
+                      : 'فشل الاتصال — راجع الإعدادات أو الشبكة'
+            ),
           ])
             KeyValue(label: k, value: v, mono: true),
         ],
@@ -176,6 +196,8 @@ class _UpdateCard extends StatelessWidget {
     this.lastStatus,
     this.trail = const [],
     this.onAcknowledge,
+    this.acknowledging = false,
+    this.lastAck,
   });
 
   final UpdateDecision? decision;
@@ -191,6 +213,13 @@ class _UpdateCard extends StatelessWidget {
   /// Called when the operator acknowledges the stuck work on hand.
   final VoidCallback? onAcknowledge;
 
+  /// True while the acknowledgement round trip is running.
+  final bool acknowledging;
+
+  /// The stored acknowledgement, so the card can show what was already
+  /// signed off when new work arrives after it.
+  final UpdateAcknowledgement? lastAck;
+
   @override
   Widget build(BuildContext context) {
     final current = decision;
@@ -199,7 +228,6 @@ class _UpdateCard extends StatelessWidget {
     final color = toneColor(tone);
     final needsAck =
         readiness?.status == UpdateReadinessStatus.needsAcknowledgement;
-    final canInstall = readiness?.allowsInstall ?? false;
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -226,6 +254,14 @@ class _UpdateCard extends StatelessWidget {
             if (current?.requiresMigration ?? false) ('ترحيل محلي مطلوب', 'نعم'),
             if (readiness != null && current?.isUpdate == true)
               ('جاهزية التثبيت', readiness!.status.label),
+            // What was already signed off: when new work arrives after an
+            // ack, the gate still withholds — and now the card says why
+            // instead of looping silently on the same button.
+            if (needsAck && lastAck != null)
+              (
+                'آخر إقرار',
+                '${lastAck!.stuckCount} عنصر · ${lastAck!.acknowledgedAt.toIso8601String().substring(0, 16).replaceAll('T', ' ')}'
+              ),
             if (lastStatus != null && lastStatus!.releaseId.isNotEmpty)
               ('آخر محاولة تحديث', lastStatus!.state.label),
             if (lastStatus?.failureReason != null &&
@@ -266,22 +302,14 @@ class _UpdateCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                RmsButton(
-                  label: needsAck ? 'إقرار' : 'تحديث',
-                  variant: BtnVariant.primary,
-                  onPressed: needsAck
-                      ? onAcknowledge
-                      : canInstall
-                          ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'التحديث مؤهَّل وجاهز، لكن تنزيل الحزمة وتثبيتها غير مفعّلين على هذه المنصة بعد.',
-                                  ),
-                                ),
-                              )
-                          : null,
-                ),
+                if (needsAck) ...[
+                  const SizedBox(width: 10),
+                  RmsButton(
+                    label: acknowledging ? 'جارٍ الحفظ…' : 'إقرار',
+                    variant: BtnVariant.primary,
+                    onPressed: acknowledging ? null : onAcknowledge,
+                  ),
+                ],
               ],
             ),
           ),
@@ -393,7 +421,7 @@ class _MigrationCard extends StatelessWidget {
             ? StatusTone.positive
             : StatusTone.negative;
     final label = migration == null
-        ? 'غير معروفة'
+        ? 'لا يوجد مخزن'
         : succeeded
             ? 'مكتمل'
             : 'فشل';
@@ -410,8 +438,10 @@ class _MigrationCard extends StatelessWidget {
             (
               'الإصدار',
               migration == null
-                  ? 'غير معروف'
-                  : 'v${migration.fromVersion} ← v${migration.toVersion}',
+                  ? 'لا يوجد مخزن'
+                  : migration.fromVersion < 0
+                      ? 'تعذّر الفحص'
+                      : 'v${migration.fromVersion} ← v${migration.toVersion}',
             ),
             (
               'الخطوات المطبقة',
@@ -619,6 +649,37 @@ class _DiagnosticsCard extends StatelessWidget {
                     label: 'مهام الطباعة في الطابور',
                     value: '${services.print?.jobs.length ?? 0}',
                     mono: true,
+                  ),
+                  const SizedBox(height: 12),
+                  Text('سجل الأحداث الأخيرة', style: AppText.label),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 120,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceSunken,
+                      border: Border.all(color: AppColors.borderSubtle),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Builder(
+                      builder: (context) {
+                        final lines = AppLogger.recentLines(limit: 30);
+                        if (lines.isEmpty) {
+                          return const Text(
+                            'لا توجد أحداث مسجلة بعد في هذه الجلسة.',
+                            style: AppText.caption,
+                          );
+                        }
+                        return SingleChildScrollView(
+                          child: Text(
+                            lines.join('\n'),
+                            style: AppText.mono
+                                .copyWith(fontSize: 10, height: 1.5),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               );

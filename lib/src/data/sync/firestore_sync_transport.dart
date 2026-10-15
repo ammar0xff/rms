@@ -58,7 +58,6 @@ class FirestoreSyncTransport implements SyncTransport {
     return SyncAck.build(
       entry: entry,
       serverId: ref.id,
-      receivedAt: DateTime.now(),
       canonicalSequence: canonicalSequence,
     );
   }

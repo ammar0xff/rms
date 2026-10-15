@@ -6,16 +6,26 @@ import '../../domain/models/update_manifest.dart';
 /// different things to an operator: the first is a connectivity problem worth
 /// surfacing, the second is simply an up-to-date device.
 class RemoteUpdateResult {
-  const RemoteUpdateResult({this.manifest, this.unreachable = false});
+  const RemoteUpdateResult(
+      {this.manifest, this.unreachable = false, this.pointerReleaseId});
 
-  /// Nothing published, or the document could not be parsed.
-  const RemoteUpdateResult.none() : this(manifest: null);
+  /// Nothing published, or the document could not be parsed. Carries the
+  /// pointer identity when one was read, so a pulled release is
+  /// distinguishable from an empty backend.
+  const RemoteUpdateResult.none({this.pointerReleaseId})
+      : manifest = null,
+        unreachable = false;
 
   /// The backend could not be reached.
   const RemoteUpdateResult.offline() : this(manifest: null, unreachable: true);
 
   final UpdateManifest? manifest;
   final bool unreachable;
+
+  /// The release id the pointer names, when a pointer was read — even when
+  /// its document turned out missing or unparseable. Lets the refresh tell
+  /// "nothing published" apart from "the offered release was pulled".
+  final String? pointerReleaseId;
 
   bool get isUsable => manifest != null;
 }

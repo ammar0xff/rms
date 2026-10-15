@@ -19,6 +19,13 @@ OutboxEntry _entry({String key = 'k1', DateTime? createdAt}) => OutboxEntry(
 
 void main() {
   group('OutboxEntry', () {
+    test('ignores the removed dependencyIds key on old rows', () {
+      final record = _entry().toRecord();
+      record['dependencyIds'] = ['op-old'];
+      final restored = OutboxEntry.fromRecord(record);
+      expect(restored.operationId, 'op-k1');
+    });
+
     test('round-trips through a record', () {
       final entry = _entry(createdAt: DateTime.utc(2026, 5, 4, 3, 2, 1));
       final restored = OutboxEntry.fromRecord(entry.toRecord());
@@ -31,7 +38,8 @@ void main() {
       expect(restored.idempotencyKey, 'k1');
       expect(restored.createdAt, entry.createdAt);
       expect(restored.syncStatus, OutboxStatus.pending);
-      expect(restored.dependencyIds, isEmpty);
+      // dependencyIds was removed: stored by nothing, read by nothing. Old
+      // rows still carrying the key parse tolerantly (fromRecord ignores it).
       expect(restored.attemptCount, 0);
       expect(restored.lastAttemptAt, isNull);
       expect(restored.lastError, isNull);

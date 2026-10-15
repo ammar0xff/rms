@@ -29,4 +29,8 @@ class LocalUpdateRepository implements UpdateRepository {
   @override
   Future<void> cache(UpdateManifest manifest) =>
       LocalStores.config.record(manifestKey).put(_db.db, manifest.toRecord());
+
+  @override
+  Future<void> clear() =>
+      LocalStores.config.record(manifestKey).delete(_db.db);
 }

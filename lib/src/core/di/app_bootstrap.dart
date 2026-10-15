@@ -102,7 +102,16 @@ Future<MigrationOutcome?> _runMigrations(LocalDatabase? database) async {
     return outcome;
   } catch (error, stackTrace) {
     AppLogger.error('Local schema migration failed.', error, stackTrace);
-    return null;
+    // A failed outcome, not null: null means "no store at all", and the
+    // settings screen must be able to tell those apart instead of reporting
+    // both as unknown with no retry path.
+    return MigrationOutcome(
+      fromVersion: -1,
+      toVersion: -1,
+      applied: const [],
+      succeeded: false,
+      error: '$error',
+    );
   }
 }
 

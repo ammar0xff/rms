@@ -55,6 +55,9 @@ class _Cache implements UpdateRepository {
 
   @override
   Future<void> cache(UpdateManifest manifest) async => stored = manifest;
+
+  @override
+  Future<void> clear() async => stored = null;
 }
 
 /// A mutable outbox, so a check can be repeated against a backlog that grew

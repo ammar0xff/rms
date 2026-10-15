@@ -7,9 +7,12 @@ import 'update_prompt_mode.dart';
 ///
 /// Kept pure so the escalation rules can be tested without a widget tree. The
 /// only asymmetry that matters is severity: a mandatory release becomes a
-/// blocking screen, everything else stays dismissible. Nothing here can widen
-/// a release's severity — a dismissible update never becomes blocking, and a
-/// blocking one is never downgraded because the operator asked.
+/// blocking screen, everything else stays dismissible. This layer never widens
+/// severity itself — but the decision upstream can: a release past its
+/// `forceAfter` arrives already mandatory, which is a scheduled escalation,
+/// not a spontaneous one. A blocking prompt is therefore never downgraded
+/// because the operator asked, while an optional release the publisher
+/// scheduled for enforcement still becomes blocking on time.
 class UpdatePromptState {
   const UpdatePromptState({
     required this.mode,
