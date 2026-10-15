@@ -108,25 +108,50 @@ class _KitchenScreenState extends State<KitchenScreen> {
       children: [
         // The filter scrolls inside a bounded lane; the recall button keeps
         // its own space so a long station list cannot push it off-screen.
-        Row(
-          children: [
-            const Expanded(
-              child: SectionHeader(
-                title: 'شاشة المطبخ',
-                subtitle: 'التذاكر تنجو من إعادة التشغيل · الطباعة مستقلة عن المزامنة',
-              ),
-            ),
-            const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 160),
-              child: SizedBox(
-                height: 44,
-                child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s)),
-              ),
-            ),
-            const SizedBox(width: 8),
-            RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: _load),
-          ],
+        LayoutBuilder(
+          builder: (context, c) {
+            final actions = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: SizedBox(
+                    height: 44,
+                    child: _StationFilter(stations: _stations, selected: _station, onSelect: (s) => setState(() => _station = s)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: _load),
+              ],
+            );
+            if (c.maxWidth >= 600) {
+              return Row(
+                children: [
+                  const Expanded(
+                    child: SectionHeader(
+                      title: 'شاشة المطبخ',
+                      subtitle: 'التذاكر تنجو من إعادة التشغيل · الطباعة مستقلة عن المزامنة',
+                    ),
+                  ),
+                  actions,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionHeader(
+                  title: 'شاشة المطبخ',
+                  subtitle: 'التذاكر تنجو من إعادة التشغيل · الطباعة مستقلة عن المزامنة',
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: actions,
+                ),
+              ],
+            );
+          },
         ),
         Expanded(
           child: RefreshIndicator(

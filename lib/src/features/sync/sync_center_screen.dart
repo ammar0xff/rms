@@ -34,20 +34,38 @@ class SyncCenterScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return PageBody(
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: SectionHeader(
-                title: 'مركز المزامنة',
-                subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
-              ),
-            ),
-            RmsButton(label: 'إعادة الاتصال والمزامنة الآن', icon: Icons.sync, onPressed: () {
+        LayoutBuilder(
+          builder: (context, c) {
+            final action = RmsButton(label: 'إعادة الاتصال والمزامنة الآن', icon: Icons.sync, onPressed: () {
               final svc = AppScope.of(context).sync;
               if (svc != null) svc.requestSync();
               SyncMonitor.instance.refresh();
-            }, dense: false),
-          ],
+            }, dense: false);
+            if (c.maxWidth >= 600) {
+              return Row(
+                children: [
+                  const Expanded(
+                    child: SectionHeader(
+                      title: 'مركز المزامنة',
+                      subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
+                    ),
+                  ),
+                  action,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionHeader(
+                  title: 'مركز المزامنة',
+                  subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
+                ),
+                const SizedBox(height: 8),
+                action,
+              ],
+            );
+          },
         ),
         AnimatedBuilder(
           animation: SyncMonitor.instance,
