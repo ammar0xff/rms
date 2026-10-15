@@ -229,7 +229,10 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
     if (amount == null) return;
     final offline = services.sync?.isOnline != true;
-    await repo.recordCollection(
+    // recordCollection returns null (writes nothing) when the job is missing,
+    // not delivered, or already collected — e.g. a double-tapped dialog.
+    // Celebrating that as a success records money that was never written.
+    final collection = await repo.recordCollection(
       deliveryId: delivery.id,
       amount: amount,
       createdOffline: offline,
@@ -240,9 +243,11 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          offline
-              ? 'سُجّل تحصيل ${money(amount)} محليًا · يُسوّى عند الاتصال'
-              : 'سُجّل تحصيل ${money(amount)}',
+          collection == null
+              ? 'تعذّر تسجيل التحصيل — ربما سُجّل من قبل'
+              : offline
+                  ? 'سُجّل تحصيل ${money(amount)} محليًا · يُسوّى عند الاتصال'
+                  : 'سُجّل تحصيل ${money(amount)}',
         ),
       ),
     );

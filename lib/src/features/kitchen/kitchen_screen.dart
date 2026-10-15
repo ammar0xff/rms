@@ -55,7 +55,17 @@ class _KitchenScreenState extends State<KitchenScreen> {
     if (kitchen == null) return;
     final tickets = await kitchen.listTickets();
     if (!mounted) return;
-    setState(() => _tickets = tickets);
+    setState(() {
+      _tickets = tickets;
+      // The selected station ages out when its last open ticket completes: the
+      // chip vanishes while the filter still points at it, leaving every lane
+      // empty with no way back. Fall home to الكل.
+      if (_station != 'الكل' &&
+          tickets.every((t) =>
+              t.state == TicketState.completed || t.station != _station)) {
+        _station = 'الكل';
+      }
+    });
   }
 
   Future<void> _transition(KitchenTicketModel ticket, TicketState next) async {
