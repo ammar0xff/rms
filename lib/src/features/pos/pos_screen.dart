@@ -97,6 +97,13 @@ class _PosScreenState extends State<PosScreen>
   List<String> get _categories =>
       ['الكل', ...{for (final m in _items) m.category}];
 
+  Map<String, int> get _categoryCounts => {
+        for (final c in _categories)
+          c: c == 'الكل'
+              ? _items.length
+              : _items.where((m) => m.category == c).length,
+      };
+
   List<MenuItemModel> get _visible {
     final inCategory = _category == 'الكل'
         ? _items
@@ -304,11 +311,13 @@ class _PosScreenState extends State<PosScreen>
     return LayoutBuilder(
       builder: (context, c) {
         final narrow = c.maxWidth < 820;
+        final canPay = _cart.isNotEmpty && !_submitting;
         final menu = _MenuPane(
           categories: _categories,
           selected: _category,
           items: _visible,
           query: _query,
+          chipsVisible: narrow,
           onQuery: (v) => setState(() => _query = v),
           onCategory: (v) => setState(() => _category = v),
           onAdd: _add,
@@ -326,6 +335,15 @@ class _PosScreenState extends State<PosScreen>
           onDec: _dec,
           onSend: () => _submitOrder(),
           onCollect: _collect,
+          onQuickCash: () => _submitOrder(
+            payment: _PaymentInput(
+                method: PaymentMethod.cash, tendered: _total),
+          ),
+          onQuickCard: () => _submitOrder(
+            payment:
+                _PaymentInput(method: PaymentMethod.card, tendered: null),
+          ),
+          canPay: canPay,
         );
 
         if (narrow) {
@@ -390,9 +408,18 @@ class _PosScreenState extends State<PosScreen>
             ],
           );
         }
+        // The counter layout: category rail, product grid, docked cart.
+        // Phones keep chips plus tabs instead (see the narrow branch).
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _CategoryRail(
+              categories: _categories,
+              counts: _categoryCounts,
+              selected: _category,
+              onCategory: (v) => setState(() => _category = v),
+            ),
+            Container(width: 1, color: AppColors.borderStrong),
             Expanded(child: menu),
             Container(width: 1, color: AppColors.borderStrong),
             SizedBox(width: 360, child: cart),
@@ -412,6 +439,7 @@ class _MenuPane extends StatefulWidget {
     required this.onQuery,
     required this.onCategory,
     required this.onAdd,
+    this.chipsVisible = true,
   });
 
   final List<String> categories;
@@ -421,6 +449,9 @@ class _MenuPane extends StatefulWidget {
   final ValueChanged<String> onQuery;
   final ValueChanged<String> onCategory;
   final ValueChanged<MenuItemModel> onAdd;
+
+  /// False on wide screens, where the category rail replaces the chips.
+  final bool chipsVisible;
 
   @override
   State<_MenuPane> createState() => _MenuPaneState();
@@ -506,24 +537,25 @@ class _MenuPaneState extends State<_MenuPane> {
             ],
           ),
         ),
-        SizedBox(
-          height: 48,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: [
-              for (final c in categories)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _CategoryChip(
-                    label: c,
-                    active: c == selected,
-                    onTap: () => onCategory(c),
+        if (widget.chipsVisible)
+          SizedBox(
+            height: 48,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                for (final c in categories)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _CategoryChip(
+                      label: c,
+                      active: c == selected,
+                      onTap: () => onCategory(c),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
         Expanded(
           child: items.isEmpty
               ? const EmptyState(
@@ -547,6 +579,75 @@ class _MenuPaneState extends State<_MenuPane> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The counter's category rail: every category with its count, always
+/// visible beside the grid. Replaces the scrolling chip strip on wide
+/// screens; phones never mount it.
+class _CategoryRail extends StatelessWidget {
+  const _CategoryRail({
+    required this.categories,
+    required this.counts,
+    required this.selected,
+    required this.onCategory,
+  });
+
+  final List<String> categories;
+  final Map<String, int> counts;
+  final String selected;
+  final ValueChanged<String> onCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 200,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        children: [
+          for (final c in categories)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: GestureDetector(
+                onTap: () => onCategory(c),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: c == selected
+                        ? AppColors.brandSoft
+                        : Colors.transparent,
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          c,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.bodyStrong.copyWith(
+                            color: c == selected
+                                ? AppColors.brand
+                                : AppColors.fgSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${counts[c] ?? 0}',
+                        style: AppText.caption,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -740,6 +841,9 @@ class _CartPane extends StatelessWidget {
     required this.onDec,
     required this.onSend,
     required this.onCollect,
+    required this.onQuickCash,
+    required this.onQuickCard,
+    required this.canPay,
   });
 
   final List<CartLine> cart;
@@ -754,6 +858,12 @@ class _CartPane extends StatelessWidget {
   final ValueChanged<CartLine> onDec;
   final VoidCallback onSend;
   final VoidCallback onCollect;
+  final VoidCallback onQuickCash;
+  final VoidCallback onQuickCard;
+
+  /// False while the cart is empty or a submit is in flight; the tender
+  /// buttons disable with everything else.
+  final bool canPay;
 
   @override
   Widget build(BuildContext context) {
@@ -838,6 +948,28 @@ class _CartPane extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
+                // Exact-cash and card skip the amount dialog: the two taps
+                // a rush-hour cashier makes hundreds of times a shift.
+                Row(
+                  children: [
+                    Expanded(
+                      child: RmsButton(
+                        label: 'كاش بالظبط',
+                        icon: Icons.payments_outlined,
+                        onPressed: canPay ? onQuickCash : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RmsButton(
+                        label: 'فيزا',
+                        icon: Icons.credit_card_outlined,
+                        onPressed: canPay ? onQuickCard : null,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 RmsButton(
                   label: 'إرسال للمطبخ',
                   icon: Icons.send_rounded,
