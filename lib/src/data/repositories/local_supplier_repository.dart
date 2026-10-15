@@ -173,7 +173,7 @@ class LocalSupplierRepository implements SupplierRepository {
       supplier.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, supplier.toRecord());
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'supplier',
       entityId: entry.entityId,
       snapshot: supplier.toRecord(),

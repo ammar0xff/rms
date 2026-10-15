@@ -241,7 +241,7 @@ class LocalCashSessionRepository implements CashSessionRepository {
       session.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, session.toRecord());
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'cashSession',
       entityId: entry.entityId,
       snapshot: session.toRecord(),

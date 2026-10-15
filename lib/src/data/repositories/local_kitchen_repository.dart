@@ -185,7 +185,7 @@ class LocalKitchenRepository implements KitchenRepository {
     // Mirror the settled state, not the pre-flip read: re-read after the
     // write above so the snapshot carries the flipped flag.
     final settled = await record.get(_db.db);
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'kitchenTicket',
       entityId: entry.entityId,
       snapshot: settled ?? existing,

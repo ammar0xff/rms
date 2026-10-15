@@ -18,6 +18,29 @@ abstract class RecordMirror {
   });
 }
 
+/// Best-effort write that never throws, for any implementation.
+///
+/// Repositories call this rather than the mirror directly, so the guarantee
+/// holds even for a misbehaving [RecordMirror]: a mirror failure must never
+/// break the fold-back (and the sync) it rides on.
+Future<void> mirrorRecord(
+  RecordMirror? mirror, {
+  required String entityType,
+  required String entityId,
+  required Map<String, Object?> snapshot,
+}) async {
+  if (mirror == null) return;
+  try {
+    await mirror.write(
+      entityType: entityType,
+      entityId: entityId,
+      snapshot: snapshot,
+    );
+  } catch (_) {
+    // Best-effort stays best-effort.
+  }
+}
+
 /// Entity type to mirror collection. Unknown types return null and are
 /// skipped — the mirror only covers entities with a readable shape.
 String? mirrorCollectionFor(String entityType) => switch (entityType) {

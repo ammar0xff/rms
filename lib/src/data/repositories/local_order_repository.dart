@@ -108,7 +108,7 @@ class LocalOrderRepository implements OrderRepository {
       order.canonicalOrderNumber = canonicalOrderNumber;
     }
     await record.put(_db.db, order.toRecord());
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'order',
       entityId: entry.entityId,
       snapshot: order.toRecord(),

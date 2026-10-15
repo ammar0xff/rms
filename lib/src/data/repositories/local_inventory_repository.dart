@@ -339,7 +339,7 @@ class LocalInventoryRepository implements InventoryRepository {
     movement.syncStatus = SyncStatus.synced;
     await record.put(_db.db, movement.toRecord());
     await _refreshItemSync(_db.db, movement.itemId);
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'stockMovement',
       entityId: entry.entityId,
       snapshot: movement.toRecord(),
@@ -347,7 +347,7 @@ class LocalInventoryRepository implements InventoryRepository {
     final itemRecord = LocalStores.inventory.record(movement.itemId);
     final itemExisting = await itemRecord.get(_db.db);
     if (itemExisting != null) {
-      await _mirror?.write(
+      await mirrorRecord(_mirror, 
         entityType: 'inventoryItem',
         entityId: movement.itemId,
         snapshot: itemExisting,

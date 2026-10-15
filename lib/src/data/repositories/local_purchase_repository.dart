@@ -296,7 +296,7 @@ class LocalPurchaseRepository implements PurchaseRepository {
       purchase.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, purchase.toRecord());
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'purchase',
       entityId: entry.entityId,
       snapshot: purchase.toRecord(),

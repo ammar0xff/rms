@@ -238,7 +238,7 @@ class LocalApprovalRepository implements ApprovalRepository {
       request.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, request.toRecord());
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'approval',
       entityId: entry.entityId,
       snapshot: request.toRecord(),

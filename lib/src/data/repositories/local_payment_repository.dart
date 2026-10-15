@@ -114,7 +114,7 @@ class LocalPaymentRepository implements PaymentRepository {
       payment.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, payment.toRecord());
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'payment',
       entityId: entry.entityId,
       snapshot: payment.toRecord(),

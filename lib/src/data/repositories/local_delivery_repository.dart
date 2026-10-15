@@ -446,7 +446,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
       final collection = CollectionModel.fromRecord(existing);
       collection.syncStatus = SyncStatus.synced;
       await record.put(_db.db, collection.toRecord());
-      await _mirror?.write(
+      await mirrorRecord(_mirror, 
         entityType: 'collection',
         entityId: entry.entityId,
         snapshot: collection.toRecord(),
@@ -485,7 +485,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
       );
     }
     await record.put(_db.db, delivery.toRecord());
-    await _mirror?.write(
+    await mirrorRecord(_mirror, 
       entityType: 'delivery',
       entityId: entry.entityId,
       snapshot: delivery.toRecord(),

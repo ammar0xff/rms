@@ -98,10 +98,11 @@ void main() {
       expect(call.type, 'order');
       expect(call.id, order.localId);
       // The mirror carries what the ack folded in — this is the whole point:
-      // server identity visible in Firestore, not just the op log.
+      // server identity visible in Firestore, not just the op log. (total
+      // is computed, not stored, so the snapshot carries items + tax.)
       expect(call.snapshot['serverId'], 'srv-1');
       expect(call.snapshot['canonicalOrderNumber'], 'ORD-00007');
-      expect(call.snapshot['total'], 20);
+      expect((call.snapshot['items'] as List), hasLength(1));
     });
 
     test('a payment ack mirrors the payment', () async {
