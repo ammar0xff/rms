@@ -6,6 +6,7 @@ import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
 import '../local/outbox/outbox_store.dart';
+import '../sync/record_mirror.dart';
 import 'kitchen_repository.dart';
 
 class LocalKitchenRepository implements KitchenRepository {
