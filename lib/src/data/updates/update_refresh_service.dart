@@ -1,4 +1,5 @@
 import '../repositories/update_repository.dart';
+import '../../domain/models/update_manifest.dart';
 import 'remote_update_source.dart';
 
 /// Why a refresh ended the way it did.

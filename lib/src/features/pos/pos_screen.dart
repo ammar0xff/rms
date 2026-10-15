@@ -46,7 +46,19 @@ class PosScreen extends StatefulWidget {
   State<PosScreen> createState() => _PosScreenState();
 }
 
-class _PosScreenState extends State<PosScreen> {
+class _PosScreenState extends State<PosScreen>
+    with SingleTickerProviderStateMixin {
+  /// Owned here, not rebuilt in build(): a DefaultTabController constructed
+  /// during build resets to the menu tab on every setState — yanking the
+  /// cashier off the cart tab on each quantity tap or search keystroke.
+  late final TabController _tabs = TabController(length: 2, vsync: this);
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
   final _cart = <CartLine>[];
   String _category = 'الكل';
   String _query = '';
@@ -142,16 +154,21 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _submitOrder({_PaymentInput? payment}) async {
+    // Re-entrancy guard first, synchronously: the buttons disable from the
+    // last build's snapshot, so two taps before the rebuild (or send + collect
+    // in quick succession) would otherwise persist two orders for one cart.
+    if (_submitting) return;
+    _submitting = true;
     final services = AppScope.of(context);
     final orders = services.orders;
     final messenger = ScaffoldMessenger.of(context);
     if (orders == null) {
+      _submitting = false;
       messenger.showSnackBar(
         const SnackBar(content: Text('تعذر الحفظ: التخزين المحلي غير متاح')),
       );
       return;
     }
-    final total = _total;
     final orderType = OrderType.values[_orderType];
     final offline = services.sync?.isOnline == false;
     final items = [
@@ -164,14 +181,24 @@ class _PosScreenState extends State<PosScreen> {
           station: line.item.station,
         ),
     ];
-    setState(() => _submitting = true);
+    // Cents-rounded here so the stored tax is exact; the cart keeps showing
+    // the unrounded breakdown until save.
+    final taxAmount = (_tax * 100).round() / 100;
+    setState(() {});
     try {
       final order = await orders.createOrder(
-        OrderDraft(items: items, createdOffline: offline, orderType: orderType),
+        OrderDraft(
+          items: items,
+          createdOffline: offline,
+          orderType: orderType,
+          taxAmount: taxAmount,
+        ),
       );
       if (!mounted) return;
       if (payment != null) {
-        await _recordPayment(services, order, payment, total, offline);
+        // The order's total, not the cart's: one taxed figure everywhere, so
+        // the payment matches the order, the delivery and the receipt.
+        await _recordPayment(services, order, payment, order.total, offline);
       }
       if (orderType == OrderType.delivery) {
         await _createDelivery(services, order, offline);
@@ -190,7 +217,7 @@ class _PosScreenState extends State<PosScreen> {
           content: Text(
             payment == null
                 ? 'تم إنشاء الطلب ${order.provisionalOrderNumber} · يُزامَن عند الاتصال'
-                : 'تم تحصيل ${money(total)} (${payment.method.label}) · ${order.provisionalOrderNumber}',
+                : 'تم تحصيل ${money(order.total)} (${payment.method.label}) · ${order.provisionalOrderNumber}',
           ),
         ),
       );
@@ -319,62 +346,57 @@ class _PosScreenState extends State<PosScreen> {
           // The menu tab keeps a sticky cart bar so the total and checkout
           // stay one tap away without switching tabs.
           final showBar = _cart.isNotEmpty;
-          return DefaultTabController(
-            length: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  color: AppColors.surface,
-                  child: TabBar(
-                    labelStyle: AppText.bodyStrong,
-                    unselectedLabelStyle: AppText.body,
-                    tabs: [
-                      const Tab(text: 'القائمة'),
-                      Tab(
-                        text: _cart.isEmpty
-                            ? 'السلة'
-                            : 'السلة (${_cart.length})',
-                      ),
-                    ],
-                  ),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                color: AppColors.surface,
+                child: TabBar(
+                  controller: _tabs,
+                  labelStyle: AppText.bodyStrong,
+                  unselectedLabelStyle: AppText.body,
+                  tabs: [
+                    const Tab(text: 'القائمة'),
+                    Tab(
+                      text: _cart.isEmpty
+                          ? 'السلة'
+                          : 'السلة (${_cart.length})',
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      Builder(
-                        builder: (tabContext) => Stack(
-                          children: [
-                            Padding(
-                              // The bar floats over the grid; keep the last
-                              // row reachable.
-                              padding: EdgeInsets.only(
-                                  bottom: showBar ? 84 : 0),
-                              child: menu,
-                            ),
-                            if (showBar)
-                              Positioned(
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                child: _CartBar(
-                                  total: _total,
-                                  count: _cart.length,
-                                  onViewCart: () =>
-                                      DefaultTabController.of(tabContext)
-                                          .animateTo(1),
-                                  onCollect: _collect,
-                                ),
-                              ),
-                          ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabs,
+                  children: [
+                    Stack(
+                      children: [
+                        Padding(
+                          // The bar floats over the grid; keep the last
+                          // row reachable.
+                          padding: EdgeInsets.only(
+                              bottom: showBar ? 84 : 0),
+                          child: menu,
                         ),
-                      ),
-                      cart,
-                    ],
-                  ),
+                        if (showBar)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: _CartBar(
+                              total: _total,
+                              count: _cart.length,
+                              onViewCart: () => _tabs.animateTo(1),
+                              onCollect: _collect,
+                            ),
+                          ),
+                      ],
+                    ),
+                    cart,
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         }
         return Row(

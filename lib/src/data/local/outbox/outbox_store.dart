@@ -76,13 +76,33 @@ class OutboxStore implements OutboxAccess {
         );
       });
 
+  /// Parks an entry for human resolution: the retry budget is spent, or the
+  /// entry synced remotely but its local fold-back failed. Parked entries leave
+  /// the drain queue and appear on the conflicts screen instead of failing
+  /// silently forever.
+  Future<void> markNeedsUserAction(String operationId, String error) =>
+      _update(
+        operationId,
+        (e) => e.copyWith(
+          syncStatus: OutboxStatus.requiresUserAction,
+          lastAttemptAt: DateTime.now(),
+          lastError: error,
+        ),
+      );
+
   Future<void> _update(
     String operationId,
     OutboxEntry Function(OutboxEntry) change,
   ) async {
-    final record = LocalStores.outbox.record(operationId);
-    final existing = await record.get(_db.db);
-    if (existing == null) return;
-    await record.put(_db.db, change(OutboxEntry.fromRecord(existing)).toRecord());
+    // Read-modify-write inside one transaction. Separate get/put calls let two
+    // interleaved drains compute from the same stale read, so the last writer
+    // silently wins — clobbering an incremented attempt count or applying a
+    // state change to a record that already moved on.
+    await _db.transaction((txn) async {
+      final record = LocalStores.outbox.record(operationId);
+      final existing = await record.get(txn);
+      if (existing == null) return;
+      await record.put(txn, change(OutboxEntry.fromRecord(existing)).toRecord());
+    });
   }
 }

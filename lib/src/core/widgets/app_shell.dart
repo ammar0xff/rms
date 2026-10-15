@@ -92,6 +92,21 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   String _selected = 'dashboard';
 
+  /// Bodies by entry id, kept mounted while the session lasts. Rebuilding the
+  /// body on every selection wiped screen state — a half-built POS cart, typed
+  /// search, kitchen scroll position — on each tab switch. Cached bodies stay
+  /// alive offstage instead; only 'more' rebuilds, since it is stateless and
+  /// needs the fresh selection highlight.
+  final _bodies = <String, Widget>{};
+
+  Widget _bodyFor(String id, BuildContext context) {
+    if (id == 'more') return _MoreScreen(selected: id, onSelect: _select);
+    return _bodies.putIfAbsent(id, () => _entryFor(id).builder(context));
+  }
+
+  NavEntry _entryFor(String id) =>
+      _flatEntries.firstWhere((e) => e.id == id, orElse: () => _flatEntries.first);
+
   /// The five thumb-reachable destinations. Everything else lives under المزيد.
   static const _primaryIds = ['dashboard', 'pos', 'kitchen', 'delivery'];
 
@@ -140,9 +155,23 @@ class _AppShellState extends State<AppShell> {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
         final updates = _updates;
-        final body = _selected == 'more'
-            ? _MoreScreen(selected: _selected, onSelect: _select)
-            : _current.builder(context);
+        // Every visited screen stays mounted offstage; the visible one is the
+        // only one laid out. Entries build lazily on first visit (see
+        // [_bodies]), so startup still mounts a single screen.
+        if (_selected != 'more') _bodyFor(_selected, context);
+        final stacked = Stack(
+          children: [
+            for (final id in _bodies.keys)
+              Offstage(
+                offstage: id != _selected,
+                child: TickerMode(
+                  enabled: id == _selected,
+                  child: _bodies[id]!,
+                ),
+              ),
+            if (_selected == 'more') _bodyFor('more', context),
+          ],
+        );
         return Stack(
           children: [
             Scaffold(
@@ -159,7 +188,7 @@ class _AppShellState extends State<AppShell> {
                                   title: _selected == 'more' ? 'المزيد' : _current.label,
                                 ),
                                 const Divider(height: 1, color: AppColors.borderStrong),
-                                Expanded(child: body),
+                                Expanded(child: stacked),
                               ],
                             ),
                           ),
@@ -171,7 +200,7 @@ class _AppShellState extends State<AppShell> {
                             title: _selected == 'more' ? 'المزيد' : _current.label,
                           ),
                           const Divider(height: 1, color: AppColors.borderStrong),
-                          Expanded(child: body),
+                          Expanded(child: stacked),
                         ],
                       ),
               ),

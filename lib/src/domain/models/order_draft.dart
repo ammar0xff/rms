@@ -8,9 +8,11 @@ class OrderDraft {
     required this.items,
     this.createdOffline = false,
     this.orderType = OrderType.dineIn,
+    this.taxAmount = 0.0,
   });
 
   final List<OrderItem> items;
+  final double taxAmount;
   final bool createdOffline;
   final OrderType orderType;
 }

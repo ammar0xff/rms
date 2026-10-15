@@ -54,7 +54,11 @@ class SyncMonitor extends ChangeNotifier {
               e.syncStatus == OutboxStatus.retryableFailure ||
               e.syncStatus == OutboxStatus.inProgress)
           .length;
-      _failed = entries.where((e) => e.syncStatus == OutboxStatus.permanentlyRejected).length;
+      _failed = entries
+          .where((e) =>
+              e.syncStatus == OutboxStatus.permanentlyRejected ||
+              e.syncStatus == OutboxStatus.requiresUserAction)
+          .length;
       _conflicts = entries.where((e) => e.syncStatus == OutboxStatus.conflict).length;
       final synced = entries.where((e) => e.syncStatus == OutboxStatus.synced).toList();
       _synced = synced.length;

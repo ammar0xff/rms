@@ -9,6 +9,7 @@ class Order {
     required this.createdOffline,
     required this.createdAt,
     this.orderType = OrderType.dineIn,
+    this.taxAmount = 0.0,
     this.serverId,
     this.canonicalOrderNumber,
     this.localRevision = 1,
@@ -23,14 +24,21 @@ class Order {
   final DateTime createdAt;
   final OrderType orderType;
 
-  String? serverId;
+  /// Tax charged on top of the items, rounded to cents at creation. Stored on
+  /// the order (rather than recomputed at each reader) so the payment, the
+  /// delivery amount, the receipt and the sync payload all use one total: the
+  /// cart used to charge tax while every record downstream ignored it, so a
+  /// payment never matched its order.
+  final double taxAmount;
   String? canonicalOrderNumber;
   int localRevision;
   int? serverRevision;
   SyncStatus syncStatus;
 
-  double get total =>
+  double get subtotal =>
       items.fold(0, (sum, item) => sum + item.unitPrice * item.quantity);
+
+  double get total => subtotal + taxAmount;
 
   Map<String, Object?> toRecord() => {
         'localId': localId,
@@ -39,6 +47,7 @@ class Order {
         'createdOffline': createdOffline,
         'createdAt': createdAt.toIso8601String(),
         'orderType': orderType.name,
+        'taxAmount': taxAmount,
         'serverId': serverId,
         'canonicalOrderNumber': canonicalOrderNumber,
         'localRevision': localRevision,
@@ -59,6 +68,7 @@ class Order {
         orderType: OrderType.values.byName(
           record['orderType'] as String? ?? OrderType.dineIn.name,
         ),
+        taxAmount: (record['taxAmount'] as num?)?.toDouble() ?? 0.0,
         serverId: record['serverId'] as String?,
         canonicalOrderNumber: record['canonicalOrderNumber'] as String?,
         localRevision: record['localRevision'] as int? ?? 1,

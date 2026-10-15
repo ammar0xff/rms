@@ -35,6 +35,9 @@ class SyncService {
   }
 
   Future<int> requestSync() async {
+    // Never drain while known-offline: every failure would burn one attempt
+    // off each entry's budget for a network that was never actually tried.
+    if (!_online) return 0;
     final applied = await _coordinator.requestSync();
     if (onSynced != null) {
       onSynced!(applied);

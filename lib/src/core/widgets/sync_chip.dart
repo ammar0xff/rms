@@ -26,7 +26,12 @@ class SyncChip extends StatelessWidget {
               ? 'متصل · آخر مزامنة قبل ${monitor.sinceLastSync.inMinutes} د'
               : 'يعمل دون اتصال. التغييرات محفوظة محليًا.',
           child: InkWell(
-            onTap: onTap ?? monitor.toggleConnectivity,
+            // Display-only unless a caller wires an action. The old default
+            // flipped a display boolean that feeds real decisions (the update
+            // gate, finalize buttons) while touching neither the link nor the
+            // sync engine — one curious tap put the app in a state that
+            // disagreed with reality until the next refresh overwrote it.
+            onTap: onTap,
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             child: Container(
               height: 40,

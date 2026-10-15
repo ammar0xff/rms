@@ -43,23 +43,59 @@ class SyncEngine {
   Future<int> drain() async {
     final entries = await _outbox.pending();
     var applied = 0;
+    final now = DateTime.now();
     for (final entry in entries) {
       if (entry.syncStatus == OutboxStatus.synced) continue;
-      if (!_retryPolicy.shouldRetry(entry.attemptCount)) continue;
+      if (!_retryPolicy.shouldRetry(entry.attemptCount)) {
+        // Budget exhausted: park the entry where a human can see it instead
+        // of skipping it silently forever. A poison entry (e.g. a permanent
+        // permission-denied the engine cannot distinguish from transient
+        // failure) would otherwise sit in the retry queue eternally while the
+        // update gate stays shut on its account.
+        await _outbox.markNeedsUserAction(
+          entry.operationId,
+          'retry budget exhausted after ${entry.attemptCount} attempts'
+          '${entry.lastError == null ? '' : ': ${entry.lastError}'}',
+        );
+        continue;
+      }
+      final lastAttempt = entry.lastAttemptAt;
+      if (lastAttempt != null &&
+          now.difference(lastAttempt) <
+              _retryPolicy.nextDelay(entry.attemptCount)) {
+        // Backoff has not elapsed. Without this every drain pass retried every
+        // failure immediately, storming a flapping link and burning the whole
+        // attempt budget in seconds instead of across the exponential schedule.
+        continue;
+      }
       await _outbox.markInProgress(entry.operationId);
+      Map<String, dynamic> ack;
       try {
-        final ack = await _transport.push(entry);
+        ack = await _transport.push(entry);
         await _outbox.markSynced(entry.operationId, ack: ack);
-        if (_onApplied != null) {
+      } catch (error) {
+        await _outbox.markRetryable(entry.operationId, error.toString());
+        continue;
+      }
+      if (_onApplied != null) {
+        try {
           final synced = ack.isEmpty
               ? entry
               : entry.copyWith(payload: {...entry.payload, ...ack});
           await _onApplied(synced);
+        } catch (error) {
+          // The backend already holds this entry. Flipping it back to
+          // retryable would re-push it — minting a second canonical order
+          // number and duplicating audit rows — for what was a purely local
+          // failure. Park it for a human instead.
+          await _outbox.markNeedsUserAction(
+            entry.operationId,
+            'synced remotely but the local fold-back failed: $error',
+          );
+          continue;
         }
-        applied++;
-      } catch (error) {
-        await _outbox.markRetryable(entry.operationId, error.toString());
       }
+      applied++;
     }
     return applied;
   }

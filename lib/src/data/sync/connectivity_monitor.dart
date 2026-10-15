@@ -28,6 +28,14 @@ class ConnectivityMonitor {
   Future<bool> get isOnline async =>
       hasConnection(await (_check?.call() ?? _connectivity.checkConnectivity()));
 
+  /// A link that can plausibly reach the backend: wifi, cellular, ethernet, or
+  /// a VPN routing over one of those. Bluetooth and `other` do not count — a
+  /// Bluetooth-only link cannot reach Firestore, and every "online" verdict
+  /// fires a doomed drain that burns retry budget for nothing.
   static bool hasConnection(List<ConnectivityResult> results) =>
-      results.any((result) => result != ConnectivityResult.none);
+      results.any((result) =>
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.ethernet ||
+          result == ConnectivityResult.vpn);
 }
