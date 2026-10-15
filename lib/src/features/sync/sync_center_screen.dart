@@ -319,8 +319,11 @@ class _PrintQueueSection extends StatelessWidget {
                 children: [
                   const Icon(Icons.print_rounded, size: 16, color: AppColors.fgMuted),
                   const SizedBox(width: 6),
-                  Text('طابور الطباعة (على الجهاز)', style: AppText.sectionHeading),
-                  const Spacer(),
+                  Expanded(
+                    child: Text('طابور الطباعة (على الجهاز)',
+                        style: AppText.sectionHeading,
+                        overflow: TextOverflow.ellipsis),
+                  ),
                   Text('${jobs.length}', style: AppText.caption),
                 ],
               ),
