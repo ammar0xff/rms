@@ -134,29 +134,54 @@ class _TeamScreenState extends State<TeamScreen> {
             ),
           )
         else
-          SurfaceCard(
-            padding: EdgeInsets.zero,
-            clip: true,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < _members.length; i++) ...[
-                  _MemberRow(
+          LayoutBuilder(
+            builder: (context, c) {
+              Widget row(int i) => _MemberRow(
                     member: _members[i],
                     isSelf: _members[i].uid == me?.uid,
                     canEdit: canEdit && !_saving,
                     onRole: (role) => _setRole(_members[i], role),
+                  );
+              // Phones get the single divided list; wide screens get a
+              // two-column card grid of the same rows.
+              if (c.maxWidth < 700) {
+                return SurfaceCard(
+                  padding: EdgeInsets.zero,
+                  clip: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < _members.length; i++) ...[
+                        row(i),
+                        if (i != _members.length - 1)
+                          const Divider(
+                            height: 1,
+                            indent: 16,
+                            endIndent: 16,
+                            color: AppColors.borderFaint,
+                          ),
+                      ],
+                    ],
                   ),
-                  if (i != _members.length - 1)
-                    const Divider(
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16,
-                      color: AppColors.borderFaint,
-                    ),
-                ],
-              ],
-            ),
+                );
+              }
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisExtent: 84,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: _members.length,
+                itemBuilder: (context, i) => SurfaceCard(
+                  padding: EdgeInsets.zero,
+                  child: row(i),
+                ),
+              );
+            },
           ),
       ],
     );
