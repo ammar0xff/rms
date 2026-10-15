@@ -229,7 +229,9 @@ void main() {
           manifest: _manifest(version: '1.2.0', minSupportedVersion: '1.1.0'),
           context: _context(installedVersion: '1.0.0'),
         ).blockReason,
-        UpdateBlockReason.versionNotNewer,
+        // Staged updates get their own reason: the release IS newer, the
+        // device is just too old to take it directly.
+        UpdateBlockReason.belowMinSupported,
       );
     });
 

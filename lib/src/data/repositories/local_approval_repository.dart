@@ -28,13 +28,13 @@ class LocalApprovalRepository implements ApprovalRepository {
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
-        _audit = audit,
+        _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
-  final AuditLog? _audit;
+  final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -80,7 +80,7 @@ class LocalApprovalRepository implements ApprovalRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -154,7 +154,7 @@ class LocalApprovalRepository implements ApprovalRepository {
         await _postRefund(txn, request, now);
       }
 
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -205,7 +205,7 @@ class LocalApprovalRepository implements ApprovalRepository {
         },
       ),
     );
-    await _audit?.append(
+    await _audit.append(
       txn,
       AuditEntry(
         id: _uuid.v4(),
@@ -227,7 +227,9 @@ class LocalApprovalRepository implements ApprovalRepository {
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final request = ApprovalRequest.fromRecord(existing);
-    request.syncStatus = SyncStatus.synced;
+    if (!await _outbox.hasOutstandingFor(entityType: 'approval', entityId: entry.entityId)) {
+      request.syncStatus = SyncStatus.synced;
+    }
     await record.put(_db.db, request.toRecord());
   }
 

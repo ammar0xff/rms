@@ -31,14 +31,14 @@ class LocalPurchaseRepository implements PurchaseRepository {
     DateTime Function()? clock,
   })  : _inventory = inventory,
         _outbox = outbox ?? OutboxStore(_db),
-        _audit = audit,
+        _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final LocalInventoryRepository _inventory;
   final OutboxStore _outbox;
-  final AuditLog? _audit;
+  final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -95,7 +95,7 @@ class LocalPurchaseRepository implements PurchaseRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -180,7 +180,7 @@ class LocalPurchaseRepository implements PurchaseRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -240,7 +240,7 @@ class LocalPurchaseRepository implements PurchaseRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -265,7 +265,9 @@ class LocalPurchaseRepository implements PurchaseRepository {
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final purchase = PurchaseOrderModel.fromRecord(existing);
-    purchase.syncStatus = SyncStatus.synced;
+    if (!await _outbox.hasOutstandingFor(entityType: 'purchase', entityId: entry.entityId)) {
+      purchase.syncStatus = SyncStatus.synced;
+    }
     await record.put(_db.db, purchase.toRecord());
     // Receiving bumped the supplier's payable without queueing a supplier
     // command, so no supplier ack ever clears the flag. Clear it here once

@@ -30,6 +30,7 @@ enum UpdateBlockReason {
   expired('انتهت صلاحية الإصدار'),
   alreadyInstalled('الإصدار مثبّت بالفعل'),
   versionNotNewer('الإصدار ليس أحدث من المثبّت'),
+  belowMinSupported('الإصدار الحالي أقدم من الحد الأدنى المدعوم'),
   branchExcluded('الفرع خارج نطاق النشر'),
   groupExcluded('مجموعة الأجهزة خارج نطاق النشر'),
   rolloutExcluded('الجهاز خارج نسبة النشر'),
@@ -174,7 +175,11 @@ abstract final class UpdateDecisionEngine {
     }
     final minSupported = release.parsedMinSupported;
     if (minSupported != null && installed < minSupported) {
-      return block(UpdateBlockReason.versionNotNewer);
+      // Staged updates: a device older than the minimum cannot jump straight
+      // to this release — it must come up through an intermediate one. This is
+      // a deliberate gate, not a version comparison, so it gets its own
+      // reason instead of masquerading as "not newer".
+      return block(UpdateBlockReason.belowMinSupported);
     }
 
     if (release.targetBranchIds.isNotEmpty &&

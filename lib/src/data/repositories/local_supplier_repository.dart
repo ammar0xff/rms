@@ -22,13 +22,13 @@ class LocalSupplierRepository implements SupplierRepository {
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
-        _audit = audit,
+        _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
-  final AuditLog? _audit;
+  final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -76,7 +76,7 @@ class LocalSupplierRepository implements SupplierRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -136,7 +136,7 @@ class LocalSupplierRepository implements SupplierRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -161,7 +161,9 @@ class LocalSupplierRepository implements SupplierRepository {
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final supplier = SupplierModel.fromRecord(existing);
-    supplier.syncStatus = SyncStatus.synced;
+    if (!await _outbox.hasOutstandingFor(entityType: 'supplier', entityId: entry.entityId)) {
+      supplier.syncStatus = SyncStatus.synced;
+    }
     await record.put(_db.db, supplier.toRecord());
   }
 

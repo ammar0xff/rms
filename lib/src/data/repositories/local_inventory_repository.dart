@@ -28,13 +28,13 @@ class LocalInventoryRepository implements InventoryRepository {
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
-        _audit = audit,
+        _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
-  final AuditLog? _audit;
+  final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -149,7 +149,7 @@ class LocalInventoryRepository implements InventoryRepository {
         },
       ),
     );
-    await _audit?.append(
+    await _audit.append(
       txn,
       AuditEntry(
         id: _uuid.v4(),
@@ -206,7 +206,7 @@ class LocalInventoryRepository implements InventoryRepository {
             },
           ),
         );
-        await _audit?.append(
+        await _audit.append(
           txn,
           AuditEntry(
             id: _uuid.v4(),
@@ -226,7 +226,7 @@ class LocalInventoryRepository implements InventoryRepository {
       final delta = counted - item.onHand;
       if (delta == 0) {
         // Counted exactly what the ledger already said; nothing to sync.
-        await _audit?.append(
+        await _audit.append(
           txn,
           AuditEntry(
             id: _uuid.v4(),
@@ -274,7 +274,7 @@ class LocalInventoryRepository implements InventoryRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),

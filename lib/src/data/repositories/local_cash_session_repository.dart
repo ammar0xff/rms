@@ -28,13 +28,13 @@ class LocalCashSessionRepository implements CashSessionRepository {
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
-        _audit = audit,
+        _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
-  final AuditLog? _audit;
+  final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -97,7 +97,7 @@ class LocalCashSessionRepository implements CashSessionRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -154,7 +154,7 @@ class LocalCashSessionRepository implements CashSessionRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -229,7 +229,9 @@ class LocalCashSessionRepository implements CashSessionRepository {
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final session = CashSession.fromRecord(existing);
-    session.syncStatus = SyncStatus.synced;
+    if (!await _outbox.hasOutstandingFor(entityType: 'cashSession', entityId: entry.entityId)) {
+      session.syncStatus = SyncStatus.synced;
+    }
     await record.put(_db.db, session.toRecord());
   }
 

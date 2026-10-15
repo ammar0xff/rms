@@ -89,7 +89,11 @@ class LocalOrderRepository implements OrderRepository {
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final order = Order.fromRecord(existing);
-    order.syncStatus = SyncStatus.synced;
+    // Server identity folds in regardless; the dirty flag clears only when
+    // no newer command for this order is still outstanding.
+    if (!await _outbox.hasOutstandingFor(entityType: 'order', entityId: entry.entityId)) {
+      order.syncStatus = SyncStatus.synced;
+    }
     final serverId = SyncAckReader.serverId(entry.payload);
     if (serverId != null) order.serverId = serverId;
     final canonicalOrderNumber = SyncAckReader.canonicalOrderNumber(entry.payload);

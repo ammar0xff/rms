@@ -25,13 +25,13 @@ class LocalPaymentRepository implements PaymentRepository {
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
-        _audit = audit,
+        _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
-  final AuditLog? _audit;
+  final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -69,7 +69,7 @@ class LocalPaymentRepository implements PaymentRepository {
     await _db.transaction((txn) async {
       await LocalStores.payments.record(id).put(txn, payment.toRecord());
       await _outbox.append(txn, entry);
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -103,7 +103,9 @@ class LocalPaymentRepository implements PaymentRepository {
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final payment = PaymentModel.fromRecord(existing);
-    payment.syncStatus = SyncStatus.synced;
+    if (!await _outbox.hasOutstandingFor(entityType: 'payment', entityId: entry.entityId)) {
+      payment.syncStatus = SyncStatus.synced;
+    }
     await record.put(_db.db, payment.toRecord());
   }
 

@@ -80,6 +80,22 @@ class OutboxStore implements OutboxAccess {
   /// entry synced remotely but its local fold-back failed. Parked entries leave
   /// the drain queue and appear on the conflicts screen instead of failing
   /// silently forever.
+  /// Whether any unsynced command still references this entity.
+  ///
+  /// Fold-back handlers consult this before clearing a record's dirty flag:
+  /// an ack for an older command must not stamp synced over newer local edits
+  /// whose commands have not gone up yet.
+  Future<bool> hasOutstandingFor({
+    required String entityType,
+    required String entityId,
+  }) async {
+    final entries = await all();
+    return entries.any((e) =>
+        e.syncStatus != OutboxStatus.synced &&
+        e.entityType == entityType &&
+        e.entityId == entityId);
+  }
+
   Future<void> markNeedsUserAction(String operationId, String error) =>
       _update(
         operationId,

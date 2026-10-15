@@ -31,13 +31,13 @@ class LocalDeliveryRepository implements DeliveryRepository {
     Uuid? uuid,
     DateTime Function()? clock,
   })  : _outbox = outbox ?? OutboxStore(_db),
-        _audit = audit,
+        _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
-  final AuditLog? _audit;
+  final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
 
@@ -216,7 +216,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -348,7 +348,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
           },
         ),
       );
-      await _audit?.append(
+      await _audit.append(
         txn,
         AuditEntry(
           id: _uuid.v4(),
@@ -452,11 +452,13 @@ class LocalDeliveryRepository implements DeliveryRepository {
     final existing = await record.get(_db.db);
     if (existing == null) return;
     final delivery = DeliveryModel.fromRecord(existing);
-    delivery.syncStatus = SyncStatus.synced;
+    if (!await _outbox.hasOutstandingFor(entityType: 'delivery', entityId: entry.entityId)) {
+      delivery.syncStatus = SyncStatus.synced;
+    }
     if (entry.operationType == 'settleDelivery') {
       delivery.settlementStatus = SettlementStatus.settled;
       await _settleCollections(entry.entityId);
-      await _audit?.record(
+      await _audit.record(
         AuditEntry(
           id: _uuid.v4(),
           action: AuditAction.settleDelivery,
