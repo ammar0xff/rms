@@ -18,4 +18,8 @@ abstract class OutboxAccess {
 
   /// Persists [entry] in its own transaction.
   Future<void> save(OutboxEntry entry);
+
+  /// Deletes acknowledged entries. Only `synced` rows go, so pruning can
+  /// never lose work, only history.
+  Future<int> pruneSynced();
 }

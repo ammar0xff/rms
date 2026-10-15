@@ -11,7 +11,6 @@ import '../../core/widgets/rms_table.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../domain/models/menu_item.dart';
-import '../../data/mock/mock_data.dart';
 import '../common/format.dart';
 
 class MenuScreen extends StatefulWidget {

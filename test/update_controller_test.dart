@@ -87,6 +87,9 @@ class _Outbox implements OutboxAccess {
 
   @override
   Future<void> save(OutboxEntry entry) async {}
+
+  @override
+  Future<int> pruneSynced() async => 0;
 }
 
 class _Downloader implements ArtifactDownloader {

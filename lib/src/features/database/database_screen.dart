@@ -8,7 +8,6 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
-import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/local/local_database.dart';
 import '../../data/local/local_stores.dart';

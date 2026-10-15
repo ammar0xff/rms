@@ -112,6 +112,9 @@ class _FakeOutbox implements OutboxAccess {
       entry,
     ];
   }
+
+  @override
+  Future<int> pruneSynced() async => 0;
 }
 
 OutboxEntry _entry(

@@ -5,7 +5,6 @@ import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/data/local/outbox/outbox_store.dart';
 import 'package:rms/src/data/repositories/local_customer_repository.dart';
 import 'package:rms/src/data/sync/record_mirror.dart';
-import 'package:rms/src/domain/models/customer.dart';
 
 int _seq = 0;
 
