@@ -18,6 +18,7 @@ import '../../core/widgets/surface_card.dart';
 import '../../data/repositories/delivery_repository.dart';
 import '../../domain/assignment/delivery_assignment.dart';
 import '../../domain/models/app_role.dart';
+import '../../domain/navigation/delivery_navigation.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import '../common/format.dart';
@@ -658,6 +659,34 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   }
 }
 
+/// Opens the stop in the phone's maps app for turn-by-turn navigation.
+/// Fails loud with a snackbar when no maps app can handle the link.
+class _NavigateButton extends StatelessWidget {
+  const _NavigateButton({required this.address});
+
+  final String address;
+
+  @override
+  Widget build(BuildContext context) {
+    return RmsButton(
+      label: 'اتجه للعنوان',
+      icon: Icons.navigation_outlined,
+      variant: BtnVariant.secondary,
+      dense: false,
+      onPressed: () async {
+        final ok = await openDeliveryNavigation(
+          deliveryNavigationUri(address: address),
+        );
+        if (!ok && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('مفيش خرايط على الجهاز')),
+          );
+        }
+      },
+    );
+  }
+}
+
 /// The next stop: address, amount, and the single action that moves it —
 /// start, deliver, or collect. One thumb, no scrolling to the button.
 class _NextStopHero extends StatelessWidget {
@@ -685,14 +714,21 @@ class _NextStopHero extends StatelessWidget {
       subtitle: '${job.orderRef} · ${job.driver}',
       value: money(job.amount),
       valueLabel: 'التحصيل عند التسليم',
-      action: RmsButton(
-        label: advanceLabel ?? 'تحصيل ${money(job.amount)}',
-        icon: advanceLabel == null
-            ? Icons.payments_outlined
-            : Icons.navigation_rounded,
-        variant: BtnVariant.primary,
-        dense: false,
-        onPressed: advanceLabel == null ? onCollect : onAdvance,
+      action: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RmsButton(
+            label: advanceLabel ?? 'تحصيل ${money(job.amount)}',
+            icon: advanceLabel == null
+                ? Icons.payments_outlined
+                : Icons.navigation_rounded,
+            variant: BtnVariant.primary,
+            dense: false,
+            onPressed: advanceLabel == null ? onCollect : onAdvance,
+          ),
+          const SizedBox(height: 8),
+          _NavigateButton(address: job.address),
+        ],
       ),
     );
   }
@@ -790,6 +826,11 @@ class _DriverJobCard extends StatelessWidget {
               onPressed: onCollect,
               dense: false,
             ),
+          if (advanceLabel != null ||
+              (job.state == DeliveryState.delivered && collection == null)) ...[
+            const SizedBox(height: 8),
+            _NavigateButton(address: job.address),
+          ],
           if (advanceLabel == null &&
               job.state != DeliveryState.delivered)
             Text(
