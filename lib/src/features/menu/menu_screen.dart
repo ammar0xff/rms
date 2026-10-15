@@ -7,7 +7,7 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
-import '../../core/widgets/rms_table.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../domain/models/menu_item.dart';
@@ -21,7 +21,7 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  String _category = 'الكل';
+  String _query = '';
   List<MenuItemModel> _items = const [];
   bool _loaded = false;
 
@@ -74,29 +74,38 @@ class _MenuScreenState extends State<MenuScreen> {
   Future<void> _toggleAvailability(MenuItemModel item) async {
     final menu = AppScope.of(context).menu;
     if (menu == null) return;
-    await menu.upsertMenuItem(
-      MenuItemModel(
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        price: item.price,
-        station: item.station,
-        available: !item.available,
-        lastModifiedAt: DateTime.now(),
-        syncStatus: 'pending',
-      ),
-    );
+    try {
+      await menu.upsertMenuItem(
+        MenuItemModel(
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          station: item.station,
+          available: !item.available,
+          lastModifiedAt: DateTime.now(),
+          syncStatus: 'pending',
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('التوفر ما اتغيرش، جرّب تاني')),
+      );
+      return;
+    }
     await _load();
   }
 
-  List<String> get _categories =>
-      ['الكل', ...{for (final m in _items) m.category}];
+  List<String> get _stations =>
+      [...{for (final m in _items) m.station}];
 
   @override
   Widget build(BuildContext context) {
-    final items = _category == 'الكل'
+    final q = _query.trim();
+    final items = q.isEmpty
         ? _items
-        : _items.where((m) => m.category == _category).toList();
+        : _items.where((m) => m.name.contains(q)).toList();
 
     return PageBody(
       children: [
@@ -143,81 +152,26 @@ class _MenuScreenState extends State<MenuScreen> {
             );
           },
         ),
-        SizedBox(
-          height: 48,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              for (final c in _categories)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _category = c),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: c == _category ? AppColors.brandSoft : Colors.transparent,
-                        border: Border.all(
-                          color: c == _category ? AppColors.brandLine : AppColors.borderStrong,
-                        ),
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                      ),
-                      child: Center(
-                        child: Text(c,
-                            style: AppText.caption.copyWith(
-                              fontSize: 11,
-                              color: c == _category ? AppColors.brand : AppColors.fgMuted,
-                            )),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+        ListToolbar(
+          hint: 'دوّر في القائمة…',
+          onQuery: (v) => setState(() => _query = v),
         ),
-        SurfaceCard(
-          padding: EdgeInsets.zero,
-          clip: true,
-          child: items.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: EmptyState(
-                    icon: Icons.restaurant_menu_outlined,
-                    title: 'مفيش أصناف',
-                    message: 'ضيف أول صنف من زرار صنف جديد.',
-                  ),
-                )
-              : RmsTable(
-            columns: const [
-              RmsColumn('الصنف', flex: 4),
-              RmsColumn('الفئة', flex: 2),
-              RmsColumn('المحطة', flex: 2),
-              RmsColumn('التوفر', flex: 2),
-              RmsColumn('السعر', flex: 2, align: TextAlign.right),
-            ],
-            rows: [
-              for (final m in items)
-                [
-                  Text(m.name, style: AppText.tableCellPrimary),
-                  Text(m.category, style: AppText.tableCell),
-                  Text(m.station, style: AppText.tableCell),
-                  GestureDetector(
-                    onTap: () => _toggleAvailability(m),
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: StatusText(
-                        label: m.available ? 'متاح' : 'نفد المخزون',
-                        tone: m.available ? StatusTone.positive : StatusTone.negative,
-                      ),
-                    ),
-                  ),
-                  Text(money(m.price),
-                      style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600)),
-                ],
-            ],
-          ),
-        ),
+        if (items.isEmpty)
+          const SurfaceCard(
+            child: EmptyState(
+              icon: Icons.restaurant_menu_outlined,
+              title: 'مفيش أصناف',
+              message: 'ضيف أول صنف من زرار صنف جديد.',
+            ),
+          )
+        else
+          for (final station in _stations)
+            if (items.any((m) => m.station == station))
+              _StationGroup(
+                station: station,
+                items: items.where((m) => m.station == station).toList(),
+                onToggle: _toggleAvailability,
+              ),
         SurfaceCard(
           level: SurfaceLevel.secondary,
           child: Row(
@@ -239,6 +193,151 @@ class _MenuScreenState extends State<MenuScreen> {
 }
 
 /// Collects a new menu item. Returns null when dismissed.
+/// One station's items: header with counts, cards with big availability
+/// toggles. A chef thinks in stations, not in a five-column table — and a
+/// greasy thumb needs the whole row, not a 60px status cell.
+class _StationGroup extends StatelessWidget {
+  const _StationGroup({
+    required this.station,
+    required this.items,
+    required this.onToggle,
+  });
+
+  final String station;
+  final List<MenuItemModel> items;
+  final ValueChanged<MenuItemModel> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final out = items.where((m) => !m.available).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(station, style: AppText.h2),
+            ),
+            Tag(
+              label: out > 0
+                  ? '${items.length} صنف · $out نفد'
+                  : '${items.length} صنف',
+              tone: out > 0 ? StatusTone.warning : StatusTone.neutral,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, c) => GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: c.maxWidth >= 700 ? 2 : 1,
+              mainAxisExtent: 136,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: items.length,
+            itemBuilder: (context, i) => _MenuItemCard(
+              item: items[i],
+              onToggle: () => onToggle(items[i]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MenuItemCard extends StatelessWidget {
+  const _MenuItemCard({required this.item, required this.onToggle});
+
+  final MenuItemModel item;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: item.available ? 1 : 0.55,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(
+            color: item.available
+                ? AppColors.borderStrong
+                : AppColors.negative.withValues(alpha: 0.4),
+          ),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.bodyStrong,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${item.category} · ${money(item.price)}',
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!item.available) ...[
+                    const SizedBox(width: 6),
+                    const Tag(label: 'نفد', tone: StatusTone.negative),
+                  ],
+                ],
+              ),
+            ),
+            // The whole row toggles: a 48px switch alone is a small target
+            // with wet hands.
+            GestureDetector(
+              onTap: onToggle,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.available ? 'متاح للبيع' : 'موقوف مؤقتًا',
+                        style: AppText.tableCellPrimary.copyWith(
+                          color: item.available
+                              ? AppColors.positive
+                              : AppColors.negative,
+                        ),
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: item.available,
+                      activeColor: AppColors.positive,
+                      onChanged: (_) => onToggle(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MenuItemDialog extends StatefulWidget {
   const _MenuItemDialog();
 
