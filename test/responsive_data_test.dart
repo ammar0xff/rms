@@ -75,6 +75,8 @@ void main() {
       await pumpPhone(tester, const PurchasingScreen());
 
       expect(find.textContaining('مورد اللحوم الرئيسي للفرع'), findsWidgets);
+      await tester.tap(find.text('الأوامر'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('PO-2026-1042'), findsOneWidget);
     });
 

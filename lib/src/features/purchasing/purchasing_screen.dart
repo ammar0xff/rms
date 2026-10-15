@@ -30,6 +30,9 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
   List<InventoryItemModel> _items = const [];
   bool _loaded = false;
 
+  /// Phones get one list at a time; wide screens show both side by side.
+  int _tab = 0;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -189,8 +192,32 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
             deltaTone: DeltaTone.negative,
           ),
         ]),
-        _supplierCard(),
-        _purchaseCard(),
+        LayoutBuilder(
+          builder: (context, c) {
+            if (c.maxWidth >= 900) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: 340, child: _supplierCard()),
+                  const SizedBox(width: 12),
+                  Expanded(child: _purchaseCard()),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Segmented(
+                  options: const ['الموردون', 'الأوامر'],
+                  index: _tab,
+                  onChanged: (i) => setState(() => _tab = i),
+                ),
+                const SizedBox(height: 12),
+                if (_tab == 0) _supplierCard() else _purchaseCard(),
+              ],
+            );
+          },
+        ),
         const SurfaceCard(
           level: SurfaceLevel.secondary,
           child: Row(
