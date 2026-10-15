@@ -50,7 +50,7 @@ Future<void> _pumpDialog(
 const _phone = Size(390, 844);
 const _desktop = Size(1440, 900);
 
-const _items = [
+final _items = [
   InventoryItemModel(
     id: 'i1',
     name: 'دجاج متبل بكمية كبيرة للشواء',
@@ -67,7 +67,7 @@ const _items = [
   ),
 ];
 
-const _supplier = SupplierModel(
+final _supplier = SupplierModel(
   id: 's1',
   name: 'مورد اللحوم الرئيسي للفرع',
   payable: 1250.5,
@@ -92,11 +92,11 @@ void main() {
       expect(find.text('صنف جديد'), findsOneWidget);
     });
     testWidgets('stock movement', (t) async {
-      await _pumpDialog(t, const StockMovementDialog(items: _items), _phone);
+      await _pumpDialog(t, StockMovementDialog(items: _items), _phone);
       expect(find.text('تسجيل حركة مخزون'), findsOneWidget);
     });
     testWidgets('stock count', (t) async {
-      await _pumpDialog(t, const StockCountDialog(items: _items), _phone);
+      await _pumpDialog(t, StockCountDialog(items: _items), _phone);
       expect(find.text('جرد المخزون'), findsOneWidget);
     });
     testWidgets('customer', (t) async {
@@ -109,13 +109,13 @@ void main() {
     });
     testWidgets('pay supplier', (t) async {
       await _pumpDialog(
-          t, const PaySupplierDialog(supplier: _supplier), _phone);
+          t, PaySupplierDialog(supplier: _supplier), _phone);
       expect(find.textContaining('تسديد'), findsOneWidget);
     });
     testWidgets('purchase', (t) async {
       await _pumpDialog(
         t,
-        const PurchaseDialog(suppliers: [_supplier], items: _items),
+        PurchaseDialog(suppliers: [_supplier], items: _items),
         _phone,
       );
       expect(find.text('أمر شراء جديد'), findsOneWidget);
@@ -141,11 +141,11 @@ void main() {
       expect(find.text('صنف جديد'), findsOneWidget);
     });
     testWidgets('stock movement', (t) async {
-      await _pumpDialog(t, const StockMovementDialog(items: _items), _desktop);
+      await _pumpDialog(t, StockMovementDialog(items: _items), _desktop);
       expect(find.text('تسجيل حركة مخزون'), findsOneWidget);
     });
     testWidgets('stock count', (t) async {
-      await _pumpDialog(t, const StockCountDialog(items: _items), _desktop);
+      await _pumpDialog(t, StockCountDialog(items: _items), _desktop);
       expect(find.text('جرد المخزون'), findsOneWidget);
     });
     testWidgets('customer', (t) async {
@@ -158,13 +158,13 @@ void main() {
     });
     testWidgets('pay supplier', (t) async {
       await _pumpDialog(
-          t, const PaySupplierDialog(supplier: _supplier), _desktop);
+          t, PaySupplierDialog(supplier: _supplier), _desktop);
       expect(find.textContaining('تسديد'), findsOneWidget);
     });
     testWidgets('purchase', (t) async {
       await _pumpDialog(
         t,
-        const PurchaseDialog(suppliers: [_supplier], items: _items),
+        PurchaseDialog(suppliers: [_supplier], items: _items),
         _desktop,
       );
       expect(find.text('أمر شراء جديد'), findsOneWidget);
