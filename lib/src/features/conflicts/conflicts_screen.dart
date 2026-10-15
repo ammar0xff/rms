@@ -88,12 +88,13 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
             ),
           ],
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Full-width tiles on phones, list beside strategy on wide.
+        ResponsiveRow(
+          gap: AppSpacing.lg,
+          breakpoint: 800,
           children: [
-            Expanded(flex: 2, child: _conflictList()),
-            const SizedBox(width: AppSpacing.lg),
-            const Expanded(child: _StrategyCard()),
+            _conflictList(),
+            const _StrategyCard(),
           ],
         ),
         const SurfaceCard(
