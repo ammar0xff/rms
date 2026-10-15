@@ -23,7 +23,7 @@
 // an input.
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -113,10 +113,13 @@ async function main() {
   });
   const db = getFirestore(app);
 
-  // The next build number is derived from what is already published rather than
-  // taken from the caller. Android refuses an update whose versionCode is not
-  // strictly higher than the installed one, so a re-run of this workflow must
-  // always produce something installable.
+  // The next build number defaults to what is already published rather than
+  // the caller. Android refuses an update whose versionCode is not strictly
+  // higher than the installed one, so a re-run of this workflow must always
+  // produce something installable. Pass --build-number explicitly (the
+  // workflow passes GITHUB_RUN_NUMBER, the same number baked into the APK as
+  // versionCode) so the manifest build number IS the versionCode instead of a
+  // second counter that drifts from it.
   const existing = await db.collection(COLLECTION).get();
   const highest = existing.docs.reduce((max, doc) => {
     const n = Number(doc.get('buildNumber') ?? 0);
@@ -166,6 +169,18 @@ async function main() {
 
   await db.collection(COLLECTION).doc(releaseId).set(manifest, { merge: true });
   console.log(`Published release ${releaseId}`);
+
+  // A per-platform manifest file for GitHub Releases tracking: the device
+  // reads `manifest.<platform>.json` off the release instead of Firestore, so
+  // the whole update backend is the release page. Same shape as the document
+  // above (UpdateManifest.parse consumes both); server timestamps become ISO
+  // strings since JSON has no sentinel values.
+  const manifestFile = `manifest.${platform}.json`;
+  writeFileSync(
+    manifestFile,
+    JSON.stringify({ ...manifest, createdAt: new Date().toISOString() }, null, 2) + '\n',
+  );
+  console.log(`Wrote ${manifestFile} (upload it as a release asset)`);
 
   // A per-platform pointer lets the client fetch one small document instead of
   // querying the whole collection.

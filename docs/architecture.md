@@ -172,23 +172,34 @@ half, so the eligibility rules are verifiable without touching Firebase, secrets
 
 ## Releases and platform delivery
 
+The device tracks GitHub Releases, not Firestore: the release workflow attaches
+a `manifest.<platform>.json` asset to every release, and
+`data/updates/github_release_source.dart` walks the release list newest-first
+for the first readable manifest on our channel. One source serves every
+platform with no per-platform backend state; the unauthenticated API quota
+(60/hr/IP) is spent once per check for the listing, since asset downloads
+bypass it. Drafts are skipped, production tracks stable releases only, and any
+tracking failure reads as offline with the cache standing.
+
 Two update paths publish the same manifest shape, so a client cannot tell them apart:
 
 - **Build on demand** — `.github/workflows/release.yml`, dispatched by hand. It builds the current
-  repository, hashes the artifact, uploads it to Cloud Storage and writes the manifest document.
-  Manual on purpose: publishing changes what every enrolled device is offered, so it must not run
+  repository, uploads the artifact and the manifest asset to a GitHub Release,
+  and still writes the Firestore document during the transition so pre-0.14.0
+  clients keep updating. Manual on purpose: publishing changes what every enrolled device is offered, so it must not run
   on every push, and a missing secret must never break the normal build.
 - **Bring your own artifact** — the same publisher, `tool/publish_release.mjs`, invoked with
-  `--reference` against an artifact already in Storage. Nothing is uploaded; only the manifest is
+  `--reference` against an already-hosted artifact. Nothing is uploaded; only the manifests are
   written.
 
-The publisher derives the next `buildNumber` from what is already published rather than trusting the
-caller. Android refuses an update whose version code is not strictly higher than the installed one,
-so a re-run must always produce something installable.
+The publisher takes `--build-number` from the workflow (`GITHUB_RUN_NUMBER`,
+the same number baked into the APK as versionCode), so the manifest build
+number IS the versionCode instead of a second counter drifting from it. A
+re-run always produces something installable.
 
-`tool/publish_release.mjs` emits exactly `UpdateManifest.toRecord()`. The two must stay in step: the
-client treats a document it cannot parse as absent, so a field rename would silently stop every
-device being offered updates rather than fail loudly.
+`tool/publish_release.mjs` emits exactly `UpdateManifest.toRecord()` in both
+places. The three must stay in step: the client treats a document it cannot
+parse as absent, so a field rename would silently stop every device being offered updates rather than fail loudly.
 
 ### Required secrets
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../config/app_version.dart';
@@ -21,7 +20,7 @@ import '../../data/local/update_status_store.dart';
 import '../../domain/models/update_manifest.dart';
 import '../../data/updates/android_update_installer.dart';
 import '../../data/updates/artifact_downloader.dart';
-import '../../data/updates/firestore_update_source.dart';
+import '../../data/updates/github_release_source.dart';
 import '../../data/updates/local_health_checker.dart';
 import '../../data/updates/local_schema_migrator.dart';
 import '../../data/updates/update_runtime.dart';
@@ -211,20 +210,18 @@ Future<AppServices> _resolveAuth(
   await _primeUpdateManifest(updates);
 
   // Built here rather than alongside the other repositories: it needs
-  // `branches` for the rollout cohort seed, and the Firebase instance — which
-  // only exists after initializeApp — for the remote manifest source.
-  // Constructed per return path below: evaluating FirebaseFirestore.instance
-  // before initializeApp throws core/no-app and kills startup outside any
-  // try/catch, so it must never happen eagerly up here.
-  UpdateRuntime? buildRuntime({FirebaseFirestore? firestoreDb}) {
+  // `branches` for the rollout cohort seed. The remote manifest source needs
+  // no Firebase at all — GitHub Releases serves it — so there is no
+  // initialization ordering to respect here.
+  UpdateRuntime? buildRuntime() {
     if (database == null || updates == null) return null;
     return UpdateRuntime(
       cache: updates,
       outbox: outbox,
       acknowledgement: updateAcknowledgement,
-      remote: FirestoreUpdateSource(
+      remote: GitHubReleaseSource(
         platform: currentUpdatePlatform(),
-        firestore: firestoreDb,
+        channel: currentUpdateChannel(),
       ),
       // Web ships through its hosting provider and takes no artifact.
       artifactDeliverySupported: currentUpdatePlatform() != UpdatePlatform.web,
@@ -317,7 +314,7 @@ Future<AppServices> _resolveAuth(
       updateAudit: updateAudit,
       updateStatus: updateStatus,
       updateAcknowledgement: updateAcknowledgement,
-      updateRuntime: buildRuntime(firestoreDb: FirebaseFirestore.instance),
+      updateRuntime: buildRuntime(),
     );
   } catch (error, stackTrace) {
     AppLogger.error(

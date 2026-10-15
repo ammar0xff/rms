@@ -2,13 +2,14 @@ name: Release
 
 # Workflow B: build the current repository and publish it as the new version.
 #
-# Unlike the web deploy, this does not run on every push. Publishing a manifest
-# is a deliberate act — it changes what every enrolled device is offered — and it
-# needs a Firebase service account that may not be configured yet. Keeping it
-# manual means a missing secret can never break the normal build.
+# Unlike the web deploy, this does not run on every push. Publishing is a
+# deliberate act — it changes what every enrolled device is offered. The
+# device tracks GitHub Releases directly (manifest.<platform>.json asset),
+# so the release page is the whole update backend. The Firestore manifest
+# write stays during the transition so pre-0.14.0 clients keep updating.
 #
 # The equivalent of "upload a ready APK/EXE" is the same publisher invoked
-# with --reference, which skips the upload and writes only the manifest.
+# with --reference, which skips the upload and writes only the manifests.
 
 on:
   workflow_dispatch:
@@ -176,13 +177,17 @@ jobs:
       - name: Publish artifact and manifest
         env:
           NODE_ENV: production
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
         run: |
+          set -euo pipefail
+          TAG="v${{ inputs.version }}"
           node tool/publish_release.mjs \
             --reference "${{ steps.asset.outputs.url }}" \
             --sha256 "${{ steps.digest.outputs.sha }}" \
             --size "${{ steps.digest.outputs.size }}" \
+            --build-number "${GITHUB_RUN_NUMBER}" \
             --platform "${{ inputs.platform }}" \
             --version "${{ inputs.version }}" \
             --channel "${{ inputs.channel }}" \
@@ -191,6 +196,10 @@ jobs:
             --release-notes "${{ inputs.release-notes }}" \
             --min-supported "${{ inputs.min-supported }}" \
             --rollback-target "${{ inputs.rollback-target }}"
+          # The device tracks GitHub Releases, not Firestore: this asset is
+          # the update backend. The Firestore write above stays during the
+          # transition so pre-0.14.0 clients keep updating.
+          gh release upload "$TAG" "manifest.${{ inputs.platform }}.json" --clobber
 
       - name: Keep the artifact
         uses: actions/upload-artifact@v4
