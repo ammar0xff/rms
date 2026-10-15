@@ -21,6 +21,20 @@ between each; confirm the previous operator's screens are gone.
 - [ ] **Ack gating.** With stuck work: cashier sees يتطلب الإقرار مديرًا
   (no button); manager sees إقرار and it works.
 
+## 0b. Data surfaces (post-audit additions)
+
+- [ ] **Customers.** Add a customer (name+phone): appears in the table as
+  محلي, syncs to `customers/` in Firestore, flips to مُزامَن. Empty state
+  before the first one — never fixture rows.
+- [ ] **Menu toggle.** Flip an item's availability: change syncs (check the
+  outbox row `upsertMenuItem`), survives a cache refresh.
+- [ ] **Dashboard alerts are real.** Put an item under its reorder point:
+  appears in التنبيهات; resolve it: green row, no alert.
+- [ ] **Database screen (developer).** Counts match console collections;
+  prune deletes only synced outbox rows (pending count untouched).
+- [ ] **Mirror convergence.** After a full drain, every touched entity has a
+  same-id document in its mirror collection carrying server identity.
+
 ## 1. Update flow end-to-end (Phase 4)
 
 Setup: install the release APK, sign in, take the app through each case.

@@ -11,7 +11,7 @@ different navigation, different landing screen, different reach.
 | Cashier | `cashier.*@` (default) | البيع + الرئيسية + المزيد | dashboard, POS, menu, customers, sync, settings |
 | Chef | `chef.*@` | المطبخ + القائمة + المزيد | kitchen, menu, dashboard, sync, settings |
 | Manager | anything else | full bar | everything, incl. team |
-| Developer | `dev.*@`, `developer.*@` | الرئيسية + المزامنة + المزيد | everything, incl. team |
+| Developer | `dev.*@`, `developer.*@` | الرئيسية + المزامنة + المزيد | everything, incl. team + database tools |
 
 Anything not listed for a role is unreachable — bottom bar, More grid, and
 (wide screens) the filtered sidebar all enforce the same sets. The install
@@ -26,6 +26,12 @@ everyone else).
   resolved role so UI gates never see a stale default mid-session.
 - **Demo mode:** the email convention above; anything else is a manager so
   demo stays fully explorable.
+
+## Developer database tools
+
+النظام > قاعدة البيانات (developer only): per-store local counts, Firestore
+mirror counts, and pruning of acknowledged outbox rows (synced only — never
+work). The screen an operator opens when "the numbers look wrong".
 
 ## Team management
 
