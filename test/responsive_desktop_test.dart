@@ -103,11 +103,25 @@ void main() {
           findsOneWidget);
     });
 
-    testWidgets('pos two-pane layout', (tester) async {
+    testWidgets('pos counter rails filter and tender', (tester) async {
       await pumpDesktop(tester, const PosScreen());
 
       expect(find.text('مشويات مشكلة كبيرة مع الأرز البسمتي'),
           findsOneWidget);
+      // The rail replaces the phone chip strip on wide screens.
+      await tester.tap(find.text('البيتزا'));
+      await tester.pumpAndSettle();
+      expect(find.text('مشويات مشكلة كبيرة مع الأرز البسمتي'),
+          findsNothing);
+      expect(find.text('بيتزا خضار'), findsOneWidget);
+      await tester.tap(find.text('الكل'));
+      await tester.pumpAndSettle();
+      // Quick tender skips the amount dialog; it renders, never tapped here
+      // (tapping submits a real order through the fake).
+      await tester.tap(find.text('مشويات مشكلة كبيرة مع الأرز البسمتي'));
+      await tester.pumpAndSettle();
+      expect(find.text('كاش بالظبط'), findsOneWidget);
+      expect(find.text('فيزا'), findsWidgets);
     });
 
     testWidgets('kitchen lanes share the dark panel', (tester) async {
