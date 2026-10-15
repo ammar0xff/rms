@@ -7,6 +7,7 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/rms_table.dart';
+import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
@@ -244,20 +245,71 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Widget _ledgerCard(Map<String, String> names) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        if (c.maxWidth < 700) return _ledgerFeed(names);
+        return SurfaceCard(
+          padding: EdgeInsets.zero,
+          clip: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
+                child: SectionHeader(
+                  title: 'سجل الحركات',
+                  subtitle: 'إضافة فقط · الرصيد هو مجموع الحركات',
+                ),
+              ),
+              _ledgerTable(names),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// The same ledger as a thumb-scrolled feed: item, signed delta, reason.
+  Widget _ledgerFeed(Map<String, String> names) {
     return SurfaceCard(
-      padding: EdgeInsets.zero,
-      clip: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
-            child: SectionHeader(
-              title: 'سجل الحركات',
-              subtitle: 'إضافة فقط · الرصيد هو مجموع الحركات',
-            ),
+          const SectionHeader(
+            title: 'سجل الحركات',
+            subtitle: 'إضافة فقط · الرصيد هو مجموع الحركات',
           ),
-          RmsTable(
+          const SizedBox(height: 12),
+          if (_movements.isEmpty)
+            const Text('لسه مفيش حركات متسجلة.',
+                style: AppText.caption)
+          else
+            for (final m in _movements.reversed) ...[
+              FeedRow(
+                tone: m.isIncrease
+                    ? StatusTone.positive
+                    : StatusTone.negative,
+                title: names[m.itemId] ?? m.itemId,
+                subtitle: _feedSubtitle(m),
+                trailing: Text(
+                  _signed(m.delta),
+                  style: AppText.tableCellPrimary.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: m.isIncrease
+                        ? AppColors.positive
+                        : AppColors.negative,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _ledgerTable(Map<String, String> names) {
+    return RmsTable(
             columns: const [
               RmsColumn('الوقت', width: 70),
               RmsColumn('الصنف', flex: 3),
@@ -289,10 +341,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ),
                 ],
             ],
-          ),
-        ],
-      ),
-    );
+          );
+  }
+
+  static String _feedSubtitle(StockMovementModel m) {
+    var s = '${m.reason.label} · ${_time(m.at)}';
+    if (m.reference != null) s += ' · ${m.reference}';
+    return s;
   }
 
   static String _qty(double value) =>
