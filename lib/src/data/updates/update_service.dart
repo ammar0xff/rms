@@ -10,7 +10,6 @@ import '../../domain/update/update_installer.dart';
 import '../../domain/update/update_lifecycle_coordinator.dart';
 import '../../domain/update/update_migrator.dart';
 import '../../domain/update/update_readiness.dart';
-import '../local/outbox/outbox_access.dart';
 import '../local/update_store_contracts.dart';
 
 /// Everything the update flow needs, injected.
@@ -24,7 +23,6 @@ class UpdateDeps {
     required this.installer,
     required this.migrator,
     required this.healthChecker,
-    this.outbox,
     this.auditSink,
     this.statusStore,
   });
@@ -33,9 +31,6 @@ class UpdateDeps {
   final UpdateInstaller installer;
   final UpdateMigrator migrator;
   final UpdateHealthChecker healthChecker;
-
-  /// Null when there is no local store; the gate then reports no work.
-  final OutboxAccess? outbox;
 
   final UpdateAuditSink? auditSink;
   final UpdateStatusStore? statusStore;
