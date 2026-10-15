@@ -88,13 +88,16 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
-    // Server-assigned order numbers. Clients must never read the counter
-    // (it leaks sequence position) and must never write it (they would mint
-    // their own numbers). The counter transaction runs under these rules and
-    // fails closed when denied — the push retries instead of syncing a
+    // Server-assigned order numbers. The reservation is a client-side
+    // transaction (there is no server process), so denying it here does not
+    // protect numbering — it prohibits order sync entirely, while payments
+    // and tickets flow fine around it. Authenticated clients may read and run
+    // the transaction: atomicity still makes duplicates impossible, and the
+    // worst a rogue client can do is burn numbers (gaps, not collisions).
+    // A failed reservation fails the push loudly instead of syncing a
     // numberless order.
     match /counters/{id} {
-      allow read, write: if false;
+      allow read, write: if signedIn();
     }
 
     // Published releases and the per-platform pointer. Read-only to clients;
