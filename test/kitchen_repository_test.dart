@@ -91,10 +91,16 @@ void main() {
     expect(await repo.listTickets(), isEmpty);
   });
 
-  test('cacheTickets replaces the queue by default', () async {
+  test('cacheTickets replaces clean tickets but preserves dirty ones', () async {
+    // T-old is dirty (upsert stamps pendingSync and queues a command), so a
+    // replace must not destroy it with its unsynced work.
     await repo.upsertTicket(_ticket('T-old'));
     await repo.cacheTickets([_ticket('T-new')]);
-    expect((await repo.listTickets()).single.id, 'T-new');
+
+    expect(
+      (await repo.listTickets()).map((t) => t.id).toSet(),
+      {'T-old', 'T-new'},
+    );
   });
 
   test('clearTickets empties the queue', () async {
