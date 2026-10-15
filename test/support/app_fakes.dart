@@ -51,7 +51,7 @@ import 'package:rms/src/domain/models/supplier.dart';
 final _now = DateTime(2026, 10, 15, 12, 30);
 
 /// A long, deliberately awkward name: the case that overflows.
-const _longName = 'مشويات مشكلة كبيرة مع الأرز البسمتي';
+const kLongName = 'مشويات مشكلة كبيرة مع الأرز البسمتي';
 
 OutboxEntry fakeOp(
   String id,
@@ -100,7 +100,7 @@ class _MenuRepo implements MenuRepository {
     final items = [
       MenuItemModel(
         id: 'm1',
-        name: _longName,
+        name: kLongName,
         category: 'المشويات',
         price: 185.5,
         station: 'المشويات',
@@ -131,7 +131,7 @@ class _KitchenRepo implements KitchenRepository {
         id: id,
         orderRef: 'طلب-$id',
         station: station,
-        items: const [_longName],
+        items: const [kLongName],
         state: state,
         createdAt: _now,
       );
@@ -351,7 +351,7 @@ Order _order(String ref, double total) => Order(
       localId: 'l-$ref',
       provisionalOrderNumber: ref,
       items: [
-        OrderItem(productId: 'm1', name: _longName, unitPrice: total, quantity: 1),
+        OrderItem(productId: 'm1', name: kLongName, unitPrice: total, quantity: 1),
       ],
       createdOffline: false,
       createdAt: _now,

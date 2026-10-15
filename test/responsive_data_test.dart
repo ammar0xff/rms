@@ -24,8 +24,8 @@ void main() {
     testWidgets('pos grid, cart badge, and cart row', (tester) async {
       await pumpPhone(tester, const PosScreen());
 
-      expect(find.text(_longName), findsOneWidget);
-      await tester.tap(find.text(_longName));
+      expect(find.text(kLongName), findsOneWidget);
+      await tester.tap(find.text(kLongName));
       await tester.pumpAndSettle();
 
       expect(find.text('السلة (1)'), findsOneWidget);
@@ -33,7 +33,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The cart holds the line and prices it; both must be on screen.
-      expect(find.text(_longName), findsWidgets);
+      expect(find.text(kLongName), findsWidgets);
       expect(find.textContaining('185.50'), findsWidgets);
     });
 
@@ -55,7 +55,7 @@ void main() {
     testWidgets('menu table shows the long item name', (tester) async {
       await pumpPhone(tester, const MenuScreen());
 
-      expect(find.text(_longName), findsOneWidget);
+      expect(find.text(kLongName), findsOneWidget);
     });
 
     testWidgets('inventory ledger shows items and movements',
