@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
-import '../../core/widgets/rms_table.dart';
-import '../../core/widgets/stat_card.dart';
+import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/local/outbox/outbox_status.dart';
+import '../../domain/models/app_role.dart';
 import '../../domain/models/order.dart';
+import '../accounting/accounting_screen.dart';
 import '../common/format.dart';
+import '../customers/customers_screen.dart';
+import '../pos/pos_screen.dart';
 
-/// The cashier's home: how is my shift going.
+/// The cashier's home: how is my shift going, and sell the next order.
 ///
-/// Today only — sales, orders, average ticket, and what has not synced yet —
-/// plus the most recent orders. The POS tab next to it does the selling; this
-/// screen answers "how am I doing" without digging through reports. Cashier
-/// home; other roles never route here.
+/// Today only — sales in the hero, orders and ticket below, the live queue
+/// under that. Selling is one tap away: the hero button and the quick tiles
+/// open focused full-screen flows (POS, customers, cash session) and back
+/// returns here. Cashier home; other roles never route here.
 class ShiftScreen extends StatefulWidget {
   const ShiftScreen({super.key});
 
@@ -89,109 +94,110 @@ class _ShiftScreenState extends State<ShiftScreen> {
   String _time(DateTime at) =>
       '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
 
+  void _open(Widget screen) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final accent = roleAccent(AppRole.cashier);
     return RefreshIndicator(
       onRefresh: _load,
       child: PageBody(
         children: [
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SectionHeader(
-                  title: 'شيفت النهاردة',
-                  subtitle: _hasStore ? null : 'مفيش مخزن متاح',
-                ),
-                const SizedBox(height: 12),
-                GridRow(children: [
-                  StatCard(label: 'المبيعات', value: money(_stats.sales)),
-                  StatCard(
-                      label: 'الطلبات', value: '${_stats.orders}'),
-                  StatCard(
-                    label: 'متوسط الفاتورة',
-                    value: money(_stats.averageTicket),
-                  ),
-                ]),
-                if (_stats.unsynced > 0) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const StatusDot(tone: StatusTone.warning),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${money(_stats.unsynced)} لسه ما اتزامنش',
-                          style: AppText.tableCellPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+          RoleHero(
+            role: AppRole.cashier,
+            kicker: 'الكاشير · شيفت النهاردة',
+            title: !_hasStore
+                ? 'مفيش مخزن متاح'
+                : (_stats.orders == 0 ? 'شيفت جديد' : 'شيفت شغال'),
+            subtitle: _stats.unsynced > 0
+                ? '${money(_stats.unsynced)} لسه ما اتزامنش'
+                : 'كل المبيعات على الجهاز',
+            value: money(_stats.sales),
+            valueLabel: 'مبيعات النهاردة',
+            action: RmsButton(
+              label: 'بيع جديد',
+              icon: Icons.point_of_sale,
+              variant: BtnVariant.primary,
+              onPressed: () => _open(const PosScreen()),
             ),
           ),
+          GridRow(
+            children: [
+              KpiCard(
+                label: 'الأوردرات',
+                value: '${_stats.orders}',
+                icon: Icons.receipt_long_outlined,
+                accent: accent,
+              ),
+              KpiCard(
+                label: 'متوسط الفاتورة',
+                value: money(_stats.averageTicket),
+                icon: Icons.payments_outlined,
+                accent: accent,
+              ),
+            ],
+          ),
+          GridRow(
+            children: [
+              QuickActionTile(
+                icon: Icons.group_outlined,
+                label: 'العملاء',
+                accent: accent,
+                onTap: () => _open(const CustomersScreen()),
+              ),
+              QuickActionTile(
+                icon: Icons.account_balance_wallet_outlined,
+                label: 'الجلسة والقفل',
+                accent: accent,
+                onTap: () => _open(const AccountingScreen()),
+              ),
+            ],
+          ),
           SurfaceCard(
-            padding: EdgeInsets.zero,
-            clip: true,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
-                  child: SectionHeader(title: 'أحدث الطلبات'),
-                ),
+                const SectionHeader(title: 'أحدث الطلبات'),
+                const SizedBox(height: 12),
                 if (!_hasStore)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-                    child: Text(
-                      'مفيش مخزن متاح لعرض الأوردرات.',
-                      style: AppText.caption,
-                    ),
+                  const Text(
+                    'مفيش مخزن متاح لعرض الأوردرات.',
+                    style: AppText.caption,
                   )
                 else if (_stats.recent.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-                    child: Text(
-                      'لسه مفيش أوردرات النهاردة. البيع من تبويب البيع.',
-                      style: AppText.caption,
-                    ),
+                  const Text(
+                    'لسه مفيش أوردرات النهاردة. البيع من تبويب البيع.',
+                    style: AppText.caption,
                   )
                 else
-                  RmsTable(
-                    columns: const [
-                      RmsColumn('الطلب', flex: 3),
-                      RmsColumn('الوقت', flex: 2),
-                      RmsColumn('الحالة', flex: 2),
-                      RmsColumn('الإجمالي', flex: 2, align: TextAlign.right),
+                  for (final o in _stats.recent) ...[
+                    FeedRow(
+                      tone: o.syncStatus == SyncStatus.synced
+                          ? StatusTone.positive
+                          : StatusTone.warning,
+                      title: o.provisionalOrderNumber,
+                      subtitle:
+                          '${_time(o.createdAt)} · ${o.items.length} صنف',
+                      trailing: Text(
+                        money(o.total),
+                        style: AppText.tableCellPrimary.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (o != _stats.recent.last) ...[
+                      const SizedBox(height: 10),
+                      const Divider(
+                        height: 1,
+                        color: AppColors.borderSubtle,
+                      ),
+                      const SizedBox(height: 10),
                     ],
-                    rows: [
-                      for (final o in _stats.recent)
-                        [
-                          Text(
-                            o.provisionalOrderNumber,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.tableCellPrimary,
-                          ),
-                          Text(_time(o.createdAt),
-                              style: AppText.tableCell),
-                          StatusText(
-                            label: o.syncStatus == SyncStatus.synced
-                                ? 'اتزامن'
-                                : 'على الجهاز',
-                            tone: o.syncStatus == SyncStatus.synced
-                                ? StatusTone.positive
-                                : StatusTone.warning,
-                          ),
-                          Text(
-                            money(o.total),
-                            textAlign: TextAlign.right,
-                            style: AppText.tableCellPrimary.copyWith(
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                    ],
-                  ),
+                  ],
               ],
             ),
           ),
