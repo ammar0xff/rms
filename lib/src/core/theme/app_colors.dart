@@ -28,4 +28,24 @@ abstract final class AppColors {
   static const warning = Color(0xFFD97706);
   static const info = Color(0xFF2563EB);
   static const purple = Color(0xFF7C3AED);
+
+  /// Role accents — one family, five uniforms. Each role home tints its hero
+  /// and key actions with its accent; everything else stays on the shared
+  /// warm-neutral palette so any operator can cover any screen.
+  static const cashierAccent = brand;
+  static const chefAccent = Color(0xFFEA580C);
+  static const driverAccent = Color(0xFF0284C7);
+  static const managerAccent = Color(0xFF059669);
+  static const developerAccent = purple;
+
+  /// Dark kitchen treatment. KDS screens run hot and glary; the industry
+  /// puts tickets on dark glass. Only the ticket lanes use these — dialogs,
+  /// inputs, and toasts stay on the light theme so behavior never forks.
+  static const kdsBase = Color(0xFF131316);
+  static const kdsSurface = Color(0xFF1D1D22);
+  static const kdsRaised = Color(0xFF26262C);
+  static const kdsBorder = Color(0xFF34343C);
+  static const kdsFg = Color(0xFFFAFAFA);
+  static const kdsSecondary = Color(0xFFD4D4D8);
+  static const kdsMuted = Color(0xFFA1A1AA);
 }
