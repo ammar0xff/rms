@@ -90,7 +90,9 @@ void main() {
       final queued = await store.all();
       final receive =
           queued.firstWhere((e) => e.operationType == 'receivePurchase');
-      await store.markSynced(receive.operationId);
+      for (final e in queued) {
+        await store.markSynced(e.operationId);
+      }
       await purchases.applySynced(receive);
 
       supplier =

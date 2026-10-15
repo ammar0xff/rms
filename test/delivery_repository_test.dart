@@ -205,7 +205,9 @@ void main() {
     // back, so the test does the same — otherwise quiet-clear correctly
     // refuses while the real entry is still outstanding.
     final store = OutboxStore(db);
-    await store.markSynced(entry.operationId);
+    for (final e in await store.all()) {
+      await store.markSynced(e.operationId);
+    }
     await repo.applySynced(entry);
     expect(
       (await repo.listDeliveries()).single.syncStatus,
