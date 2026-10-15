@@ -374,39 +374,53 @@ class _ApprovalRequestRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // The text column plus amount plus two buttons never fits a phone-width
+    // card in one row, so the buttons sit on their own wrapping line.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const StatusDot(tone: StatusTone.warning),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('${request.kind.label} · ${request.orderRef}',
-                  style: AppText.tableCellPrimary),
-              Text(
-                request.reason,
-                style: AppText.caption,
-                overflow: TextOverflow.ellipsis,
+        Row(
+          children: [
+            const StatusDot(tone: StatusTone.warning),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${request.kind.label} · ${request.orderRef}',
+                      style: AppText.tableCellPrimary),
+                  Text(
+                    request.reason,
+                    style: AppText.caption,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Text(
+              money(request.amount),
+              style:
+                  AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
-        Text(
-          money(request.amount),
-          style: AppText.tableCellPrimary.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(width: 8),
-        RmsButton(
-          label: 'رفض',
-          variant: BtnVariant.ghost,
-          onPressed: onReject,
-        ),
-        const SizedBox(width: 6),
-        RmsButton(
-          label: 'اعتماد',
-          variant: BtnVariant.primary,
-          onPressed: canApprove ? onApprove : null,
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            RmsButton(
+              label: 'رفض',
+              variant: BtnVariant.ghost,
+              onPressed: onReject,
+            ),
+            RmsButton(
+              label: 'اعتماد',
+              variant: BtnVariant.primary,
+              onPressed: canApprove ? onApprove : null,
+            ),
+          ],
         ),
       ],
     );
