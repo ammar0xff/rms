@@ -68,6 +68,7 @@ final navGroups = <NavGroup>[
     NavEntry('branches', 'الفروع', Icons.storefront_outlined, _branches),
   ]),
   NavGroup('النظام', [
+    NavEntry('system', 'النظام', Icons.monitor_heart_outlined, _system),
     NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
     NavEntry('database', 'قاعدة البيانات', Icons.storage_outlined, _database),
     NavEntry('conflicts', 'التعارضات', Icons.call_split_outlined, _conflicts),

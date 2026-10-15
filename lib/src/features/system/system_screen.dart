@@ -10,7 +10,6 @@ import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/stat_card.dart';
-import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 
 /// The developer's home: is the device healthy.
