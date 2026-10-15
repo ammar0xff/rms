@@ -10,6 +10,7 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/rms_table.dart';
 import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
@@ -298,28 +299,46 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             d.state == DeliveryState.delivered &&
             _collectionFor(d.id) == null)
         .fold(0.0, (sum, d) => sum + d.amount);
+    // The hero is the first job with an action: start, deliver, or collect.
+    // Everything else queues below it.
+    DeliveryModel? hero;
+    for (final d in visible) {
+      if (d.state == DeliveryState.assigned ||
+          d.state == DeliveryState.onRoute ||
+          (d.state == DeliveryState.delivered &&
+              _collectionFor(d.id) == null)) {
+        hero = d;
+        break;
+      }
+    }
+    final rest =
+        hero == null ? visible : visible.where((d) => d.id != hero!.id).toList();
+    final accent = roleAccent(AppRole.driver);
     return PageBody(
       children: [
-        SurfaceCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                showMineOnly ? 'مهامي النهاردة' : 'المهمات المفتوحة',
-                style: AppText.h2,
-              ),
-              const SizedBox(height: 12),
-              GridRow(children: [
-                StatCard(label: 'مفتوحة', value: '${visible.length}'),
-                StatCard(label: 'حُصّل', value: money(collected)),
-                StatCard(
-                    label: 'معلّق',
-                    value: money(outstanding),
-                    deltaTone: DeltaTone.neutral),
-              ]),
-            ],
+        if (hero != null)
+          _NextStopHero(
+            job: hero,
+            onAdvance: () => _advance(hero!),
+            onCollect: () => _collect(hero!),
           ),
-        ),
+        GridRow(children: [
+          KpiCard(
+              label: showMineOnly ? 'مهامي' : 'مفتوحة',
+              value: '${visible.length}',
+              icon: Icons.navigation_outlined,
+              accent: accent),
+          KpiCard(
+              label: 'حُصّل',
+              value: money(collected),
+              icon: Icons.payments_outlined,
+              accent: accent),
+          KpiCard(
+              label: 'معلّق',
+              value: money(outstanding),
+              icon: Icons.pending_outlined,
+              accent: accent),
+        ]),
         if (visible.isEmpty)
           const SurfaceCard(
             child: Row(
@@ -336,13 +355,19 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               ],
             ),
           )
-        else
-          for (final job in visible) _DriverJobCard(
+        else ...[
+          if (hero != null && rest.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: SectionHeader(title: 'باقي المهمات'),
+            ),
+          for (final job in rest) _DriverJobCard(
             job: job,
             collection: _collectionFor(job.id),
             onAdvance: () => _advance(job),
             onCollect: () => _collect(job),
           ),
+        ],
         _OfflineCollectionNotice(offlineTotal: _offlineCollections),
       ],
     );
@@ -628,6 +653,46 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The next stop: address, amount, and the single action that moves it —
+/// start, deliver, or collect. One thumb, no scrolling to the button.
+class _NextStopHero extends StatelessWidget {
+  const _NextStopHero({
+    required this.job,
+    required this.onAdvance,
+    required this.onCollect,
+  });
+
+  final DeliveryModel job;
+  final VoidCallback onAdvance;
+  final VoidCallback onCollect;
+
+  @override
+  Widget build(BuildContext context) {
+    final advanceLabel = switch (job.state) {
+      DeliveryState.assigned => 'استلام',
+      DeliveryState.onRoute => 'اتسلّم',
+      _ => null,
+    };
+    return RoleHero(
+      role: AppRole.driver,
+      kicker: 'المحطة الجاية · ${job.state.label}',
+      title: job.address,
+      subtitle: '${job.orderRef} · ${job.driver}',
+      value: money(job.amount),
+      valueLabel: 'التحصيل عند التسليم',
+      action: RmsButton(
+        label: advanceLabel ?? 'تحصيل ${money(job.amount)}',
+        icon: advanceLabel == null
+            ? Icons.payments_outlined
+            : Icons.navigation_rounded,
+        variant: BtnVariant.primary,
+        dense: false,
+        onPressed: advanceLabel == null ? onCollect : onAdvance,
       ),
     );
   }
