@@ -3,6 +3,24 @@
 Automated tests (507) cover units and fakes. These need a real device because
 they cross process, network, timing, or human boundaries CI cannot reach.
 
+## 0. Roles — one APK, five apps (do first)
+
+Sign in as each account in turn. Shared-device sign-out (المزيد → خروج)
+between each; confirm the previous operator's screens are gone.
+
+- [ ] **Driver** (`driver.*@`): bottom bar is التوصيل + المزيد only. No POS,
+  no kitchen, no dashboard anywhere — bar, grid, and (wide) sidebar.
+- [ ] **Cashier** (`cashier.*@`): lands on POS. No kitchen, no delivery.
+- [ ] **Chef** (`chef.*@`): lands on kitchen. No POS, no delivery.
+- [ ] **Manager**: full bar, all 14 entries in المزيد.
+- [ ] **Developer**: system tabs; النظام > الفريق lists users; assign a role
+  to another account (never your own — refused); sign in as that account and
+  confirm its app changed.
+- [ ] **Unknown role** (fresh Firebase user with no document): cashier app,
+  never locked out, never promoted.
+- [ ] **Ack gating.** With stuck work: cashier sees يتطلب الإقرار مديرًا
+  (no button); manager sees إقرار and it works.
+
 ## 1. Update flow end-to-end (Phase 4)
 
 Setup: install the release APK, sign in, take the app through each case.

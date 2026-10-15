@@ -218,6 +218,11 @@ memory. No printer is contacted.
 
 - [ ] **Rotate the Firebase service account key.** It was pasted into chat and
       is therefore compromised. `docs/release-setup.md`
+- [ ] Apply `firestore.rules` in the console and create the first operator
+      document by hand (`users/{uid}` with a developer role). `docs/roles.md`
+- [ ] Create one account per role and walk each app: driver (delivery only),
+      cashier (POS-first), chef (kitchen-first), manager (full), developer
+      (system + team). Shared-device sign-out between each
 - [ ] Decide whether release assets stay public. They are, because the repo is
       public and Cloud Storage needs a billing account
 - [ ] Backup and restore drill for the local database
