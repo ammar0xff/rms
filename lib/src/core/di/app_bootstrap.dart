@@ -226,7 +226,6 @@ Future<AppServices> _resolveAuth(
         installer: updateInstaller,
         migrator: updateMigrator!,
         healthChecker: updateHealthCheck!,
-        outbox: outbox,
         auditSink: updateAudit,
         statusStore: updateStatus,
       ),
