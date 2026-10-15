@@ -43,10 +43,22 @@ class LocalKitchenRepository implements KitchenRepository {
   @override
   Future<void> cacheTickets(List<KitchenTicketModel> tickets, {bool replace = true}) async {
     await _db.transaction((txn) async {
+      // Tickets now queue sync commands, so a replace must not destroy rows
+      // with unsynced work. Dirty rows survive; the rest refresh.
+      final dirty = <String, Map<String, Object?>>{};
       if (replace) {
+        final existing = await LocalStores.kitchenTickets.find(txn);
+        for (final s in existing) {
+          final ticket = KitchenTicketModel.fromRecord(s.value);
+          if (ticket.syncStatus != 'synced') dirty[ticket.id] = s.value;
+        }
         await LocalStores.kitchenTickets.delete(txn);
+        for (final e in dirty.entries) {
+          await LocalStores.kitchenTickets.record(e.key).put(txn, e.value);
+        }
       }
       for (final ticket in tickets) {
+        if (dirty.containsKey(ticket.id)) continue;
         await LocalStores.kitchenTickets.record(ticket.id).put(txn, ticket.toRecord());
       }
     });

@@ -68,10 +68,22 @@ class LocalDeliveryRepository implements DeliveryRepository {
   @override
   Future<void> cacheDrivers(List<DriverModel> drivers, {bool replace = true}) async {
     await _db.transaction((txn) async {
+      // Dirty driver rows survive the replace instead of being destroyed
+      // with it.
+      final dirty = <String, Map<String, Object?>>{};
       if (replace) {
+        final existing = await LocalStores.drivers.find(txn);
+        for (final s in existing) {
+          final driver = DriverModel.fromRecord(s.value);
+          if (driver.syncStatus != SyncStatus.synced) dirty[driver.id] = s.value;
+        }
         await LocalStores.drivers.delete(txn);
+        for (final e in dirty.entries) {
+          await LocalStores.drivers.record(e.key).put(txn, e.value);
+        }
       }
       for (final driver in drivers) {
+        if (dirty.containsKey(driver.id)) continue;
         await LocalStores.drivers.record(driver.id).put(txn, driver.toRecord());
       }
     });

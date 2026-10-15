@@ -130,13 +130,19 @@ void main() {
     expect((await repo.listItems()).single.syncStatus, SyncStatus.synced);
   });
 
-  test('cacheItems replaces the cached items', () async {
-    await repo.seedItems([_item('I1', onHand: 1)]);
+  test('cacheItems replaces clean rows but preserves dirty ones', () async {
+    await repo.seedItems([
+      _item('I1', onHand: 1),
+      _item('I9', onHand: 5, sync: SyncStatus.synced),
+    ]);
 
     await repo.cacheItems([_item('I2', onHand: 9)]);
 
+    // I1 is pendingSync: destroying it would orphan the deltas queued
+    // against it. I9 is clean and refreshes normally.
     final items = await repo.listItems();
-    expect(items.map((i) => i.id), ['I2']);
-    expect(items.single.onHand, 9);
+    expect(items.map((i) => i.id).toSet(), {'I1', 'I2'});
+    expect(items.firstWhere((i) => i.id == 'I1').onHand, 1);
+    expect(items.firstWhere((i) => i.id == 'I2').onHand, 9);
   });
 }

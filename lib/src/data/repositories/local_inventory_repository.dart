@@ -300,8 +300,23 @@ class LocalInventoryRepository implements InventoryRepository {
   }) async {
     if (items.isEmpty) return;
     await _db.transaction((txn) async {
-      if (replace) await LocalStores.inventory.delete(txn);
+      // A blind delete would destroy locally-created/edited rows carrying
+      // pendingSync along with the deltas that reference them. Dirty rows
+      // survive the replace; everything else is refreshed.
+      final dirty = <String, Map<String, Object?>>{};
+      if (replace) {
+        final existing = await LocalStores.inventory.find(txn);
+        for (final s in existing) {
+          final item = InventoryItemModel.fromRecord(s.value);
+          if (item.syncStatus != SyncStatus.synced) dirty[item.id] = s.value;
+        }
+        await LocalStores.inventory.delete(txn);
+        for (final e in dirty.entries) {
+          await LocalStores.inventory.record(e.key).put(txn, e.value);
+        }
+      }
       for (final item in items) {
+        if (dirty.containsKey(item.id)) continue;
         await LocalStores.inventory.record(item.id).put(txn, item.toRecord());
       }
     });

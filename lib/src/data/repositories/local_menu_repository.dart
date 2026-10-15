@@ -14,10 +14,22 @@ class LocalMenuRepository implements MenuRepository {
   @override
   Future<void> cacheMenu(List<MenuItemModel> items, {bool replace = true}) async {
     await _db.transaction((txn) async {
+      // Dirty rows (e.g. a toggled availability not yet pushed) survive the
+      // replace instead of being destroyed with it.
+      final dirty = <String, Map<String, Object?>>{};
       if (replace) {
+        final existing = await LocalStores.menu.find(txn);
+        for (final s in existing) {
+          final item = MenuItemModel.fromRecord(s.value);
+          if (item.syncStatus != 'synced') dirty[item.id] = s.value;
+        }
         await LocalStores.menu.delete(txn);
+        for (final e in dirty.entries) {
+          await LocalStores.menu.record(e.key).put(txn, e.value);
+        }
       }
       for (final item in items) {
+        if (dirty.containsKey(item.id)) continue;
         await LocalStores.menu.record(item.id).put(txn, item.toRecord());
       }
     });
