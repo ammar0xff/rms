@@ -9,15 +9,19 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
-import '../../core/widgets/stat_card.dart';
+import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/surface_card.dart';
+import '../../domain/models/app_role.dart';
+import '../conflicts/conflicts_screen.dart';
+import '../database/database_screen.dart';
+import '../settings/settings_screen.dart';
+import '../team/team_screen.dart';
 
 /// The developer's home: is the device healthy.
 ///
-/// Sync state, outbox totals, build identity, backend state, and the live log
-/// tail — everything a developer checks first, on one screen, with actions
-/// that work locally (sync now). No navigation links: screens cannot switch
-/// tabs, so this board reports and triggers rather than routing.
+/// Sync state, outbox totals, build identity, backend state, the tool grid
+/// (database, conflicts, team, settings as focused pushed screens), and the
+/// live log tail — everything a developer checks first, on one screen.
 class SystemScreen extends StatefulWidget {
   const SystemScreen({super.key});
 
@@ -40,60 +44,92 @@ class _SystemScreenState extends State<SystemScreen> {
     }
   }
 
+  void _open(Widget screen) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
     final monitor = SyncMonitor.instance;
+    final accent = AppColors.developerAccent;
     return RefreshIndicator(
       onRefresh: () => SyncMonitor.instance.refresh(),
       child: PageBody(
         children: [
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: SectionHeader(
-                        title: 'حالة النظام',
-                        subtitle: 'نبض الجهاز الحي',
-                      ),
-                    ),
-                    RmsButton(
-                      label: _syncing ? 'جارٍ المزامنة…' : 'مزامنة دلوقتي',
-                      icon: Icons.sync,
-                      onPressed: _syncing ? null : _syncNow,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                AnimatedBuilder(
-                  animation: monitor,
-                  builder: (context, _) => GridRow(children: [
-                    StatCard(
-                        label: 'معلّق',
-                        value: '${monitor.pending}',
-                        tone: monitor.pending > 0
-                            ? AppColors.warning
-                            : null),
-                    StatCard(
-                        label: 'فاشل',
-                        value: '${monitor.failed}',
-                        tone: monitor.failed > 0
-                            ? AppColors.negative
-                            : null),
-                    StatCard(
-                        label: 'تعارضات',
-                        value: '${monitor.conflicts}',
-                        tone: monitor.conflicts > 0
-                            ? AppColors.warning
-                            : null),
-                  ]),
-                ),
-              ],
+          AnimatedBuilder(
+            animation: monitor,
+            builder: (context, _) => RoleHero(
+              role: AppRole.developer,
+              kicker: 'حالة النظام',
+              title:
+                  monitor.online ? 'متصل وشغال' : 'شغال من غير نت',
+              subtitle: monitor.pending > 0
+                  ? '${monitor.pending} عملية مستنية في الطابور'
+                  : 'الطابور فاضي · النبض الحي شغال',
+              value: AppVersion.string,
+              valueLabel: 'إصدار البناء',
+              action: RmsButton(
+                label: _syncing ? 'جارٍ المزامنة…' : 'مزامنة دلوقتي',
+                icon: Icons.sync,
+                variant: BtnVariant.primary,
+                onPressed: _syncing ? null : _syncNow,
+              ),
             ),
           ),
+          AnimatedBuilder(
+            animation: monitor,
+            builder: (context, _) => GridRow(children: [
+              KpiCard(
+                label: 'معلّق',
+                value: '${monitor.pending}',
+                icon: Icons.pending_outlined,
+                accent: accent,
+              ),
+              KpiCard(
+                label: 'فاشل',
+                value: '${monitor.failed}',
+                icon: Icons.error_outline,
+                accent: accent,
+              ),
+              KpiCard(
+                label: 'تعارضات',
+                value: '${monitor.conflicts}',
+                icon: Icons.merge_type_outlined,
+                accent: accent,
+              ),
+            ]),
+          ),
+          GridRow(children: [
+            QuickActionTile(
+              icon: Icons.storage_outlined,
+              label: 'قاعدة البيانات',
+              accent: accent,
+              onTap: () => _open(const DatabaseScreen()),
+            ),
+            QuickActionTile(
+              icon: Icons.device_hub_outlined,
+              label: 'التعارضات',
+              accent: accent,
+              onTap: () => _open(const ConflictsScreen()),
+            ),
+          ]),
+          GridRow(children: [
+            QuickActionTile(
+              icon: Icons.group_outlined,
+              label: 'الفريق والأدوار',
+              accent: accent,
+              onTap: () => _open(const TeamScreen()),
+            ),
+            QuickActionTile(
+              icon: Icons.settings_outlined,
+              label: 'الإعدادات',
+              accent: accent,
+              onTap: () => _open(const SettingsScreen()),
+            ),
+          ]),
           SurfaceCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
