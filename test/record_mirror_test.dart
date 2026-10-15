@@ -3,6 +3,7 @@ import 'package:rms/src/data/local/local_database.dart';
 import 'package:rms/src/data/local/outbox/outbox_entry.dart';
 import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/data/local/outbox/outbox_store.dart';
+import 'package:rms/src/data/local/outbox/outbox_store.dart';
 import 'package:rms/src/data/repositories/local_order_repository.dart';
 import 'package:rms/src/data/repositories/local_payment_repository.dart';
 import 'package:rms/src/data/sync/record_mirror.dart';
@@ -147,6 +148,12 @@ void main() {
         amount: 42.0,
         method: PaymentMethod.cash,
       ));
+      // Engine order first: the quiet guard would otherwise (correctly)
+      // refuse while the create entry is still outstanding.
+      final store = OutboxStore(db);
+      for (final e in await store.all()) {
+        await store.markSynced(e.operationId);
+      }
       // Must not throw: the mirror is best-effort, the sync is not.
       await repo.applySynced(_ack(
         entityType: 'payment',
