@@ -19,7 +19,10 @@ class SyncChip extends StatelessWidget {
       builder: (context, _) {
         final (label, tone) = monitor.online
             ? (monitor.pending > 0 ? 'جارٍ المزامنة (${monitor.pending})' : 'متصل', StatusTone.positive)
-            : ('غير متصل · ${monitor.pending} قيد الانتظار', StatusTone.warning);
+            // Short on purpose: this chip lives in the 48px top bar next to
+            // the title and action buttons, and the counts live in the sync
+            // center. A long label overflows narrow screens.
+            : ('غير متصل', StatusTone.warning);
         final color = toneColor(tone);
         return Tooltip(
           message: monitor.online
