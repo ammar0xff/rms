@@ -339,8 +339,10 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
                     tone: orderSyncView(purchase.syncStatus).$2,
                   ),
                   if (purchase.isOpen)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
                         RmsButton(
                           label: 'استلام',
@@ -348,7 +350,6 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
                           dense: true,
                           onPressed: () => _receive(purchase),
                         ),
-                        const SizedBox(width: 6),
                         RmsButton(
                           label: 'إلغاء',
                           variant: BtnVariant.ghost,

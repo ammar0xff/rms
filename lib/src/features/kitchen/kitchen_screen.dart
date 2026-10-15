@@ -424,11 +424,11 @@ class _TicketCard extends StatelessWidget {
                 child: Text('•  $item', style: AppText.tableCell.copyWith(color: AppColors.fgSecondary)),
               ),
             const SizedBox(height: 10),
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Text(stateLabel, style: AppText.caption),
-                ),
+                Text(stateLabel, style: AppText.caption),
+                const SizedBox(height: 8),
                 if (ticket.state != TicketState.ready)
                   RmsButton(
                     label: ticket.state == TicketState.queued ? 'بدء' : 'تحديد كجاهز',
@@ -447,30 +447,27 @@ class _TicketCard extends StatelessWidget {
                       }
                     },
                   )
-                else
-                  Row(
-                    children: [
-                      RmsButton(
-                        label: 'إعادة طباعة',
-                        icon: Icons.print_rounded,
-                        variant: BtnVariant.ghost,
-                        onPressed: () {
-                          final print = AppScope.of(context).print;
-                          if (print != null) {
-                            print.printKitchenTicket(ticket);
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      RmsButton(
-                        label: 'تم التقديم',
-                        icon: Icons.check_rounded,
-                        variant: BtnVariant.primary,
-                        onPressed: () =>
-                            onTransition(ticket, TicketState.completed),
-                      ),
-                    ],
+                else ...[
+                  RmsButton(
+                    label: 'إعادة طباعة',
+                    icon: Icons.print_rounded,
+                    variant: BtnVariant.ghost,
+                    onPressed: () {
+                      final print = AppScope.of(context).print;
+                      if (print != null) {
+                        print.printKitchenTicket(ticket);
+                      }
+                    },
                   ),
+                  const SizedBox(height: 8),
+                  RmsButton(
+                    label: 'تم التقديم',
+                    icon: Icons.check_rounded,
+                    variant: BtnVariant.primary,
+                    onPressed: () =>
+                        onTransition(ticket, TicketState.completed),
+                  ),
+                ],
               ],
             ),
           ],

@@ -333,6 +333,13 @@ class _CashRepo implements CashSessionRepository {
   Future<List<CashSession>> listSessions() async => [
         CashSession(id: 'cs1', openedAt: _now, openingFloat: 500),
       ];
+
+  @override
+  Future<CashSession?> currentSession() async =>
+      CashSession(id: 'cs1', openedAt: _now, openingFloat: 500);
+
+  @override
+  Future<double> expectedCash(CashSession session) async => 740.75;
 }
 
 class _ApprovalRepo implements ApprovalRepository {

@@ -88,33 +88,61 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     return PageBody(
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: SectionHeader(
-                title: 'التقارير',
-                subtitle: 'قراءة محلية من المخازن الإضافة-فقط · تبقى متسقة دون اتصال',
-              ),
-            ),
-            if (snapshot != null) ...[
-              StatusText(
-                label: _freshnessLabel(snapshot),
-                tone: _freshnessTone(snapshot),
-              ),
-              const SizedBox(width: 12),
-            ],
-            IconBtn(
-              icon: Icons.refresh,
-              tooltip: 'تحديث',
-              onPressed: _load,
-            ),
-            const SizedBox(width: 8),
-            RmsButton(
-              label: 'تصدير CSV',
-              icon: Icons.download,
-              onPressed: snapshot == null ? null : _exportCsv,
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, c) {
+            final actions = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (snapshot != null) ...[
+                  StatusText(
+                    label: _freshnessLabel(snapshot),
+                    tone: _freshnessTone(snapshot),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                IconBtn(
+                  icon: Icons.refresh,
+                  tooltip: 'تحديث',
+                  onPressed: _load,
+                ),
+                const SizedBox(width: 8),
+                RmsButton(
+                  label: 'تصدير CSV',
+                  icon: Icons.download,
+                  onPressed: snapshot == null ? null : _exportCsv,
+                ),
+              ],
+            );
+            if (c.maxWidth >= 600) {
+              return Row(
+                children: [
+                  const Expanded(
+                    child: SectionHeader(
+                      title: 'التقارير',
+                      subtitle:
+                          'قراءة محلية من المخازن الإضافة-فقط · تبقى متسقة دون اتصال',
+                    ),
+                  ),
+                  actions,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionHeader(
+                  title: 'التقارير',
+                  subtitle:
+                      'قراءة محلية من المخازن الإضافة-فقط · تبقى متسقة دون اتصال',
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: actions,
+                ),
+              ],
+            );
+          },
         ),
         if (snapshot == null)
           const SurfaceCard(

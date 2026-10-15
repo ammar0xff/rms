@@ -87,13 +87,15 @@ class Tag extends StatelessWidget {
             Icon(icon, size: 11, color: color),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.label.copyWith(
-              color: color,
-              letterSpacing: 0.2,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.label.copyWith(
+                color: color,
+                letterSpacing: 0.2,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

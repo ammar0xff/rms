@@ -81,30 +81,58 @@ class _BranchesScreenState extends State<BranchesScreen> {
 
     return PageBody(
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: SectionHeader(
-                title: 'توحيد الفروع',
-                subtitle:
-                    'فرع الجهاز مقروء مباشرةً من المخازن · بقية الفروع من آخر تجميع متزامن',
-              ),
-            ),
-            if (snapshot != null) ...[
-              StatusText(
-                label: _freshnessLabel(snapshot),
-                tone: _freshnessTone(snapshot),
-              ),
-              const SizedBox(width: 12),
-            ],
-            IconBtn(icon: Icons.refresh, tooltip: 'تحديث', onPressed: _load),
-            const SizedBox(width: 8),
-            RmsButton(
-              label: 'تصدير CSV',
-              icon: Icons.download,
-              onPressed: snapshot == null ? null : _exportCsv,
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, c) {
+            final actions = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (snapshot != null) ...[
+                  StatusText(
+                    label: _freshnessLabel(snapshot),
+                    tone: _freshnessTone(snapshot),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                IconBtn(
+                    icon: Icons.refresh, tooltip: 'تحديث', onPressed: _load),
+                const SizedBox(width: 8),
+                RmsButton(
+                  label: 'تصدير CSV',
+                  icon: Icons.download,
+                  onPressed: snapshot == null ? null : _exportCsv,
+                ),
+              ],
+            );
+            if (c.maxWidth >= 600) {
+              return Row(
+                children: [
+                  const Expanded(
+                    child: SectionHeader(
+                      title: 'توحيد الفروع',
+                      subtitle:
+                          'فرع الجهاز مقروء مباشرةً من المخازن · بقية الفروع من آخر تجميع متزامن',
+                    ),
+                  ),
+                  actions,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionHeader(
+                  title: 'توحيد الفروع',
+                  subtitle:
+                      'فرع الجهاز مقروء مباشرةً من المخازن · بقية الفروع من آخر تجميع متزامن',
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: actions,
+                ),
+              ],
+            );
+          },
         ),
         if (snapshot == null)
           const SurfaceCard(
