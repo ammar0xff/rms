@@ -209,6 +209,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
             ),
           ),
           RmsTable(
+            onRowTap: (i) => _showDetail(snapshot.branches[i]),
             columns: const [
               RmsColumn('الفرع', flex: 4),
               RmsColumn('الحالة', flex: 2),
@@ -266,6 +267,62 @@ class _BranchesScreenState extends State<BranchesScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Read-only drill-down: the row's figures plus provenance (live vs
+  /// cached, how old). No actions — branches are managed elsewhere.
+  void _showDetail(BranchBreakdown breakdown) {
+    final rollup = breakdown.rollup;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppSpacing.radiusLg)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(breakdown.branch.name, style: AppText.h1),
+                ),
+                _sourceTag(breakdown),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${breakdown.branch.code} · ${breakdown.branch.city}',
+              style: AppText.caption,
+            ),
+            const SizedBox(height: 12),
+            KvPanel(pairs: [
+              ('الطلبات', rollup == null ? '—' : '${rollup.orders}'),
+              ('المبيعات',
+                  rollup == null ? '—' : money(rollup.sales)),
+              ('التحصيل',
+                  rollup == null ? '—' : money(rollup.collected)),
+              ('المخزون',
+                  rollup == null ? '—' : _qty(rollup.inventoryUnits)),
+              (
+                'عمليات معلقة',
+                rollup == null ? '—' : '${rollup.pending}',
+              ),
+              ('حداثة البيانات', _age(rollup?.asOf)),
+            ]),
+            const SizedBox(height: 16),
+            RmsButton(
+              label: 'اقفل',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
       ),
     );
   }

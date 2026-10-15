@@ -166,10 +166,15 @@ void main() {
       expect(find.text('اتجاه المبيعات'), findsOneWidget);
     });
 
-    testWidgets('branches cards', (tester) async {
+    testWidgets('branches cards and detail sheet', (tester) async {
       await pumpDesktop(tester, const BranchesScreen());
 
       expect(find.text('بوابة الشمال الرئيسية'), findsWidgets);
+      // Row tap drills into the read-only detail sheet.
+      await tester.tap(find.text('بوابة الشمال الرئيسية').first);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('NS-01'), findsWidgets);
+      expect(find.text('اقفل'), findsOneWidget);
     });
 
     testWidgets('sync outbox with stuck rows', (tester) async {
