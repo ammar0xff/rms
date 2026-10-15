@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import '../../domain/models/update_manifest.dart';
 import 'github_fetcher.dart';
 import 'github_release_source.dart' show GitHubReleaseFetcher;
 
