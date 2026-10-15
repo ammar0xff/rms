@@ -8,13 +8,14 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/charts.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
+import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/rms_table.dart';
-import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../core/widgets/sync_chip.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/mock/mock_data.dart';
+import '../../domain/models/app_role.dart';
 import '../../domain/models/branch.dart';
 import '../../domain/models/inventory_item.dart';
 import '../../domain/models/order.dart';
@@ -106,32 +107,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-        HeroKpi(
-          label: 'صافي مبيعات اليوم',
-          value: useMock ? '8,412.50 ج.م' : money(metrics.todayTotal),
-          delta: useMock ? '+12.4%' : null,
-          deltaTone: DeltaTone.positive,
-          subtext: useMock
+        RoleHero(
+          role: AppRole.manager,
+          kicker: 'القيادة · نظرة النهاردة',
+          title: useMock ? 'بيانات تجريبية' : 'مبيعات اليوم',
+          subtitle: useMock
               ? 'مقارنة بمتوسط 14 يومًا'
               : 'على الجهاز ده · ${metrics.todayOrders} أوردر',
-          spark: useMock ? MockData.salesTrend : metrics.hourlySales,
+          value: useMock ? '8,412.50' : money(metrics.todayTotal).replaceAll(' ج.م', ''),
+          valueLabel: 'صافي المبيعات · جنيه',
         ),
         GridRow(children: [
-          StatCard(
+          KpiCard(
             label: 'الطلبات',
             value: useMock ? '312' : '${metrics.todayOrders}',
             delta: useMock ? '+8.1%' : null,
+            deltaGood: useMock ? true : null,
+            icon: Icons.receipt_long_outlined,
+            accent: AppColors.managerAccent,
           ),
-          StatCard(
+          KpiCard(
             label: 'متوسط الفاتورة',
-            value: useMock ? '26.96 ج.م' : money(metrics.averageTicket),
+            value: useMock ? '26.96' : money(metrics.averageTicket).replaceAll(' ج.م', ''),
             delta: useMock ? '+2.3%' : null,
+            deltaGood: useMock ? true : null,
+            icon: Icons.payments_outlined,
+            accent: AppColors.managerAccent,
           ),
-          StatCard(
+          KpiCard(
             label: 'عمليات دون اتصال اليوم',
             value: useMock ? '37' : '${metrics.offlineOrders}',
-            delta: '${monitor.pending} قيد الانتظار',
-            deltaTone: DeltaTone.neutral,
+            delta: '${monitor.pending} مستنية',
+            icon: Icons.cloud_off_outlined,
+            accent: AppColors.managerAccent,
           ),
         ]),
         _SalesCard(
@@ -471,57 +479,38 @@ class _AlertsPanelState extends State<_AlertsPanel> {
               style: AppText.caption,
             )
           else if (_lowStock.isEmpty)
-            const Row(
-              children: [
-                StatusDot(tone: StatusTone.positive),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text('المخزون فوق حد إعادة الطلب',
-                      style: AppText.tableCellPrimary),
-                ),
-              ],
+            const FeedRow(
+              tone: StatusTone.positive,
+              title: 'المخزون فوق حد إعادة الطلب',
             )
           else
             for (final item in _lowStock) ...[
-              Row(
-                children: [
-                  const StatusDot(tone: StatusTone.warning),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('${item.name} أقل من حد إعادة الطلب',
-                        style: AppText.tableCellPrimary),
-                  ),
-                  Text('${item.onHand}${item.unit}',
-                      style: AppText.caption),
-                ],
+              FeedRow(
+                tone: StatusTone.warning,
+                title: '${item.name} أقل من حد إعادة الطلب',
+                trailing: Text('${item.onHand}${item.unit}',
+                    style: AppText.caption),
               ),
               const SizedBox(height: 10),
             ],
           const Divider(height: 20, color: AppColors.borderSubtle),
-          Row(
-            children: [
-              StatusDot(tone: monitor.conflicts > 0 ? StatusTone.negative : StatusTone.positive),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  monitor.conflicts > 0
-                      ? '${monitor.conflicts} تعارضات غير محلولة'
-                      : 'مفيش تعارضات',
-                  style: AppText.tableCellPrimary,
-                ),
-              ),
-              if (monitor.conflicts > 0)
-                const Icon(Icons.chevron_right, size: 14, color: AppColors.fgGhost),
-            ],
+          FeedRow(
+            tone: monitor.conflicts > 0
+                ? StatusTone.negative
+                : StatusTone.positive,
+            title: monitor.conflicts > 0
+                ? '${monitor.conflicts} تعارضات غير محلولة'
+                : 'مفيش تعارضات',
+            trailing: monitor.conflicts > 0
+                ? const Icon(Icons.chevron_right,
+                    size: 14, color: AppColors.fgGhost)
+                : null,
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              const StatusDot(tone: StatusTone.info),
-              const SizedBox(width: 8),
-              const Expanded(child: Text('مزامنة القائمة: متخزنة على الجهاز', style: AppText.tableCellPrimary)),
-              Text(_sinceLabel(monitor), style: AppText.caption),
-            ],
+          FeedRow(
+            tone: StatusTone.info,
+            title: 'مزامنة القائمة: متخزنة على الجهاز',
+            trailing: Text(_sinceLabel(monitor), style: AppText.caption),
           ),
         ],
       ),
