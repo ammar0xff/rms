@@ -191,15 +191,21 @@ abstract final class UpdateDecisionEngine {
       return block(UpdateBlockReason.rolloutExcluded);
     }
 
+    // Backend bounds are only evaluated when the device actually knows its
+    // backend version. Nothing in the app reports one today, so an unknown
+    // backend must skip the check: blocking on an unevaluable condition would
+    // brick delivery fleet-wide the moment any release published bounds.
     final backend = SemanticVersion.tryParse(context.backendVersion);
     final minBackend = SemanticVersion.tryParse(release.minBackendVersion);
     if (release.minBackendVersion != null &&
-        (minBackend == null || backend == null || backend < minBackend)) {
+        backend != null &&
+        (minBackend == null || backend < minBackend)) {
       return block(UpdateBlockReason.backendIncompatible, bucket: bucket);
     }
     final maxBackend = SemanticVersion.tryParse(release.maxBackendVersion);
     if (release.maxBackendVersion != null &&
-        (maxBackend == null || backend == null || backend > maxBackend)) {
+        backend != null &&
+        (maxBackend == null || backend > maxBackend)) {
       return block(UpdateBlockReason.backendIncompatible, bucket: bucket);
     }
 

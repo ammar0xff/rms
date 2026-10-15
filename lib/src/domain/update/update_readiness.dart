@@ -75,6 +75,15 @@ abstract final class UpdateReadinessEngine {
     if (!decision.isUpdate) {
       return result(UpdateReadinessStatus.noUpdate);
     }
+    if (work.unknownWork) {
+      // The backlog could not be read. Withhold exactly like unsynced work:
+      // installing over a backlog you cannot see is how local work gets lost.
+      return result(
+        work.online
+            ? UpdateReadinessStatus.awaitingSync
+            : UpdateReadinessStatus.offlineBacklog,
+      );
+    }
     if (work.hasUnsynced) {
       return result(
         work.online

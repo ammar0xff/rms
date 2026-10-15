@@ -14,7 +14,8 @@ enum ReleaseAuditEventType {
   healthCheckFailed('فشل فحص ما بعد التحديث'),
   acknowledged('تم الإقرار'),
   rolledBack('تم التراجع'),
-  failed('فشل');
+  failed('فشل'),
+  updateWithheld('أُجّل التثبيت لحماية الأعمال المحلية');
 
   const ReleaseAuditEventType(this.label);
 

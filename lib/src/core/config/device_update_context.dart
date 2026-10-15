@@ -41,6 +41,8 @@ UpdateContext buildUpdateContext({
   String backendVersion = '',
   String branchId = '',
   String cohortSeed = '',
+  String architecture = '',
+  String deviceGroup = '',
   int localSchemaVersion = AppVersion.localSchemaVersion,
 }) =>
     UpdateContext(
@@ -48,6 +50,8 @@ UpdateContext buildUpdateContext({
       installedBuild: AppVersion.build,
       platform: currentUpdatePlatform(),
       channel: currentUpdateChannel(),
+      architecture: architecture,
+      deviceGroup: deviceGroup,
       now: now,
       backendVersion: backendVersion,
       localSchemaVersion: localSchemaVersion,

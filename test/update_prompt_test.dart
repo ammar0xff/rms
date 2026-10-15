@@ -90,13 +90,16 @@ void main() {
       expect(state.mode.isEnforced, isTrue);
     });
 
-    test('a failed attempt stays enforced until acknowledged', () {
+    test('a failed attempt is dismissible so the operator can recover', () {
       final state = UpdatePromptState.derive(
         check: _check(),
         inFlight: UpdatePromptMode.failed,
       );
       expect(state.mode, UpdatePromptMode.failed);
-      expect(state.mode.isEnforced, isTrue);
+      // Enforcing failure trapped the operator on a blocking screen whose only
+      // button was disabled, with no path to the stuck work blocking the
+      // retry. Dismissing changes nothing installed; the attempt already ended.
+      expect(state.mode.isEnforced, isFalse);
     });
 
     test('a completed attempt is terminal but not enforced', () {

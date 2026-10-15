@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rms/src/domain/update/update_acknowledgement.dart';
 import 'package:rms/src/domain/update/update_decision.dart';
 import 'package:rms/src/domain/update/update_readiness.dart';
 
@@ -149,6 +150,36 @@ void main() {
       expect(readiness.status, UpdateReadinessStatus.ready);
       expect(readiness.allowsInstall, isTrue);
       expect(readiness.mandatory, isTrue);
+    });
+
+    test('an unreadable backlog withholds the install like unsynced work', () {
+      final online = UpdateReadinessEngine.classify(
+        decision: _decision(UpdateDecisionStatus.mandatory),
+        work: const LocalWorkSnapshot(online: true, unknownWork: true),
+      );
+      expect(online.status, UpdateReadinessStatus.awaitingSync);
+      expect(online.allowsInstall, isFalse);
+
+      final offline = UpdateReadinessEngine.classify(
+        decision: _decision(UpdateDecisionStatus.mandatory),
+        work: const LocalWorkSnapshot(online: false, unknownWork: true),
+      );
+      expect(offline.status, UpdateReadinessStatus.offlineBacklog);
+      expect(offline.allowsInstall, isFalse);
+    });
+
+    test('an unreadable backlog is not cleared by an acknowledgement', () {
+      // covers() cannot see unknown work, so no stored sign-off may satisfy
+      // it. The install stays withheld until the backlog becomes readable.
+      final readiness = UpdateReadinessEngine.classify(
+        decision: _decision(UpdateDecisionStatus.recommended),
+        work: const LocalWorkSnapshot(online: true, unknownWork: true),
+        acknowledgement: UpdateAcknowledgement(
+          stuckCount: 99,
+          acknowledgedAt: DateTime(2026, 10, 14),
+        ),
+      );
+      expect(readiness.allowsInstall, isFalse);
     });
   });
 }

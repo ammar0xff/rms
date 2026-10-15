@@ -183,6 +183,39 @@ void main() {
       expect(cache.stored?.buildNumber, 3);
     });
 
+    test('accepts a newer version even when its build counter lags', () async {
+      // Same counter family, but the build number went backwards while the
+      // version went forwards (counters reset across version lines). Comparing
+      // build numbers alone pinned the device on the old release forever.
+      final remote = _FakeRemote(
+        RemoteUpdateResult(manifest: _manifest(version: '2.0.0', buildNumber: 1)),
+      );
+      final cache = _FakeCache(_manifest(version: '1.0.0', buildNumber: 40));
+
+      final outcome = await UpdateRefreshService(
+        remote: remote,
+        cache: cache,
+      ).refresh();
+
+      expect(outcome, UpdateRefreshOutcome.updated);
+      expect(cache.stored?.version, '2.0.0');
+    });
+
+    test('rejects an older version even when its build counter leads', () async {
+      final remote = _FakeRemote(
+        RemoteUpdateResult(manifest: _manifest(version: '1.0.0', buildNumber: 99)),
+      );
+      final cache = _FakeCache(_manifest(version: '2.0.0', buildNumber: 2));
+
+      final outcome = await UpdateRefreshService(
+        remote: remote,
+        cache: cache,
+      ).refresh();
+
+      expect(outcome, UpdateRefreshOutcome.unchanged);
+      expect(cache.stored?.version, '2.0.0');
+    });
+
     test('skips the fetch where artifact delivery is unsupported', () async {
       final remote = _FakeRemote(
         RemoteUpdateResult(manifest: _manifest(buildNumber: 99)),

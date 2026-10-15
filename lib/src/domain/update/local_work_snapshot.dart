@@ -17,6 +17,7 @@ class LocalWorkSnapshot {
     this.permanentlyRejected = 0,
     this.synced = 0,
     this.online = false,
+    this.unknownWork = false,
   });
 
   /// Operations queued but not yet pushed.
@@ -43,6 +44,12 @@ class LocalWorkSnapshot {
 
   /// Whether the device can currently reach the backend.
   final bool online;
+
+  /// The backlog could not be enumerated at all (no store to read). This is
+  /// not the same as an empty backlog: unknown work withholds the install
+  /// exactly like unsynced work does, because "cannot see any work" must never
+  /// read as "there is no work".
+  final bool unknownWork;
 
   /// Work still owed to the backend that a sync can still deliver.
   int get unsynced => pending + inProgress + retryableFailure;

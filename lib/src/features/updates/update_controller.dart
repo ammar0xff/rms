@@ -100,6 +100,19 @@ class UpdateController extends ChangeNotifier {
     await refresh();
   }
 
+  /// Runs the attempt again after a failure: clears the terminal state,
+  /// re-checks against the backlog as it is now, and applies when the gate
+  /// allows. If the gate is closed the prompt falls back to showing why,
+  /// rather than spinning on an install that cannot proceed.
+  Future<void> retry() async {
+    _inFlight = null;
+    _detail = '';
+    _progress = 0.0;
+    _rebuild();
+    await refresh();
+    await apply();
+  }
+
   void _derive(dynamic check) {
     _state = UpdatePromptState.derive(
       check: check,

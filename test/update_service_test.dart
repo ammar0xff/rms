@@ -276,6 +276,30 @@ void main() {
       expect(installer.calls, 0);
     });
 
+    // The TOCTOU case: the check approved an empty backlog, then work arrived
+    // before the operator pressed install. apply() re-gates against its own
+    // fresh snapshot rather than trusting the passed-in verdict.
+    test('re-evaluates the gate at apply time, not check time', () async {
+      final installer = _Installer();
+      final audit = _AuditSink();
+
+      final staleCheck = service().check(_manifest());
+      expect(staleCheck.readiness.allowsInstall, isTrue);
+
+      final result = await service(
+        work: const LocalWorkSnapshot(pending: 4, online: true),
+        installer: installer,
+        audit: audit,
+      ).apply(staleCheck);
+
+      expect(result.state, UpdateLifecycleState.idle);
+      expect(installer.calls, 0);
+      expect(
+        audit.events.map((e) => e.eventType),
+        contains(ReleaseAuditEventType.updateWithheld),
+      );
+    });
+
     test('runs the migration when the release requires one', () async {
       final migrator = _Migrator();
       final svc = service(migrator: migrator);

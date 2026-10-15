@@ -150,21 +150,51 @@ class UpdateRequiredScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (dismissible && onDismissed != null) ...[
+                        if (state.mode == UpdatePromptMode.failed) ...[
+                          // A failed attempt always offers a way out: defer it
+                          // (which clears the screen and re-checks) or run it
+                          // again. A blocking screen with a disabled button and
+                          // no exit trapped the operator with no way to reach
+                          // the work that blocks the retry.
                           RmsButton(
                             label: 'لاحقًا',
                             variant: BtnVariant.ghost,
-                            onPressed: onDismissed,
+                            onPressed: () {
+                              controller.acknowledge();
+                              onDismissed?.call();
+                            },
                           ),
                           const SizedBox(width: AppSpacing.sm),
+                          RmsButton(
+                            label: state.actionLabel,
+                            variant: BtnVariant.primary,
+                            onPressed: () => controller.retry(),
+                          ),
+                        ] else if (state.mode ==
+                            UpdatePromptMode.completed) ...[
+                          // Success needs no decision, only a way to leave.
+                          RmsButton(
+                            label: state.actionLabel,
+                            variant: BtnVariant.primary,
+                            onPressed: () => controller.acknowledge(),
+                          ),
+                        ] else ...[
+                          if (dismissible && onDismissed != null) ...[
+                            RmsButton(
+                              label: 'لاحقًا',
+                              variant: BtnVariant.ghost,
+                              onPressed: onDismissed,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                          ],
+                          RmsButton(
+                            label: state.actionLabel,
+                            variant: BtnVariant.primary,
+                            onPressed: state.canApply
+                                ? () => controller.apply()
+                                : null,
+                          ),
                         ],
-                        RmsButton(
-                          label: state.actionLabel,
-                          variant: BtnVariant.primary,
-                          onPressed: state.canApply
-                              ? () => controller.apply()
-                              : null,
-                        ),
                       ],
                     ),
                   ],

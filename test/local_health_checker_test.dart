@@ -122,6 +122,36 @@ void main() {
           UpdateHealthStatus.passed);
     });
 
+    // A release targeting an older schema than this binary is already
+    // satisfied: the migrator correctly skipped it, and the device is past
+    // what was asked. Failing here made older-device and downgrade releases
+    // unpassable.
+    test('passes when the release targets an older schema than this binary',
+        () async {
+      final db = await _memoryDb();
+      await _setVersion(db, 5);
+
+      final checker = LocalHealthChecker(database: db, expectedSchemaVersion: 5);
+
+      expect(
+        await checker.check(manifest: _manifest(requiredMigrationVersion: 4)),
+        UpdateHealthStatus.passed,
+      );
+    });
+
+    test('fails when the release targets a schema this binary cannot reach',
+        () async {
+      final db = await _memoryDb();
+      await _setVersion(db, 5);
+
+      final checker = LocalHealthChecker(database: db, expectedSchemaVersion: 5);
+
+      expect(
+        await checker.check(manifest: _manifest(requiredMigrationVersion: 6)),
+        UpdateHealthStatus.failed,
+      );
+    });
+
     // The coordinator treats anything other than `passed` as a failure, so a
     // checker that could not reach a verdict must say so rather than pass. This
     // is the fail-closed half of the check.

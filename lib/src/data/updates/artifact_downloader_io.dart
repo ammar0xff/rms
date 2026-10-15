@@ -149,6 +149,10 @@ class HttpArtifactDownloader implements ArtifactDownloader {
     final total = manifest.artifact.sizeBytes;
     IOSink? sink;
     try {
+      // Recreated when missing: cancel() closes and drops the client, and the
+      // next attempt must get a working one rather than throwing on a null
+      // client and failing until the process restarts.
+      final client = _client ??= HttpClient();
       final dir = await (tempDirectory?.call() ?? getTemporaryDirectory());
       final file = File(p.join(dir.path, artifactFileName(manifest)));
       if (await file.exists()) await file.delete();
@@ -161,7 +165,7 @@ class HttpArtifactDownloader implements ArtifactDownloader {
         ),
       );
 
-      final request = await _client!.getUrl(uriFor(manifest));
+      final request = await client.getUrl(uriFor(manifest));
       final token = await tokenProvider?.call();
       if (token != null && token.isNotEmpty) {
         // The Firebase Storage REST API expects the ID token under the

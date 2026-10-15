@@ -89,13 +89,21 @@ class UpdateService {
   /// Runs the full install lifecycle for a release the check has already
   /// approved, and records the outcome.
   ///
-  /// Safe to call when the gate is closed: the coordinator returns `idle`
+  /// The gate is re-evaluated here against this service's fresh snapshot, not
+  /// taken from the passed-in check: work may have arrived since the prompt was
+  /// shown, and a stale verdict must not authorize an install. Safe to call
+  /// when the gate is closed either way — the coordinator returns `idle`
   /// without downloading anything, so a caller cannot accidentally force an
   /// install past AC-35 by calling this directly.
   Future<DeviceUpdateStatus> apply(UpdateCheckResult check) async {
+    final readiness = UpdateReadinessEngine.classify(
+      decision: check.decision,
+      work: work,
+      acknowledgement: acknowledgement,
+    );
     final coordinator = UpdateLifecycleCoordinator(
       decision: check.decision,
-      readiness: check.readiness,
+      readiness: readiness,
       downloader: deps.downloader,
       installer: deps.installer,
       migrator: deps.migrator,

@@ -138,6 +138,12 @@ class _Health implements UpdateHealthChecker {
       UpdateHealthStatus.passed;
 }
 
+class _FailingHealth implements UpdateHealthChecker {
+  @override
+  Future<UpdateHealthStatus> check({required UpdateManifest manifest}) async =>
+      UpdateHealthStatus.failed;
+}
+
 class _Sink implements UpdateAuditSink {
   final List<ReleaseAuditEvent> events = [];
 
@@ -160,6 +166,7 @@ void main() {
     required UpdateManifest? manifest,
     OutboxAccess? outbox,
     UpdateInstaller? installer,
+    UpdateHealthChecker? health,
     UpdateAuditSink? sink,
     UpdateStatusStore? status,
   }) =>
@@ -172,7 +179,7 @@ void main() {
           downloader: _Downloader(),
           installer: installer ?? _Installer(),
           migrator: _Migrator(),
-          healthChecker: _Health(),
+          healthChecker: health ?? _Health(),
           auditSink: sink,
           statusStore: status,
         ),
@@ -302,5 +309,33 @@ void main() {
     await controller.apply();
     expect(installer.calls, 1);
     expect(controller.state.mode, UpdatePromptMode.completed);
+  });
+
+  test('retry re-runs a failed attempt and acknowledge clears it', () async {
+    final installer = _Installer();
+    final controller = UpdateController(
+      runtime: runtime(
+        manifest: _manifest(UpdateSeverity.mandatory),
+        installer: installer,
+        health: _FailingHealth(),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.refresh();
+    await controller.apply();
+
+    expect(controller.state.mode, UpdatePromptMode.failed);
+    expect(controller.state.mode.isEnforced, isFalse);
+    final callsAfterFailure = installer.calls;
+
+    // Retry runs the attempt again rather than sitting on the terminal state.
+    await controller.retry();
+    expect(controller.state.mode, UpdatePromptMode.failed);
+    expect(installer.calls, greaterThan(callsAfterFailure));
+
+    // And there is a way out: acknowledge clears the failure and re-checks.
+    await controller.acknowledge();
+    expect(controller.state.mode, UpdatePromptMode.blocking);
   });
 }

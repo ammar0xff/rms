@@ -328,13 +328,15 @@ void main() {
         ).blockReason,
         UpdateBlockReason.backendIncompatible,
       );
-      // An unknown backend version cannot satisfy a required range.
+      // An unknown backend version skips the check: nothing in the app reports
+      // one, so blocking on it would brick delivery the moment any release
+      // published bounds. The bounds still gate devices that know better.
       expect(
         UpdateDecisionEngine.decide(
           manifest: _manifest(minBackendVersion: '2026.01.01'),
           context: _context(backendVersion: 'unknown'),
-        ).blockReason,
-        UpdateBlockReason.backendIncompatible,
+        ).isUpdate,
+        isTrue,
       );
       expect(
         UpdateDecisionEngine.decide(

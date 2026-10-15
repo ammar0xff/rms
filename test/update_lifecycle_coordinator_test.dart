@@ -182,6 +182,7 @@ void main() {
       );
       final downloader = _FakeDownloader(_downloaded());
       final installer = _FakeInstaller();
+      final audit = _MemoryAuditSink();
 
       final result =
           await _coordinator(
@@ -189,6 +190,7 @@ void main() {
             readiness: readiness,
             downloader: downloader,
             installer: installer,
+            audit: audit,
           ).execute();
 
       expect(readiness.status, UpdateReadinessStatus.awaitingSync);
@@ -196,6 +198,67 @@ void main() {
       // The release stays surfaced, it just is not installed.
       expect(result.releaseId, decision.release!.releaseId);
       expect(downloader.startCalls, 0);
+      expect(installer.calls, 0);
+      // The refusal itself is on the record: a trail that logs installs but
+      // not withheld installs is a lie.
+      expect(audit.types, contains(ReleaseAuditEventType.updateWithheld));
+    });
+
+    test('waits out a downloader that reports progress asynchronously',
+        () async {
+      final decision = _decision();
+      final installer = _FakeInstaller();
+      // Returns `starting` like the production downloader, then completes
+      // behind it. Reading only the return value failed every real download
+      // at verification, because `starting` carries no verification at all.
+      // fromIterable emits on listen, so nothing races the subscription.
+      final downloader = _AsyncDownloader(
+        first: const DownloadState(
+          stage: DownloadStage.starting,
+          totalBytes: 1000,
+        ),
+        states: Stream<DownloadState>.fromIterable([
+          const DownloadState(
+            stage: DownloadStage.downloading,
+            totalBytes: 1000,
+            downloadedBytes: 500,
+            progress: 0.5,
+          ),
+          _downloaded(),
+        ]),
+      );
+
+      final result = await _coordinator(
+        decision: decision,
+        readiness: _readiness(decision),
+        downloader: downloader,
+        installer: installer,
+      ).execute();
+
+      expect(result.state, UpdateLifecycleState.completed);
+      expect(installer.calls, 1);
+    });
+
+    test('fails closed when the stream ends without a terminal state',
+        () async {
+      final decision = _decision();
+      final installer = _FakeInstaller();
+
+      final result = await _coordinator(
+        decision: decision,
+        readiness: _readiness(decision),
+        downloader: _AsyncDownloader(
+          first: const DownloadState(
+            stage: DownloadStage.starting,
+            totalBytes: 1000,
+          ),
+          states: const Stream<DownloadState>.empty(),
+        ),
+        installer: installer,
+      ).execute();
+
+      expect(result.state, UpdateLifecycleState.failed);
+      expect(result.failureReason, UpdateFailureReason.downloadFailed);
       expect(installer.calls, 0);
     });
 
@@ -500,7 +563,7 @@ void main() {
     );
 
     test(
-      'a release that publishes no checksum installs without verification',
+      'a release that publishes no checksum is rejected, not installed',
       () async {
         final release = UpdateManifest(
           releaseId: 'rel-unsigned',
@@ -531,9 +594,12 @@ void main() {
               installer: installer,
             ).execute();
 
+        // Fail closed: a checksum the client cannot back up is not a checksum.
+        // Our publisher always writes one, so nothing legitimate loses here.
         expect(decision.canVerifyArtifact, isFalse);
-        expect(result.state, UpdateLifecycleState.completed);
-        expect(installer.calls, 1);
+        expect(result.state, UpdateLifecycleState.failed);
+        expect(result.failureReason, UpdateFailureReason.verificationFailed);
+        expect(installer.calls, 0);
       },
     );
 
@@ -579,4 +645,26 @@ class _ThrowingInstaller implements UpdateInstaller {
   Future<InstallResult> install({required UpdateManifest manifest}) async {
     throw StateError('boom');
   }
+}
+
+/// A downloader shaped like production: `start()` hands back a non-terminal
+/// state while the transfer runs behind it on the progress stream.
+class _AsyncDownloader implements ArtifactDownloader {
+  _AsyncDownloader({required this.first, required this.states});
+
+  final DownloadState first;
+  final Stream<DownloadState> states;
+
+  @override
+  Future<DownloadState> start({
+    required UpdateManifest manifest,
+    required UpdateDecision decision,
+  }) async =>
+      first;
+
+  @override
+  Future<void> cancel() async {}
+
+  @override
+  Stream<DownloadState> progress() => states;
 }

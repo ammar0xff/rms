@@ -33,16 +33,20 @@ OutboxEntry _entry(OutboxStatus status) => OutboxEntry(
 
 void main() {
   group('loadLocalWorkSnapshot', () {
-    test('a null store reports no work but keeps the connectivity flag',
+    test('a null store reports unknown work but keeps the connectivity flag',
         () async {
       final online = await loadLocalWorkSnapshot(null, online: true);
       expect(online.unsynced, 0);
       expect(online.stuck, 0);
       expect(online.synced, 0);
       expect(online.online, isTrue);
+      // Unknown is not empty: the gate must withhold the install rather than
+      // read zero counts as a clear backlog.
+      expect(online.unknownWork, isTrue);
 
       final offline = await loadLocalWorkSnapshot(null, online: false);
       expect(offline.online, isFalse);
+      expect(offline.unknownWork, isTrue);
     });
 
     test('an empty outbox reports no work', () async {

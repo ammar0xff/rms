@@ -57,7 +57,7 @@ class UpdateRefreshService {
     if (incoming == null) return UpdateRefreshOutcome.unchanged;
 
     final current = await cache.cached();
-    if (current != null && incoming.buildNumber <= current.buildNumber) {
+    if (current != null && !_isNewer(incoming, current)) {
       // Never regress: a stale or replayed document must not downgrade a device
       // that already holds a newer release.
       return UpdateRefreshOutcome.unchanged;
@@ -65,5 +65,19 @@ class UpdateRefreshService {
 
     await cache.cache(incoming);
     return UpdateRefreshOutcome.updated;
+  }
+
+  /// Newer means a higher semantic version, or — on the same version — a higher
+  /// build number. Comparing build numbers alone discarded releases whose
+  /// version was newer but whose build counter lagged, pinning the device on
+  /// the old release indefinitely.
+  bool _isNewer(UpdateManifest a, UpdateManifest b) {
+    final aVersion = a.parsedVersion;
+    final bVersion = b.parsedVersion;
+    if (aVersion != null && bVersion != null) {
+      final cmp = aVersion.compareTo(bVersion);
+      if (cmp != 0) return cmp > 0;
+    }
+    return a.buildNumber > b.buildNumber;
   }
 }

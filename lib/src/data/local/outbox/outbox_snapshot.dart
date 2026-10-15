@@ -3,12 +3,13 @@ import 'outbox_access.dart';
 import 'outbox_status.dart';
 
 /// Summarises the transactional outbox into the counts the update readiness gate
-/// needs. Returns an empty snapshot when there is no store.
+/// needs. When there is no store the backlog is *unknown*, not empty: the
+/// snapshot says so explicitly, and the gate withholds the install.
 Future<LocalWorkSnapshot> loadLocalWorkSnapshot(
   OutboxAccess? outbox, {
   required bool online,
 }) async {
-  if (outbox == null) return LocalWorkSnapshot(online: online);
+  if (outbox == null) return LocalWorkSnapshot(online: online, unknownWork: true);
   var pending = 0;
   var inProgress = 0;
   var retryable = 0;

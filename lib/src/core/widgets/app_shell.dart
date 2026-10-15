@@ -19,6 +19,7 @@ import '../../features/reports/reports_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/sync/sync_center_screen.dart';
 import '../../features/updates/update_controller.dart';
+import '../../domain/update/update_prompt_mode.dart';
 import '../../features/updates/update_prompt.dart';
 import 'buttons.dart';
 import 'sync_chip.dart';
@@ -214,11 +215,15 @@ class _AppShellState extends State<AppShell> {
                       ],
                     ),
             ),
-            // A mandatory update, an update in flight, or a failed attempt is
+            // A mandatory update, an update in flight, or a finished attempt is
             // laid over the whole app: there is nothing useful to do until it
-            // is resolved. An optional release is a dialog the operator may
-            // defer, and a deferral lasts for the rest of this session.
-            if (updates != null && !_dismissedOptional)
+            // is resolved. Deferring an optional release lasts for the rest of
+            // this session — but only for the dismissible prompt. A deferral
+            // must never suppress a mandatory release, an in-flight update, or
+            // a failure the operator has to see.
+            if (updates != null &&
+                !(_dismissedOptional &&
+                    updates.state.mode == UpdatePromptMode.dismissible))
               UpdatePrompt(
                 controller: updates,
                 onDismissed: () => setState(() => _dismissedOptional = true),

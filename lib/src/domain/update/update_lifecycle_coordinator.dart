@@ -69,7 +69,14 @@ class UpdateLifecycleCoordinator {
 
     if (!readiness.allowsInstall) {
       // AC-35: the release stays offered, but nothing is installed while local
-      // work is still owed to the backend.
+      // work is still owed to the backend. The refusal itself is audited: it
+      // is the most safety-relevant decision this coordinator makes, and a
+      // trail that records installs but not withheld installs is a lie.
+      await _audit(
+        ReleaseAuditEventType.updateWithheld,
+        release,
+        reason: readiness.status.name,
+      );
       return DeviceUpdateStatus(
         state: UpdateLifecycleState.idle,
         releaseId: release.releaseId,
@@ -93,7 +100,9 @@ class UpdateLifecycleCoordinator {
 
     final DownloadState download;
     try {
-      download = await downloader.start(manifest: release, decision: decision);
+      download = await _settleDownload(
+        await downloader.start(manifest: release, decision: decision),
+      );
     } catch (error) {
       await _audit(ReleaseAuditEventType.failed, release, reason: '$error');
       return status.copyWith(
@@ -274,14 +283,37 @@ class UpdateLifecycleCoordinator {
 
   /// Whether a download may proceed to install.
   ///
-  /// A verified checksum always suffices. A manifest that publishes *no*
-  /// checksum cannot be verified at all, so accepting it here would be a claim
-  /// the client cannot back up — those are rejected too.
+  /// Only a verified checksum suffices. A manifest that publishes *no*
+  /// checksum cannot be verified at all, and neither can a download the
+  /// verifier never saw — installing either would be a claim the client cannot
+  /// back up, so both stop here.
   bool _verificationSatisfied(ArtifactVerification? verification) {
     if (verification == null) return false;
-    if (verification.isOk) return true;
-    return verification.status == ArtifactVerificationStatus.noChecksum &&
-        !decision.canVerifyArtifact;
+    return verification.isOk;
+  }
+
+  /// Waits out a downloader that reports progress asynchronously.
+  ///
+  /// `start()` hands back a `starting` state while the transfer runs behind
+  /// it; the verdict must wait for the terminal state, not the hello. Reading
+  /// only the return value failed every production download at verification,
+  /// because a `starting` state carries no verification at all.
+  Future<DownloadState> _settleDownload(DownloadState first) async {
+    if (first.isTerminal) return first;
+    try {
+      return await downloader.progress().firstWhere((s) => s.isTerminal);
+    } catch (_) {
+      // The stream ended without a verdict. Fail the download rather than
+      // throw: execute() never throws, and an unverdictable transfer must not
+      // proceed to install.
+      return DownloadState(
+        stage: DownloadStage.failed,
+        totalBytes: first.totalBytes,
+        downloadedBytes: first.downloadedBytes,
+        error: 'the download never reported a terminal state',
+        endedAt: _now(),
+      );
+    }
   }
 
   Future<void> _audit(

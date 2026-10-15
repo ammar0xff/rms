@@ -27,8 +27,12 @@ enum UpdatePromptMode {
 
   bool get isBusy => this == working;
 
-  /// True when the prompt must not be dismissed: either an update is in flight,
-  /// the release is mandatory, or the last attempt failed and needs attention.
-  bool get isEnforced =>
-      this == blocking || this == working || this == failed;
+  /// True when the prompt must not be dismissed: an update in flight, or a
+  /// mandatory release the operator has not yet applied.
+  ///
+  /// A *failed* attempt is deliberately dismissible. Dismissing it changes
+  /// nothing about what was installed — the attempt already ended — and a
+  /// blocking screen with a disabled button and no exit traps the operator on
+  /// the exact screen that should help them recover.
+  bool get isEnforced => this == blocking || this == working;
 }

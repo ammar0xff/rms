@@ -46,10 +46,12 @@ class LocalHealthChecker implements UpdateHealthChecker {
           await LocalMigrationRunner(database, migrations).currentVersion();
       if (version != expectedSchemaVersion) return UpdateHealthStatus.failed;
 
-      // A release may publish a target that disagrees with the compiled-in
-      // version; that is a publishing error, and the device is not healthy.
+      // A release may publish a target above what this binary was built for;
+      // that is a publishing error, and the device is not healthy against it.
+      // A target at or below the binary's schema is already satisfied — the
+      // migrator correctly skipped it — so it must not fail the check.
       final required = manifest.requiredMigrationVersion;
-      if (required != null && required != expectedSchemaVersion) {
+      if (required != null && required > expectedSchemaVersion) {
         return UpdateHealthStatus.failed;
       }
 
