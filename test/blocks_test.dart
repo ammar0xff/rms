@@ -62,6 +62,8 @@ void main() {
       await tester.enterText(find.byType(TextField), 'دجاج');
       await tester.pumpAndSettle();
       expect(query, 'دجاج');
+      await tester.ensureVisible(find.text('الفرن'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('الفرن'));
       await tester.pumpAndSettle();
       expect(filter, 2);
@@ -103,16 +105,29 @@ void main() {
     });
 
     testWidgets('skeletons render', (tester) async {
-      await _pump(
-        tester,
-        const Column(
-          children: [
-            SkeletonBox(width: 200),
-            SizedBox(height: 8),
-            SkeletonBox(height: 48),
-          ],
+      // The pulse repeats forever, so pumpAndSettle would never finish:
+      // pump once and assert the shapes exist.
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: const Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  SkeletonBox(width: 200),
+                  SizedBox(height: 8),
+                  SkeletonBox(height: 48),
+                ],
+              ),
+            ),
+          ),
         ),
       );
+      await tester.pump();
 
       expect(find.byType(SkeletonBox), findsNWidgets(2));
     });
