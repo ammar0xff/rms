@@ -105,7 +105,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
     if (sessions == null) return;
     final counted = await showDialog<double>(
       context: context,
-      builder: (_) => _CountDialog(expected: _expected ?? session.openingFloat),
+      builder: (_) => CloseSessionDialog(expected: _expected ?? session.openingFloat),
     );
     if (counted == null) return;
     await sessions.closeSession(session.id, countedCash: counted);
@@ -471,16 +471,16 @@ class _ApprovalRow extends StatelessWidget {
   }
 }
 
-class _CountDialog extends StatefulWidget {
-  const _CountDialog({required this.expected});
+class CloseSessionDialog extends StatefulWidget {
+  const CloseSessionDialog({required this.expected});
 
   final double expected;
 
   @override
-  State<_CountDialog> createState() => _CountDialogState();
+  State<CloseSessionDialog> createState() => _CountDialogState();
 }
 
-class _CountDialogState extends State<_CountDialog> {
+class _CountDialogState extends State<CloseSessionDialog> {
   final TextEditingController _counted = TextEditingController();
 
   @override

@@ -60,7 +60,7 @@ class _MenuScreenState extends State<MenuScreen> {
     }
     final created = await showDialog<MenuItemModel>(
       context: context,
-      builder: (_) => const _MenuItemDialog(),
+      builder: (_) => const MenuItemDialog(),
     );
     if (created == null) return;
     await menu.upsertMenuItem(created);
@@ -338,14 +338,14 @@ class _MenuItemCard extends StatelessWidget {
   }
 }
 
-class _MenuItemDialog extends StatefulWidget {
-  const _MenuItemDialog();
+class MenuItemDialog extends StatefulWidget {
+  const MenuItemDialog();
 
   @override
-  State<_MenuItemDialog> createState() => _MenuItemDialogState();
+  State<MenuItemDialog> createState() => _MenuItemDialogState();
 }
 
-class _MenuItemDialogState extends State<_MenuItemDialog> {
+class _MenuItemDialogState extends State<MenuItemDialog> {
   final _name = TextEditingController();
   final _category = TextEditingController();
   final _price = TextEditingController();

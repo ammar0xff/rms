@@ -79,7 +79,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
     if (repo == null) return;
     final input = await showDialog<_SupplierInput>(
       context: context,
-      builder: (_) => const _SupplierDialog(),
+      builder: (_) => const SupplierDialog(),
     );
     if (input == null) return;
     await repo.createSupplier(
@@ -97,7 +97,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
     if (repo == null || _suppliers.isEmpty || _items.isEmpty) return;
     final input = await showDialog<_PurchaseInput>(
       context: context,
-      builder: (_) => _PurchaseDialog(suppliers: _suppliers, items: _items),
+      builder: (_) => PurchaseDialog(suppliers: _suppliers, items: _items),
     );
     if (input == null) return;
     await repo.createPurchase(
@@ -142,7 +142,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
     if (repo == null || supplier.payable <= 0) return;
     final input = await showDialog<_PaymentInput>(
       context: context,
-      builder: (_) => _PaymentDialog(supplier: supplier),
+      builder: (_) => PaySupplierDialog(supplier: supplier),
     );
     if (input == null) return;
     final outcome = await repo.recordSupplierPayment(
@@ -408,14 +408,14 @@ class _SupplierInput {
   final String category;
 }
 
-class _SupplierDialog extends StatefulWidget {
-  const _SupplierDialog();
+class SupplierDialog extends StatefulWidget {
+  const SupplierDialog();
 
   @override
-  State<_SupplierDialog> createState() => _SupplierDialogState();
+  State<SupplierDialog> createState() => _SupplierDialogState();
 }
 
-class _SupplierDialogState extends State<_SupplierDialog> {
+class _SupplierDialogState extends State<SupplierDialog> {
   final TextEditingController _name = TextEditingController();
   final TextEditingController _phone = TextEditingController();
   final TextEditingController _category = TextEditingController();
@@ -492,16 +492,16 @@ class _PaymentInput {
   final String reference;
 }
 
-class _PaymentDialog extends StatefulWidget {
-  const _PaymentDialog({required this.supplier});
+class PaySupplierDialog extends StatefulWidget {
+  const PaySupplierDialog({required this.supplier});
 
   final SupplierModel supplier;
 
   @override
-  State<_PaymentDialog> createState() => _PaymentDialogState();
+  State<PaySupplierDialog> createState() => _PaymentDialogState();
 }
 
-class _PaymentDialogState extends State<_PaymentDialog> {
+class _PaymentDialogState extends State<PaySupplierDialog> {
   final TextEditingController _amount = TextEditingController();
   final TextEditingController _reference = TextEditingController();
 
@@ -593,17 +593,17 @@ class _PurchaseInput {
   final List<PurchaseOrderLine> lines;
 }
 
-class _PurchaseDialog extends StatefulWidget {
-  const _PurchaseDialog({required this.suppliers, required this.items});
+class PurchaseDialog extends StatefulWidget {
+  const PurchaseDialog({required this.suppliers, required this.items});
 
   final List<SupplierModel> suppliers;
   final List<InventoryItemModel> items;
 
   @override
-  State<_PurchaseDialog> createState() => _PurchaseDialogState();
+  State<PurchaseDialog> createState() => _PurchaseDialogState();
 }
 
-class _PurchaseDialogState extends State<_PurchaseDialog> {
+class _PurchaseDialogState extends State<PurchaseDialog> {
   late String _supplierId = widget.suppliers.first.id;
   late String _itemId = widget.items.first.id;
   final TextEditingController _reference = TextEditingController();

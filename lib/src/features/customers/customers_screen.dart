@@ -50,7 +50,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }
     final draft = await showDialog<_CustomerDraft>(
       context: context,
-      builder: (_) => const _CustomerDialog(),
+      builder: (_) => const CustomerDialog(),
     );
     if (draft == null) return;
     await repo.createCustomer(
@@ -155,14 +155,14 @@ class _CustomerDraft {
   final String notes;
 }
 
-class _CustomerDialog extends StatefulWidget {
-  const _CustomerDialog();
+class CustomerDialog extends StatefulWidget {
+  const CustomerDialog();
 
   @override
-  State<_CustomerDialog> createState() => _CustomerDialogState();
+  State<CustomerDialog> createState() => _CustomerDialogState();
 }
 
-class _CustomerDialogState extends State<_CustomerDialog> {
+class _CustomerDialogState extends State<CustomerDialog> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _notes = TextEditingController();

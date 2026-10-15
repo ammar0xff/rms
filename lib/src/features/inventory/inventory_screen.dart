@@ -69,7 +69,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     if (repo == null || _items.isEmpty) return;
     final input = await showDialog<_MovementInput>(
       context: context,
-      builder: (_) => _MovementDialog(items: _items),
+      builder: (_) => StockMovementDialog(items: _items),
     );
     if (input == null) return;
     await repo.recordMovement(
@@ -88,7 +88,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     if (repo == null || _items.isEmpty) return;
     final input = await showDialog<_CountInput>(
       context: context,
-      builder: (_) => _CountDialog(items: _items),
+      builder: (_) => StockCountDialog(items: _items),
     );
     if (input == null) return;
     final item = _items.firstWhere((i) => i.id == input.itemId);
@@ -377,16 +377,16 @@ class _MovementInput {
   final String? reference;
 }
 
-class _MovementDialog extends StatefulWidget {
-  const _MovementDialog({required this.items});
+class StockMovementDialog extends StatefulWidget {
+  const StockMovementDialog({required this.items});
 
   final List<InventoryItemModel> items;
 
   @override
-  State<_MovementDialog> createState() => _MovementDialogState();
+  State<StockMovementDialog> createState() => _MovementDialogState();
 }
 
-class _MovementDialogState extends State<_MovementDialog> {
+class _MovementDialogState extends State<StockMovementDialog> {
   late String _itemId = widget.items.first.id;
   StockMovementReason _reason = StockMovementReason.receipt;
   final TextEditingController _qty = TextEditingController();
@@ -500,16 +500,16 @@ class _CountInput {
   final double counted;
 }
 
-class _CountDialog extends StatefulWidget {
-  const _CountDialog({required this.items});
+class StockCountDialog extends StatefulWidget {
+  const StockCountDialog({required this.items});
 
   final List<InventoryItemModel> items;
 
   @override
-  State<_CountDialog> createState() => _CountDialogState();
+  State<StockCountDialog> createState() => _CountDialogState();
 }
 
-class _CountDialogState extends State<_CountDialog> {
+class _CountDialogState extends State<StockCountDialog> {
   late String _itemId = widget.items.first.id;
   final TextEditingController _counted = TextEditingController();
 

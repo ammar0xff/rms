@@ -228,7 +228,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     if (repo == null) return;
     final amount = await showDialog<double>(
       context: context,
-      builder: (_) => _CollectionDialog(total: delivery.amount),
+      builder: (_) => CollectionDialog(total: delivery.amount),
     );
     if (amount == null) return;
     final offline = services.sync?.isOnline != true;
@@ -893,16 +893,16 @@ class _DriverRow extends StatelessWidget {
   }
 }
 
-class _CollectionDialog extends StatefulWidget {
-  const _CollectionDialog({required this.total});
+class CollectionDialog extends StatefulWidget {
+  const CollectionDialog({required this.total});
 
   final double total;
 
   @override
-  State<_CollectionDialog> createState() => _CollectionDialogState();
+  State<CollectionDialog> createState() => _CollectionDialogState();
 }
 
-class _CollectionDialogState extends State<_CollectionDialog> {
+class _CollectionDialogState extends State<CollectionDialog> {
   late final TextEditingController _amount =
       TextEditingController(text: widget.total.toStringAsFixed(2));
 

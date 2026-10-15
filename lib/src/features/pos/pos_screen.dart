@@ -142,7 +142,7 @@ class _PosScreenState extends State<PosScreen>
     if (_cart.isEmpty || _submitting) return;
     final input = await showDialog<_PaymentInput>(
       context: context,
-      builder: (_) => _PaymentDialog(total: _total),
+      builder: (_) => PosPaymentDialog(total: _total),
     );
     if (input == null) return;
     await _submitOrder(payment: input);
@@ -1105,16 +1105,16 @@ class _OfflineBanner extends StatelessWidget {
 /// Collects the payment method and (for cash) the amount tendered.
 ///
 /// Returns a [_PaymentInput] when confirmed, or null when dismissed.
-class _PaymentDialog extends StatefulWidget {
-  const _PaymentDialog({required this.total});
+class PosPaymentDialog extends StatefulWidget {
+  const PosPaymentDialog({required this.total});
 
   final double total;
 
   @override
-  State<_PaymentDialog> createState() => _PaymentDialogState();
+  State<PosPaymentDialog> createState() => _PaymentDialogState();
 }
 
-class _PaymentDialogState extends State<_PaymentDialog> {
+class _PaymentDialogState extends State<PosPaymentDialog> {
   final _tendered = TextEditingController();
   PaymentMethod _method = PaymentMethod.cash;
 
