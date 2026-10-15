@@ -169,9 +169,9 @@ with switches (built) · diagnostics. PC: two-column section grid;
 mobile: stacked. Version row shows latest published tag (built).
 
 ### 5.6 Updates flow (prompt + controller UI)
-Prompt sheet: version hero, notes, download progress bar, later/update
-actions (built). Blocking mode full-screen on mobile, centered 480px
-dialog on PC (new distinction).
+Already as specified: blocking mode is a centered 520px card over the app
+(full-bleed on phones, dialog-like on PC), optional mode is a real Dialog.
+No change needed.
 
 ## 6. Shell (both widths)
 
