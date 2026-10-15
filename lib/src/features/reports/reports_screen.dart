@@ -5,6 +5,7 @@ import '../../core/di/app_services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/charts.dart';
 import '../../core/widgets/page.dart';
@@ -387,6 +388,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
             subtitle: 'دفتر الدفعات الإضافة-فقط',
           ),
           const SizedBox(height: 16),
+          MixBars(entries: [
+            MixEntry(
+                label: 'كاش',
+                value: payments.cash,
+                color: AppColors.positive),
+            MixEntry(
+                label: 'فيزا',
+                value: payments.card,
+                color: AppColors.info),
+          ]),
+          const SizedBox(height: 8),
           _MixRow(
             label: 'كاش',
             value: money(payments.cash),
