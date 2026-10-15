@@ -201,18 +201,12 @@ void main() {
 
     // The collection ack clears the delivery's dirty flag: recording dirtied
     // it without queueing a delivery command, so no delivery ack would ever
-    // arrive to clear it.
-    await repo.applySynced(OutboxEntry(
-      operationId: 'op-ack',
-      entityType: 'collection',
-      entityId: collection.id,
-      operationType: 'recordCollection',
-      payload: {'deliveryId': delivery.id},
-      schemaVersion: 1,
-      idempotencyKey: 'idem-ack',
-      createdAt: DateTime(2026, 10, 13),
-      syncStatus: OutboxStatus.synced,
-    ));
+    // arrive to clear it. The engine marks the entry synced before folding
+    // back, so the test does the same — otherwise quiet-clear correctly
+    // refuses while the real entry is still outstanding.
+    final store = OutboxStore(db);
+    await store.markSynced(entry.operationId);
+    await repo.applySynced(entry);
     expect(
       (await repo.listDeliveries()).single.syncStatus,
       SyncStatus.synced,
