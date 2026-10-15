@@ -121,6 +121,12 @@ void main() {
     expect((await repo.listSessions()).single.syncStatus,
         SyncStatus.pendingSync);
 
+    // Engine order: entries are marked synced before fold-back, so
+    // a quiet-guard refusal here would mean genuinely outstanding
+    // work, not test scaffolding.
+    for (final e in await OutboxStore(db).all()) {
+      await OutboxStore(db).markSynced(e.operationId);
+    }
     await repo.applySynced(OutboxEntry(
       operationId: 'op',
       entityType: 'cashSession',

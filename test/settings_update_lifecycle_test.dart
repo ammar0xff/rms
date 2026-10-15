@@ -351,12 +351,11 @@ void main() {
       ),
     );
 
-    // A record that can still sync is never waived by an acknowledgement. The
-    // install action stays on screen but must not be actionable.
+    // A record that can still sync is never waived by an acknowledgement.
+    // There is no install button here at all: the action lives in the
+    // shell-mounted prompt, and the card no longer duplicates it.
     expect(find.text('أعمال محلية معلّقة'), findsNothing);
-    final button =
-        tester.widget<RmsButton>(find.widgetWithText(RmsButton, 'تحديث'));
-    expect(button.onPressed, isNull);
+    expect(find.widgetWithText(RmsButton, 'تحديث'), findsNothing);
   });
 
   testWidgets('no acknowledgement is recorded when nothing is stuck',
@@ -374,7 +373,7 @@ void main() {
 
     expect(acknowledgement.acknowledgement, isNull);
     expect(find.text('إقرار'), findsNothing);
-    expect(find.text('تحديث'), findsOneWidget);
+    expect(find.text('تحديث'), findsNothing);
   });
 
   testWidgets('a malformed status row is ignored rather than rendered',
