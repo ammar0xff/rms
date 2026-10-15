@@ -76,35 +76,43 @@ class SyncStatRow extends StatelessWidget {
     return AnimatedBuilder(
       animation: monitor,
       builder: (context, _) => Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          _item(context, 'قيد الانتظار', '${monitor.pending}', AppColors.fgBright),
-          const SizedBox(width: 12),
-          Container(width: 1, height: 12, color: AppColors.borderStrong),
-          const SizedBox(width: 12),
-          _item(context, 'فشلها', '${monitor.failed}', AppColors.negative),
-          const SizedBox(width: 12),
-          Container(width: 1, height: 12, color: AppColors.borderStrong),
-          const SizedBox(width: 12),
-          _item(context, 'تعارضات', '${monitor.conflicts}', AppColors.warning),
+          _cell('قيد الانتظار', '${monitor.pending}', AppColors.fgBright),
+          _divider(),
+          _cell('فشلها', '${monitor.failed}', AppColors.negative),
+          _divider(),
+          _cell('تعارضات', '${monitor.conflicts}', AppColors.warning),
         ],
       ),
     );
   }
 
-  Widget _item(BuildContext context, String label, String value, Color color) {
-    // Wrap-safe: three items plus dividers exceed 390px under wide glyphs,
-    // and a stat row must never be the thing that overflows a screen.
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: Text(label,
-              overflow: TextOverflow.ellipsis, style: AppText.label),
-        ),
-        const SizedBox(width: 5),
-        Text(value, style: AppText.caption.copyWith(color: color, fontWeight: FontWeight.w600)),
-      ],
+  /// One flexing cell: the label ellipsizes inside its third of the card
+  /// instead of the row overflowing narrow screens. The flex has to live
+  /// here, on the outer row's children — one level deeper cannot save it.
+  Widget _cell(String label, String value, Color color) {
+    return Expanded(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(label,
+                overflow: TextOverflow.ellipsis, style: AppText.label),
+          ),
+          const SizedBox(width: 5),
+          Text(value,
+              style: AppText.caption.copyWith(
+                  color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
+
+  Widget _divider() => Container(
+        width: 1,
+        height: 12,
+        color: AppColors.borderStrong,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+      );
+}
 }
