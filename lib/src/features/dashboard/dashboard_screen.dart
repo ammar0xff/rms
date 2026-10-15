@@ -86,6 +86,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onRefresh: _load,
       child: PageBody(
         children: [
+        // Mock figures must never wear the مباشر tag: without a store these
+        // numbers are fabricated, and an operator could act on them.
+        if (useMock)
+          const SurfaceCard(
+            level: SurfaceLevel.secondary,
+            child: Row(
+              children: [
+                Icon(Icons.science_outlined,
+                    size: 16, color: AppColors.warning),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'بيانات تجريبية — لا يوجد مخزن محلي متاح',
+                    style: AppText.tableCellPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         HeroKpi(
           label: 'صافي مبيعات اليوم',
           value: useMock ? '8,412.50 ج.م' : money(metrics.todayTotal),
@@ -117,7 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _SalesCard(
           data: useMock ? MockData.hourlySales : metrics.hourlySales,
           subtitle: useMock ? 'اليوم · آخر تحديث 12:45' : 'اليوم · محلي',
-          live: useMock || monitor.online,
+          live: !useMock && monitor.online,
           extraStats: useMock
               ? const [('الطلبات', '312'), ('داخل الصالة / توصيل', '198 / 74')]
               : [

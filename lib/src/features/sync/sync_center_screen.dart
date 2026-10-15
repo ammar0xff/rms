@@ -12,18 +12,19 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../core/di/app_services.dart';
+import '../../data/local/outbox/outbox_entry.dart';
+import '../../data/local/outbox/outbox_status.dart';
 import '../../data/services/print_service.dart';
 import '../../domain/services/print_adapter.dart';
-import '../../data/mock/mock_data.dart';
 
-(String, StatusTone) _opStatus(String s) => switch (s) {
-      'pending' => ('قيد الانتظار', StatusTone.warning),
-      'in_progress' => ('قيد الإرسال', StatusTone.info),
-      'synced' => ('تمت المزامنة', StatusTone.positive),
-      'conflict' => ('تعارض', StatusTone.negative),
-      'retryable_failure' => ('قابل لإعادة المحاولة', StatusTone.warning),
-      'requires_user_action' => ('يتطلب إجراء', StatusTone.negative),
-      _ => (s, StatusTone.neutral),
+(String, StatusTone) _opStatus(OutboxStatus status) => switch (status) {
+      OutboxStatus.pending => ('قيد الانتظار', StatusTone.warning),
+      OutboxStatus.inProgress => ('قيد الإرسال', StatusTone.info),
+      OutboxStatus.synced => ('تمت المزامنة', StatusTone.positive),
+      OutboxStatus.conflict => ('تعارض', StatusTone.negative),
+      OutboxStatus.retryableFailure => ('قابل لإعادة المحاولة', StatusTone.warning),
+      OutboxStatus.requiresUserAction => ('يتطلب إجراء', StatusTone.negative),
+      OutboxStatus.permanentlyRejected => ('مرفوض نهائيًا', StatusTone.negative),
     };
 
 class SyncCenterScreen extends StatelessWidget {
@@ -54,7 +55,7 @@ class SyncCenterScreen extends StatelessWidget {
             final m = SyncMonitor.instance;
             return GridRow(children: [
               StatCard(label: 'قيد الانتظار', value: '${m.pending}', tone: AppColors.fgBright),
-              const StatCard(label: 'قيد الإرسال', value: '1', delta: 'جارٍ الإرسال'),
+              StatCard(label: 'تمت المزامنة', value: '${m.synced}', tone: AppColors.fgBright),
               StatCard(
                 label: 'فشل',
                 value: '${m.failed}',
@@ -82,7 +83,6 @@ class SyncCenterScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
-        _PrintQueueSection(),
         const ResponsiveRow(
           gap: AppSpacing.lg,
           children: [
@@ -103,8 +103,45 @@ class SyncCenterScreen extends StatelessWidget {
   }
 }
 
-class _OutboxTable extends StatelessWidget {
+class _OutboxTable extends StatefulWidget {
   const _OutboxTable();
+
+  @override
+  State<_OutboxTable> createState() => _OutboxTableState();
+}
+
+class _OutboxTableState extends State<_OutboxTable> {
+  List<OutboxEntry> _entries = const [];
+  bool _loaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    SyncMonitor.instance.addListener(_load);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    SyncMonitor.instance.removeListener(_load);
+    super.dispose();
+  }
+
+  // The screen whose job is showing what is stuck must read the real outbox,
+  // not fixtures: genuine pending and conflicted operations were invisible
+  // here while the header claimed to be processing them.
+  Future<void> _load() async {
+    final outbox = AppScope.of(context).outbox;
+    if (outbox == null) return;
+    final entries = await outbox.all();
+    if (!mounted) return;
+    setState(() {
+      _entries = entries
+          .where((e) => e.syncStatus != OutboxStatus.synced)
+          .toList();
+      _loaded = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,35 +155,49 @@ class _OutboxTable extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
               title: 'عمليات صندوق الصادر',
-              trailing: const StatusText(label: 'قيد المعالجة', tone: StatusTone.info),
+              trailing: StatusText(
+                label: _loaded
+                    ? (_entries.isEmpty ? 'فارغ' : '${_entries.length} معلّقة')
+                    : 'قيد المعالجة',
+                tone: _entries.isEmpty ? StatusTone.positive : StatusTone.info,
+              ),
             ),
           ),
-          RmsTable(
-            columns: const [
-              RmsColumn('العملية', flex: 2),
-              RmsColumn('الكيان', flex: 3),
-              RmsColumn('النوع', flex: 3),
-              RmsColumn('المحاولات', flex: 2, align: TextAlign.right),
-              RmsColumn('الحالة', flex: 3),
-            ],
-            rows: [
-              for (final op in MockData.syncOperations)
-                [
-                  Text(op.operationId, style: AppText.mono),
-                  Text(op.entity, style: AppText.tableCell),
-                  Text(op.type, style: AppText.tableCell),
-                  Text('${op.attempts}', style: AppText.tableCell),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      StatusText(label: _opStatus(op.status).$1, tone: _opStatus(op.status).$2),
-                      if (op.lastError != null)
-                        Text(op.lastError!, style: AppText.caption.copyWith(color: AppColors.fgGhost)),
-                    ],
-                  ),
-                ],
-            ],
-          ),
+          if (_loaded && _entries.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Text(
+                'لا توجد عمليات معلّقة. كل الأعمال المحلية مرفوعة.',
+                style: AppText.caption,
+              ),
+            )
+          else
+            RmsTable(
+              columns: const [
+                RmsColumn('العملية', flex: 2),
+                RmsColumn('الكيان', flex: 3),
+                RmsColumn('النوع', flex: 3),
+                RmsColumn('المحاولات', flex: 2, align: TextAlign.right),
+                RmsColumn('الحالة', flex: 3),
+              ],
+              rows: [
+                for (final op in _entries)
+                  [
+                    Text(op.operationId, style: AppText.mono),
+                    Text(op.entityType, style: AppText.tableCell),
+                    Text(op.operationType, style: AppText.tableCell),
+                    Text('${op.attemptCount}', style: AppText.tableCell),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        StatusText(label: _opStatus(op.syncStatus).$1, tone: _opStatus(op.syncStatus).$2),
+                        if (op.lastError != null)
+                          Text(op.lastError!, style: AppText.caption.copyWith(color: AppColors.fgGhost)),
+                      ],
+                    ),
+                  ],
+              ],
+            ),
         ],
       ),
     );
