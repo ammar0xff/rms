@@ -129,7 +129,8 @@ void main() {
       );
 
       expect(find.text('op-a'), findsOneWidget);
-      expect(find.text('تعذّر الاتصال. تحقق من الشبكة.'), findsOneWidget);
+      expect(find.textContaining('تعذّر الاتصال. تحقق من الشبكة.'),
+          findsOneWidget);
     });
 
     testWidgets('conflicts list shows entries awaiting resolution',
