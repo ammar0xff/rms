@@ -6,6 +6,7 @@ import '../../core/logging/app_logger.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/payment.dart';
+import '../../domain/money.dart';
 import '../local/audit_log.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
@@ -131,8 +132,8 @@ class LocalCashSessionRepository implements CashSessionRepository {
         closed = session;
         return;
       }
-      final expected = await _expectedCash(txn, session, now);
-      final variance = countedCash - expected;
+      final expected = roundMoney(await _expectedCash(txn, session, now));
+      final variance = roundMoney(countedCash - expected);
       session.closedAt = now;
       session.countedCash = countedCash;
       session.expectedCash = expected;

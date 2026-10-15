@@ -1,16 +1,45 @@
 import 'package:sembast/sembast.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/models/kitchen_ticket.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
+import '../local/outbox/outbox_entry.dart';
+import '../local/outbox/outbox_status.dart';
+import '../local/outbox/outbox_store.dart';
 import 'kitchen_repository.dart';
 
 class LocalKitchenRepository implements KitchenRepository {
-  LocalKitchenRepository(this._db, {DateTime Function()? clock})
-      : _clock = clock ?? DateTime.now;
+  LocalKitchenRepository(
+    this._db, {
+    DateTime Function()? clock,
+    OutboxStore? outbox,
+    Uuid? uuid,
+  })  : _clock = clock ?? DateTime.now,
+        _outbox = outbox ?? OutboxStore(_db),
+        _uuid = uuid ?? const Uuid();
 
   final LocalDatabase _db;
   final DateTime Function() _clock;
+  final OutboxStore _outbox;
+  final Uuid _uuid;
+
+  OutboxEntry _entry({
+    required String entityId,
+    required String operationType,
+    required DateTime createdAt,
+    required Map<String, dynamic> payload,
+  }) =>
+      OutboxEntry(
+        operationId: _uuid.v4(),
+        entityType: 'kitchenTicket',
+        entityId: entityId,
+        operationType: operationType,
+        payload: payload,
+        schemaVersion: 1,
+        idempotencyKey: _uuid.v4(),
+        createdAt: createdAt,
+      );
 
   @override
   Future<void> cacheTickets(List<KitchenTicketModel> tickets, {bool replace = true}) async {
@@ -78,14 +107,63 @@ class LocalKitchenRepository implements KitchenRepository {
         readyAt: readyAt,
         completedAt: completedAt,
         lastModifiedAt: time,
+        syncStatus: 'pendingSync',
       );
       await record.put(txn, ticket.toRecord());
+      // State moves sync like everything else: previously transitions wrote
+      // no command, so offline tickets never reached the backend and dispatch
+      // failures vanished without a trace.
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: id,
+          operationType: 'ticketState',
+          createdAt: time,
+          payload: {'id': id, 'state': newState.name},
+        ),
+      );
     });
   }
 
   @override
   Future<void> upsertTicket(KitchenTicketModel ticket) async {
-    await LocalStores.kitchenTickets.record(ticket.id).put(_db.db, ticket.toRecord());
+    final now = _clock();
+    // Stamped dirty: the factory default is 'synced', which would leave a
+    // ticket that never went up looking acknowledged.
+    final dirty = ticket.copyWith(syncStatus: 'pendingSync');
+    await _db.transaction((txn) async {
+      await LocalStores.kitchenTickets.record(ticket.id).put(txn, dirty.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: ticket.id,
+          operationType: 'upsertTicket',
+          createdAt: now,
+          payload: {
+            'id': ticket.id,
+            'orderRef': ticket.orderRef,
+            'station': ticket.station,
+            'state': ticket.state.name,
+          },
+        ),
+      );
+    });
+  }
+
+  @override
+  Future<void> applySynced(OutboxEntry entry) async {
+    if (entry.entityType != 'kitchenTicket') return;
+    final record = LocalStores.kitchenTickets.record(entry.entityId);
+    final existing = await record.get(_db.db);
+    if (existing == null) return;
+    final ticket = KitchenTicketModel.fromRecord(existing);
+    if (!await _outbox.hasOutstandingFor(
+        entityType: 'kitchenTicket', entityId: entry.entityId)) {
+      await record.put(
+        _db.db,
+        ticket.copyWith(syncStatus: 'synced').toRecord(),
+      );
+    }
   }
 
   static Filter? _buildFilter({String? station, Set<TicketState>? states}) {

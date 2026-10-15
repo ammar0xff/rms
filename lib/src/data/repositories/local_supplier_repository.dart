@@ -2,6 +2,7 @@ import 'package:sembast/sembast.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
+import '../../domain/money.dart';
 import '../../core/logging/app_logger.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/supplier.dart';
@@ -117,7 +118,7 @@ class LocalSupplierRepository implements SupplierRepository {
         return;
       }
       final now = _clock();
-      supplier.payable = supplier.payable - amount;
+      supplier.payable = roundMoney(supplier.payable - amount);
       supplier.localRevision = supplier.localRevision + 1;
       supplier.syncStatus = SyncStatus.pendingSync;
       await record.put(txn, supplier.toRecord());

@@ -2,6 +2,7 @@ import 'package:sembast/sembast.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
+import '../../domain/money.dart';
 import '../../core/logging/app_logger.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/purchase_order.dart';
@@ -92,6 +93,17 @@ class LocalPurchaseRepository implements PurchaseRepository {
             'reference': reference,
             'lineCount': lines.length,
             'total': purchase.total,
+            // The server cannot post item-level stock, verify totals, or
+            // tell substitution from rounding without the lines. Totals
+            // alone asked it to mirror a mutation it could not see.
+            'lines': [
+              for (final line in lines)
+                {
+                  'itemId': line.itemId,
+                  'quantity': line.quantity,
+                  'unitCost': line.unitCost,
+                },
+            ],
           },
         ),
       );
@@ -154,7 +166,7 @@ class LocalPurchaseRepository implements PurchaseRepository {
       double? resultingPayable;
       if (existingSupplier != null) {
         final supplier = SupplierModel.fromRecord(existingSupplier);
-        supplier.payable = supplier.payable + purchase.total;
+        supplier.payable = roundMoney(supplier.payable + purchase.total);
         resultingPayable = supplier.payable;
         supplier.localRevision = supplier.localRevision + 1;
         supplier.syncStatus = SyncStatus.pendingSync;
@@ -172,6 +184,14 @@ class LocalPurchaseRepository implements PurchaseRepository {
             'id': id,
             'reference': purchase.reference,
             'total': purchase.total,
+            'lines': [
+              for (final line in purchase.lines)
+                {
+                  'itemId': line.itemId,
+                  'quantity': line.quantity,
+                  'unitCost': line.unitCost,
+                },
+            ],
             // The receipt is what creates the debt, so the resulting payable
             // travels with the command: without it the server sees a stock
             // movement with no idea what the supplier is now owed.
