@@ -136,7 +136,9 @@ AppServices _services({
       auth: DemoAuthRepository(),
       firebaseReady: false,
       updates: _FakeUpdates(_manifest()),
-      outbox: outbox,
+      // Null would mean "backlog unreadable" and withhold the install; the
+      // eligible cases need an enumerated-empty backlog instead.
+      outbox: outbox ?? _FakeOutbox(const []),
       updateStatus: status,
       updateAudit: audit ?? _FakeAuditTrail(const []),
       updateAcknowledgement: acknowledgement ?? _FakeAcknowledgementStore(),

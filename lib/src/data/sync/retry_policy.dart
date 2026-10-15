@@ -18,7 +18,11 @@ class RetryPolicy {
   Duration nextDelay(int attemptCount) {
     final exponential = baseDelay.inMilliseconds * pow(2, attemptCount).toInt();
     final capped = min(exponential, maxDelay.inMilliseconds);
-    final jitter = _random.nextInt((capped * 0.2).clamp(1, capped).toInt());
+    // Robust to zero/degenerate policies (tests use baseDelay: Duration.zero
+    // for immediate retries): the old clamp(1, capped) threw when capped < 1,
+    // and nextInt(0) throws, so a non-positive spread means no jitter at all.
+    final spread = (capped * 0.2).toInt();
+    final jitter = spread <= 0 ? 0 : _random.nextInt(spread);
     return Duration(milliseconds: min(capped + jitter, maxDelay.inMilliseconds));
   }
 }

@@ -121,6 +121,47 @@ void main() {
       expect(entry.lastError, isNotNull);
     });
 
+    test('parks the entry for a human once the attempt budget is exhausted',
+        () async {
+      await _seed(db, store);
+      final engine = SyncEngine(
+        transport: InMemorySyncTransport()..online = false,
+        outbox: store,
+        retryPolicy: RetryPolicy(maxAttempts: 1),
+      );
+
+      expect(await engine.drain(), 0);
+      // Not silently skipped: visible on the conflicts screen and countable,
+      // instead of stranded in the retry queue forever.
+      expect((await store.all()).single.syncStatus,
+          OutboxStatus.requiresUserAction);
+      expect(await engine.drain(), 0);
+      expect((await store.all()).single.attemptCount, 1);
+    });
+
+    test('backs off between attempts instead of retrying every pass',
+        () async {
+      await _seed(db, store);
+      final engine = SyncEngine(
+        transport: InMemorySyncTransport()..online = false,
+        outbox: store,
+        retryPolicy: RetryPolicy(
+          baseDelay: const Duration(milliseconds: 60),
+          maxAttempts: 8,
+        ),
+      );
+
+      expect(await engine.drain(), 0);
+      expect((await store.all()).single.attemptCount, 1);
+      // Backoff has not elapsed: skipped, not attempted.
+      expect(await engine.drain(), 0);
+      expect((await store.all()).single.attemptCount, 1);
+
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(await engine.drain(), 0);
+      expect((await store.all()).single.attemptCount, 2);
+    });
+
     test('stops retrying once the attempt budget is exhausted', () async {
       await _seed(db, store);
       final engine = SyncEngine(
@@ -133,6 +174,26 @@ void main() {
       expect((await store.all()).single.attemptCount, 1);
       expect(await engine.drain(), 0);
       expect((await store.all()).single.attemptCount, 1);
+    });
+
+    test('parks the entry when the local fold-back fails after a good push',
+        () async {
+      await _seed(db, store);
+      final transport = InMemorySyncTransport();
+      final engine = SyncEngine(
+        transport: transport,
+        outbox: store,
+        onApplied: (_) async => throw StateError('disk blew up'),
+      );
+
+      // The server holds the entry; flipping it back to retryable would
+      // re-push it and burn a second canonical order number.
+      expect(await engine.drain(), 0);
+      final entry = (await store.all()).single;
+      expect(entry.syncStatus, OutboxStatus.requiresUserAction);
+      expect(transport.appliedCount, 1);
+      expect(await engine.drain(), 0);
+      expect(transport.appliedCount, 1);
     });
 
     test('does not re-process already synced entries', () async {

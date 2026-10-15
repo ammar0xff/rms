@@ -172,7 +172,7 @@ void main() {
   }) =>
       UpdateRuntime(
         cache: _Cache(manifest),
-        outbox: outbox,
+        outbox: outbox ?? _Outbox(),
         acknowledgement: null,
         online: () => true,
         buildService: () => UpdateDeps(

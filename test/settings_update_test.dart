@@ -5,6 +5,8 @@ import 'package:rms/src/core/config/device_update_context.dart';
 import 'package:rms/src/core/config/firebase_config.dart';
 import 'package:rms/src/core/di/app_services.dart';
 import 'package:rms/src/core/widgets/status.dart';
+import 'package:rms/src/data/local/outbox/outbox_access.dart';
+import 'package:rms/src/data/local/outbox/outbox_entry.dart';
 import 'package:rms/src/data/repositories/demo_auth_repository.dart';
 import 'package:rms/src/data/repositories/update_repository.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
@@ -56,11 +58,22 @@ UpdateManifest _manifest({
       minSupportedVersion: '0.7.0',
     );
 
+/// An enumerated-empty outbox. Passing null would mean "backlog unreadable"
+/// and withhold the install; these cases need "readable and empty".
+class _EmptyOutbox implements OutboxAccess {
+  @override
+  Future<List<OutboxEntry>> all() async => const [];
+
+  @override
+  Future<void> save(OutboxEntry entry) async {}
+}
+
 AppServices _services(UpdateRepository? updates) => AppServices(
       config: const FirebaseConfig.empty(),
       auth: DemoAuthRepository(),
       firebaseReady: false,
       updates: updates,
+      outbox: _EmptyOutbox(),
     );
 
 Future<void> _openSettings(WidgetTester tester, AppServices services) async {
