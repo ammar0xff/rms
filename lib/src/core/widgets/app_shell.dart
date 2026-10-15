@@ -30,6 +30,7 @@ import '../../features/updates/update_controller.dart';
 import '../../domain/update/update_prompt_mode.dart';
 import '../../features/updates/update_prompt.dart';
 import 'buttons.dart';
+import 'role_ui.dart';
 import 'status.dart';
 import 'sync_chip.dart';
 
@@ -326,6 +327,7 @@ class _AppShellState extends State<AppShell> {
                             selected: selected,
                             onSelect: _select,
                             user: _user,
+                            accent: roleAccent(role),
                           ),
                           const VerticalDivider(width: 1, color: AppColors.borderStrong),
                           Expanded(
@@ -354,7 +356,7 @@ class _AppShellState extends State<AppShell> {
                       onTap: (index) => _onBarTap(nav.tabs, index),
                       type: BottomNavigationBarType.fixed,
                       backgroundColor: AppColors.surface,
-                      selectedItemColor: AppColors.brand,
+                      selectedItemColor: roleAccent(role),
                       unselectedItemColor: AppColors.fgMuted,
                       selectedLabelStyle: AppText.label,
                       unselectedLabelStyle: AppText.label,
@@ -561,12 +563,14 @@ class _Sidebar extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.user,
+    required this.accent,
   });
 
   final List<NavGroup> groups;
   final String selected;
   final ValueChanged<String> onSelect;
   final AppUser? user;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -632,6 +636,7 @@ class _Sidebar extends StatelessWidget {
                     _NavTile(
                       entry: entry,
                       active: entry.id == selected,
+                      accent: accent,
                       onTap: () => onSelect(entry.id),
                     ),
                 ],
@@ -648,10 +653,11 @@ class _Sidebar extends StatelessWidget {
 }
 
 class _NavTile extends StatefulWidget {
-  const _NavTile({required this.entry, required this.active, required this.onTap});
+  const _NavTile({required this.entry, required this.active, required this.accent, required this.onTap});
 
   final NavEntry entry;
   final bool active;
+  final Color accent;
   final VoidCallback onTap;
 
   @override
@@ -676,7 +682,7 @@ class _NavTileState extends State<_NavTile> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
 decoration: BoxDecoration(
               color: active
-                  ? Colors.black.withValues(alpha: 0.05)
+                  ? widget.accent.withValues(alpha: 0.10)
                   : _hover
                       ? Colors.black.withValues(alpha: 0.03)
                       : null,
@@ -688,7 +694,7 @@ decoration: BoxDecoration(
                 widget.entry.icon,
                 size: 15,
                 color: active
-                    ? AppColors.brand
+                    ? widget.accent
                     : _hover
                         ? AppColors.fgSecondary
                         : AppColors.fgMuted,
@@ -769,56 +775,25 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Title plus live sync state on every screen, both widths. The old
+    // search and notifications buttons had no handlers and the branch pill
+    // was a hardcoded label with a dead dropdown arrow — all three violated
+    // the no-dead-controls rule, so all three are gone. Per-screen search
+    // lives in ListToolbar, where it filters something real.
     return SizedBox(
       height: AppSpacing.topBarHeight,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: LayoutBuilder(
-          builder: (context, c) {
-            // Phones cannot fit title + branch pill + sync chip + two icon
-            // buttons in 360px. Narrow keeps menu, title, sync state and
-            // search; the branch pill and notifications stay on wide screens.
-            final narrow = c.maxWidth < 600;
-            return Row(
-              children: [
-                Flexible(
-                  child: Text(title,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.pageTitle),
-                ),
-                if (!narrow) ...[
-                  const SizedBox(width: 10),
-                  Container(width: 1, height: 14, color: AppColors.borderStrong),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.borderStrong),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Row(
-                      children: [
-                        Text('الفرع', style: AppText.caption),
-                        const SizedBox(width: 4),
-                        Text('بوابة الشمال',
-                            style: AppText.tableCellPrimary),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.unfold_more, size: 12, color: AppColors.fgGhost),
-                      ],
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                const SyncChip(),
-                const SizedBox(width: 10),
-                const IconBtn(icon: Icons.search, tooltip: 'بحث'),
-                if (!narrow) ...[
-                  const SizedBox(width: 8),
-                  const IconBtn(icon: Icons.notifications_none, tooltip: 'الإشعارات'),
-                ],
-              ],
-            );
-          },
+        child: Row(
+          children: [
+            Flexible(
+              child: Text(title,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.pageTitle),
+            ),
+            const Spacer(),
+            const SyncChip(),
+          ],
         ),
       ),
     );
