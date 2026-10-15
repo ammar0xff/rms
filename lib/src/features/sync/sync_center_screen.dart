@@ -6,8 +6,10 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/rms_table.dart';
+import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
@@ -101,20 +103,27 @@ class SyncCenterScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
-        const ResponsiveRow(
-          gap: AppSpacing.lg,
-          children: [
-            _PolicyCard(
-              title: 'التكرار الآمن',
-              icon: Icons.fingerprint,
-              body: 'كل أمر ليه مفتاح ثابت. السيرفر بيحتفظ بالإيصالات ويرجّع نفس النتيجة — للأوردرات والمدفوعات والاسترجاعات والتذاكر والإسنادات والتحصيلات والمخزون.',
-            ),
-            _PolicyCard(
-              title: 'سياسة إعادة المحاولة',
-              icon: Icons.replay,
-              body: 'الفشل المؤقت بيتحاول تاني لوحده. الغلط الدائم مش بيتحاول على طول، والمحظور بيفضل باين بسبب واضح.',
-            ),
-          ],
+        const SurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Collapsible(
+                title: 'التكرار الآمن',
+                child: Text(
+                  'كل أمر ليه مفتاح ثابت. السيرفر بيحتفظ بالإيصالات ويرجّع نفس النتيجة — للأوردرات والمدفوعات والاسترجاعات والتذاكر والإسنادات والتحصيلات والمخزون.',
+                  style: AppText.body,
+                ),
+              ),
+              Divider(height: 20, color: AppColors.borderSubtle),
+              Collapsible(
+                title: 'سياسة إعادة المحاولة',
+                child: Text(
+                  'الفشل المؤقت بيتحاول تاني لوحده. الغلط الدائم مش بيتحاول على طول، والمحظور بيفضل باين بسبب واضح.',
+                  style: AppText.body,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -190,34 +199,72 @@ class _OutboxTableState extends State<_OutboxTable> {
               ),
             )
           else
-            RmsTable(
-              columns: const [
-                RmsColumn('العملية', flex: 2),
-                RmsColumn('الكيان', flex: 3),
-                RmsColumn('النوع', flex: 3),
-                RmsColumn('المحاولات', flex: 2, align: TextAlign.right),
-                RmsColumn('الحالة', flex: 3),
-              ],
-              rows: [
-                for (final op in _entries)
-                  [
-                    Text(op.operationId, style: AppText.mono),
-                    Text(op.entityType, style: AppText.tableCell),
-                    Text(op.operationType, style: AppText.tableCell),
-                    Text('${op.attemptCount}', style: AppText.tableCell),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        StatusText(label: _opStatus(op.syncStatus).$1, tone: _opStatus(op.syncStatus).$2),
-                        if (op.lastError != null)
-                          Text(op.lastError!, style: AppText.caption.copyWith(color: AppColors.fgGhost)),
-                      ],
-                    ),
-                  ],
-              ],
+            LayoutBuilder(
+              builder: (context, c) {
+                if (c.maxWidth < 700) return _opFeed();
+                return _opTable();
+              },
             ),
         ],
       ),
+    );
+  }
+
+  /// Operation cards for phones: id, entity trail, error, status tag.
+  Widget _opFeed() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final op in _entries) ...[
+            FeedRow(
+              tone: _opStatus(op.syncStatus).$2,
+              title: op.operationId,
+              subtitle:
+                  '${op.entityType} · ${op.operationType} · ${op.attemptCount} محاولات${op.lastError == null ? '' : ' · ${op.lastError}'}',
+              trailing: Tag(
+                label: _opStatus(op.syncStatus).$1,
+                tone: _opStatus(op.syncStatus).$2,
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _opTable() {
+    return RmsTable(
+      columns: const [
+        RmsColumn('العملية', flex: 2),
+        RmsColumn('الكيان', flex: 3),
+        RmsColumn('النوع', flex: 3),
+        RmsColumn('المحاولات', flex: 2, align: TextAlign.right),
+        RmsColumn('الحالة', flex: 3),
+      ],
+      rows: [
+        for (final op in _entries)
+          [
+            Text(op.operationId, style: AppText.mono),
+            Text(op.entityType, style: AppText.tableCell),
+            Text(op.operationType, style: AppText.tableCell),
+            Text('${op.attemptCount}', style: AppText.tableCell),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StatusText(
+                    label: _opStatus(op.syncStatus).$1,
+                    tone: _opStatus(op.syncStatus).$2),
+                if (op.lastError != null)
+                  Text(op.lastError!,
+                      style: AppText.caption
+                          .copyWith(color: AppColors.fgGhost)),
+              ],
+            ),
+          ],
+      ],
     );
   }
 }
@@ -270,35 +317,6 @@ class _SequenceCard extends StatelessWidget {
     );
   }
 }
-
-class _PolicyCard extends StatelessWidget {
-  const _PolicyCard({required this.title, required this.icon, required this.body});
-
-  final String title;
-  final IconData icon;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 15, color: AppColors.fgMuted),
-              const SizedBox(width: 8),
-              Text(title, style: AppText.sectionHeading),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(body, style: AppText.body),
-        ],
-      ),
-    );
-  }
-}
-
 
 class _PrintQueueSection extends StatelessWidget {
   const _PrintQueueSection();
