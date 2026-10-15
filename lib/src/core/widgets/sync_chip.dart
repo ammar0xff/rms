@@ -115,4 +115,3 @@ class SyncStatRow extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 6),
       );
 }
-}
