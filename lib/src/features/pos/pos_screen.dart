@@ -170,7 +170,10 @@ class _PosScreenState extends State<PosScreen>
       return;
     }
     final orderType = OrderType.values[_orderType];
-    final offline = services.sync?.isOnline == false;
+    // Unknown counts as offline: without a sync service these orders are
+    // local-only, and the delivery screen already reads it this way. (The two
+    // disagreed; POS claimed online, delivery claimed offline.)
+    final offline = services.sync?.isOnline != true;
     final items = [
       for (final line in _cart)
         OrderItem(

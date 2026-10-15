@@ -1,3 +1,5 @@
+import '../../domain/models/semantic_version.dart';
+
 /// Single source of truth for build/version metadata surfaced to the UI and to
 /// the update engine.
 ///
@@ -39,10 +41,14 @@ abstract final class AppVersion {
   ///
   /// Blank or implausible values are ignored rather than applied, so a
   /// malformed platform response degrades to the compiled fallback instead of
-  /// making the app claim to be something it is not.
+  /// making the app claim to be something it is not. "Implausible" means "not
+  /// a three-part semantic version" — the update engine compares these
+  /// strings, so a garbage version would produce garbage verdicts.
   static void apply({required String version, required int build}) {
     final trimmed = version.trim();
-    if (trimmed.isNotEmpty) number = trimmed;
+    if (trimmed.isNotEmpty && SemanticVersion.tryParse(trimmed) != null) {
+      number = trimmed;
+    }
     if (build > 0) AppVersion.build = build;
   }
 

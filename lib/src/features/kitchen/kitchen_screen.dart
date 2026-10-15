@@ -61,7 +61,15 @@ class _KitchenScreenState extends State<KitchenScreen> {
   Future<void> _transition(KitchenTicketModel ticket, TicketState next) async {
     final kitchen = AppScope.of(context).kitchen;
     if (kitchen == null) return;
-    await kitchen.transitionTicket(ticket.id, next);
+    try {
+      await kitchen.transitionTicket(ticket.id, next);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حركة غير صالحة لهذه التذكرة')),
+      );
+      return;
+    }
     await _load();
   }
 

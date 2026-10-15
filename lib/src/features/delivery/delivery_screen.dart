@@ -204,7 +204,15 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       _ => null,
     };
     if (next == null) return;
-    await repo.updateState(delivery.id, next);
+    try {
+      await repo.updateState(delivery.id, next);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حركة غير صالحة لهذه المهمة')),
+      );
+      return;
+    }
     await _load();
     _refreshMonitor();
   }

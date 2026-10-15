@@ -202,32 +202,36 @@ Future<AppServices> _resolveAuth(
   await _primeUpdateManifest(updates);
 
   // Built here rather than alongside the other repositories: it needs
-  // `branches` for the rollout cohort seed, and `config` to decide whether a
-  // remote manifest source exists at all.
-  final updateRuntime = database == null || updates == null
-      ? null
-      : UpdateRuntime(
-          cache: updates,
-          outbox: outbox,
-          acknowledgement: updateAcknowledgement,
-          remote: FirestoreUpdateSource(
-            platform: currentUpdatePlatform(),
-            firestore: config.isConfigured ? FirebaseFirestore.instance : null,
-          ),
-          // Web ships through its hosting provider and takes no artifact.
-          artifactDeliverySupported: currentUpdatePlatform() != UpdatePlatform.web,
-          online: () => SyncMonitor.instance.online,
-          branchId: () async => (await branches?.activeBranch())?.id ?? '',
-          buildService: () => UpdateDeps(
-            downloader: updateDownloader,
-            installer: updateInstaller,
-            migrator: updateMigrator!,
-            healthChecker: updateHealthCheck!,
-            outbox: outbox,
-            auditSink: updateAudit,
-            statusStore: updateStatus,
-          ),
-        );
+  // `branches` for the rollout cohort seed, and the Firebase instance — which
+  // only exists after initializeApp — for the remote manifest source.
+  // Constructed per return path below: evaluating FirebaseFirestore.instance
+  // before initializeApp throws core/no-app and kills startup outside any
+  // try/catch, so it must never happen eagerly up here.
+  UpdateRuntime? buildRuntime({FirebaseFirestore? firestoreDb}) {
+    if (database == null || updates == null) return null;
+    return UpdateRuntime(
+      cache: updates,
+      outbox: outbox,
+      acknowledgement: updateAcknowledgement,
+      remote: FirestoreUpdateSource(
+        platform: currentUpdatePlatform(),
+        firestore: firestoreDb,
+      ),
+      // Web ships through its hosting provider and takes no artifact.
+      artifactDeliverySupported: currentUpdatePlatform() != UpdatePlatform.web,
+      online: () => SyncMonitor.instance.online,
+      branchId: () async => (await branches?.activeBranch())?.id ?? '',
+      buildService: () => UpdateDeps(
+        downloader: updateDownloader,
+        installer: updateInstaller,
+        migrator: updateMigrator!,
+        healthChecker: updateHealthCheck!,
+        outbox: outbox,
+        auditSink: updateAudit,
+        statusStore: updateStatus,
+      ),
+    );
+  }
 
   // Surface local outbox state even without a backend (demo mode); the
   // Firebase branch below re-attaches with the sync loop.
@@ -265,7 +269,7 @@ Future<AppServices> _resolveAuth(
       updateAudit: updateAudit,
       updateStatus: updateStatus,
       updateAcknowledgement: updateAcknowledgement,
-      updateRuntime: updateRuntime,
+      updateRuntime: buildRuntime(),
     );
   }
 
@@ -305,7 +309,7 @@ Future<AppServices> _resolveAuth(
       updateAudit: updateAudit,
       updateStatus: updateStatus,
       updateAcknowledgement: updateAcknowledgement,
-      updateRuntime: updateRuntime,
+      updateRuntime: buildRuntime(firestoreDb: FirebaseFirestore.instance),
     );
   } catch (error, stackTrace) {
     AppLogger.error(
@@ -339,7 +343,7 @@ Future<AppServices> _resolveAuth(
       updateAudit: updateAudit,
       updateStatus: updateStatus,
       updateAcknowledgement: updateAcknowledgement,
-      updateRuntime: updateRuntime,
+      updateRuntime: buildRuntime(),
     );
   }
 }

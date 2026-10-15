@@ -32,7 +32,12 @@ class _AuthGateState extends State<AuthGate> {
       stream: _session,
       initialData: auth.currentUser,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        // While waiting, honor the synchronously-known user: Firebase restores
+        // persisted sessions asynchronously and typically emits null first, so
+        // showing the sign-in form in that window flashes (and admits
+        // interaction with) a form the signed-in user should never see.
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            snapshot.data == null) {
           return const _Splash();
         }
         return snapshot.data == null ? const SignInScreen() : const AppShell();

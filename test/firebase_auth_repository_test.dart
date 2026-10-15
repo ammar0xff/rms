@@ -55,6 +55,10 @@ void main() {
         'invalid-credential': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
         'too-many-requests': 'محاولات كثيرة. حاول لاحقًا.',
         'network-request-failed': 'تعذّر الاتصال. تحقق من الشبكة.',
+        'weak-password': 'كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل.',
+        'email-already-in-use': 'هذا البريد مسجّل بالفعل. سجّل الدخول.',
+        'operation-not-allowed': 'تسجيل الدخول بالبريد غير مفعّل. راجع الإعدادات.',
+        'requires-recent-login': 'سجّل الدخول مجددًا لإتمام هذا الإجراء.',
       };
       expected.forEach((code, message) {
         expect(authFailureMessage(code), message, reason: code);
@@ -150,6 +154,10 @@ void main() {
         'invalid-credential',
         'too-many-requests',
         'network-request-failed',
+        'weak-password',
+        'email-already-in-use',
+        'operation-not-allowed',
+        'requires-recent-login',
       ]) {
         final repo = FirebaseAuthRepository(backend: _Backend(failure: code));
         try {

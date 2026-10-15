@@ -254,13 +254,41 @@ class LocalDeliveryRepository implements DeliveryRepository {
   }
 
   @override
-  Future<void> updateState(String deliveryId, DeliveryState state) => _mutate(
-        deliveryId,
-        (d) {
-          d.state = state;
-        },
-        operationType: 'deliveryState',
+  Future<void> updateState(String deliveryId, DeliveryState state) async {
+    final now = _clock();
+    await _db.transaction((txn) async {
+      final record = LocalStores.deliveries.record(deliveryId);
+      final existing = await record.get(txn);
+      if (existing == null) return;
+      final delivery = DeliveryModel.fromRecord(existing);
+      // Deliveries move forward only: waiting → assigned → onRoute →
+      // delivered. Reopening a delivered run would un-collect settled money,
+      // so backward transitions throw instead of silently corrupting state.
+      if (state.index < delivery.state.index) {
+        throw StateError(
+          'illegal delivery transition ${delivery.state.name} -> ${state.name}',
+        );
+      }
+      delivery.state = state;
+      delivery.localRevision += 1;
+      delivery.syncStatus = SyncStatus.pendingSync;
+      await record.put(txn, delivery.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: deliveryId,
+          operationType: 'deliveryState',
+          createdAt: now,
+          payload: {
+            'id': deliveryId,
+            'orderRef': delivery.orderRef,
+            'driver': delivery.driver,
+            'state': delivery.state.name,
+          },
+        ),
       );
+    });
+  }
 
   @override
   Future<CollectionModel?> recordCollection({

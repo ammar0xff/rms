@@ -47,6 +47,14 @@ class LocalKitchenRepository implements KitchenRepository {
       final existing = await record.get(txn);
       if (existing == null) return;
       var ticket = KitchenTicketModel.fromRecord(existing);
+      // Tickets move forward only: queued → preparing → ready → completed.
+      // Backward transitions corrupt the stage timestamps and can resurrect
+      // completed tickets into live lanes. Same-state repeats are no-ops.
+      if (newState.index < ticket.state.index) {
+        throw StateError(
+          'illegal ticket transition ${ticket.state.name} -> ${newState.name}',
+        );
+      }
       DateTime? queuedAt = ticket.queuedAt;
       DateTime? preparingAt = ticket.preparingAt;
       DateTime? readyAt = ticket.readyAt;

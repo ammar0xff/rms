@@ -126,5 +126,9 @@ String authFailureMessage(String code) => switch (code) {
         'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
       'too-many-requests' => 'محاولات كثيرة. حاول لاحقًا.',
       'network-request-failed' => 'تعذّر الاتصال. تحقق من الشبكة.',
+      'weak-password' => 'كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل.',
+      'email-already-in-use' => 'هذا البريد مسجّل بالفعل. سجّل الدخول.',
+      'operation-not-allowed' => 'تسجيل الدخول بالبريد غير مفعّل. راجع الإعدادات.',
+      'requires-recent-login' => 'سجّل الدخول مجددًا لإتمام هذا الإجراء.',
       _ => 'فشل تسجيل الدخول ($code).',
     };
