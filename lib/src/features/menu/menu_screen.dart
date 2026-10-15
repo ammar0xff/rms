@@ -233,7 +233,7 @@ class _StationGroup extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: c.maxWidth >= 700 ? 2 : 1,
-              mainAxisExtent: 136,
+              mainAxisExtent: 152,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
