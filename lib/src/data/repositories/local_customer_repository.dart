@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
+import '../../domain/models/audit_entry.dart';
 import '../../domain/models/customer.dart';
 import '../local/audit_log.dart';
 import '../local/local_database.dart';
@@ -93,6 +94,17 @@ class LocalCustomerRepository implements CustomerRepository {
           .record(customer.id)
           .put(txn, customer.toRecord());
       await _outbox.append(txn, entry);
+      await _audit.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.createCustomer,
+          entityType: 'customer',
+          entityId: customer.id,
+          summary: 'عميل جديد · ${customer.name}',
+          at: now,
+        ),
+      );
     });
     AppLogger.info(
         'Customer ${customer.id} queued (offline=$createdOffline).');

@@ -296,7 +296,7 @@ Future<AppServices> _resolveAuth(
     await Firebase.initializeApp(options: config.toOptions());
     AppLogger.info('Firebase initialized (env=${config.environment}).');
     final sync = _buildSync(outbox, orders, payments, deliveries, cashSessions,
-        approvals, kitchen, inventory, suppliers, purchases, customers);
+        approvals, menu, kitchen, inventory, suppliers, purchases, customers);
     if (sync != null) unawaited(sync.start());
     try {
       SyncMonitor.instance.attach(sync: sync, outbox: outbox);
@@ -378,6 +378,7 @@ SyncService? _buildSync(
   LocalDeliveryRepository? deliveries,
   LocalCashSessionRepository? cashSessions,
   LocalApprovalRepository? approvals,
+  LocalMenuRepository? menu,
   LocalKitchenRepository? kitchen,
   LocalInventoryRepository? inventory,
   LocalSupplierRepository? suppliers,
@@ -389,8 +390,8 @@ SyncService? _buildSync(
     transport: FirestoreSyncTransport(),
     outbox: outbox,
     onApplied: (entry) async {
-      await kitchen?.applySynced(entry);
       await menu?.applySynced(entry);
+      await kitchen?.applySynced(entry);
       await orders.applySynced(entry);
       await payments?.applySynced(entry);
       await deliveries?.applySynced(entry);

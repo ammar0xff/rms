@@ -10,7 +10,6 @@ import '../../core/widgets/rms_table.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/local/outbox/outbox_status.dart';
-import '../../data/repositories/customer_repository.dart';
 import '../../domain/models/customer.dart';
 
 class CustomersScreen extends StatefulWidget {

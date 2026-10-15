@@ -17,6 +17,7 @@ enum AuditAction {
   receivePurchase('استلام أمر شراء'),
   cancelPurchase('إلغاء أمر شراء'),
   paySupplier('تسديد لمورد'),
+  createCustomer('إنشاء عميل'),
   schemaMigration('ترحيل المخطط المحلي');
 
   const AuditAction(this.label);

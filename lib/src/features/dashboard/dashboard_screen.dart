@@ -498,6 +498,36 @@ class _AlertsPanelState extends State<_AlertsPanel> {
               const SizedBox(height: 10),
             ],
           const Divider(height: 20, color: AppColors.borderSubtle),
+          Row(
+            children: [
+              StatusDot(tone: monitor.conflicts > 0 ? StatusTone.negative : StatusTone.positive),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  monitor.conflicts > 0
+                      ? '${monitor.conflicts} تعارضات غير محلولة'
+                      : 'لا توجد تعارضات',
+                  style: AppText.tableCellPrimary,
+                ),
+              ),
+              if (monitor.conflicts > 0)
+                const Icon(Icons.chevron_right, size: 14, color: AppColors.fgGhost),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const StatusDot(tone: StatusTone.info),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('مزامنة القائمة: مخزنة محليًا', style: AppText.tableCellPrimary)),
+              Text(_sinceLabel(monitor), style: AppText.caption),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   String _sinceLabel(SyncMonitor monitor) {
     if (monitor.total == 0) return 'لم تتم المزامنة بعد';
     final d = monitor.sinceLastSync;
