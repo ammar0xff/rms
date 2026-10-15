@@ -45,6 +45,39 @@ class RoleHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = roleAccent(role);
+    final identity = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          kicker,
+          style: AppText.label.copyWith(
+            color: accent,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(title, style: AppText.h1),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(subtitle!, style: AppText.body),
+        ],
+      ],
+    );
+    final figure = value == null
+        ? null
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value!,
+                style: AppText.hero.copyWith(
+                  fontSize: 32,
+                  color: AppColors.fg,
+                ),
+              ),
+              if (valueLabel != null) Text(valueLabel!, style: AppText.caption),
+            ],
+          );
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
@@ -63,47 +96,31 @@ class RoleHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+          LayoutBuilder(
+            builder: (context, c) {
+              // The big figure needs ~150px; below 560px it sits under the
+              // title instead of squeezing it into overflow.
+              if (figure == null || c.maxWidth >= 560) {
+                return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      kicker,
-                      style: AppText.label.copyWith(
-                        color: accent,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(title, style: AppText.h1),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(subtitle!, style: AppText.body),
+                    Expanded(child: identity),
+                    if (figure != null) ...[
+                      const SizedBox(width: 12),
+                      Flexible(child: figure),
                     ],
                   ],
-                ),
-              ),
-              if (value != null) ...[
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      value!,
-                      style: AppText.hero.copyWith(
-                        fontSize: 32,
-                        color: AppColors.fg,
-                      ),
-                    ),
-                    if (valueLabel != null)
-                      Text(valueLabel!, style: AppText.caption),
-                  ],
-                ),
-              ],
-            ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  identity,
+                  const SizedBox(height: 12),
+                  figure,
+                ],
+              );
+            },
           ),
           if (action != null) ...[
             const SizedBox(height: 12),

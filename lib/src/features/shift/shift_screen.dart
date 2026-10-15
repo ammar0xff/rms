@@ -109,7 +109,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
         children: [
           RoleHero(
             role: AppRole.cashier,
-            kicker: 'الكاشير · شيفت النهاردة',
+            kicker: 'شيفت النهاردة',
             title: !_hasStore
                 ? 'مفيش مخزن متاح'
                 : (_stats.orders == 0 ? 'شيفت جديد' : 'شيفت شغال'),
