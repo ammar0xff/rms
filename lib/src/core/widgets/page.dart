@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 
 class PageBody extends StatelessWidget {
+  /// On wide screens the content caps here and centers; phones keep
+  /// edge-to-edge content with adaptive padding.
+  static const double maxContentWidth = 1160;
+
   const PageBody({
     super.key,
     required this.children,
@@ -31,11 +35,23 @@ class PageBody extends StatelessWidget {
 
     Widget content = padding == null
         ? LayoutBuilder(
-            builder: (context, c) => Padding(
-              padding: EdgeInsets.all(
-                  c.maxWidth < 600 ? 16 : AppSpacing.pagePadding),
-              child: column,
-            ),
+            builder: (context, c) {
+              final padded = Padding(
+                padding: EdgeInsets.all(
+                    c.maxWidth < 600 ? 16 : AppSpacing.pagePadding),
+                child: column,
+              );
+              // A table or hero stretched across a 1920px monitor is chrome,
+              // not layout: cap the content and center it on wide screens.
+              if (c.maxWidth <= maxContentWidth) return padded;
+              return Center(
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(maxWidth: maxContentWidth),
+                  child: padded,
+                ),
+              );
+            },
           )
         : Padding(padding: padding!, child: column);
     if (!scrollable) return content;
