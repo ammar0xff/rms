@@ -4,6 +4,7 @@ import 'package:sembast/sembast.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
@@ -30,6 +31,7 @@ class DatabaseScreen extends StatefulWidget {
 
 class _DatabaseScreenState extends State<DatabaseScreen> {
   Map<String, int> _local = const {};
+  Map<String, StoreRef<String, Map<String, Object?>>> _stores = const {};
   Map<String, int> _remote = const {};
   String? _remoteError;
   bool _loading = false;
@@ -75,21 +77,24 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
     if (db == null || !mounted) return;
     setState(() => _loading = true);
     try {
+      final refs = <String, StoreRef<String, Map<String, Object?>>>{
+        'الطلبات': LocalStores.orders,
+        'المدفوعات': LocalStores.payments,
+        'التوصيل': LocalStores.deliveries,
+        'التحصيلات': LocalStores.collections,
+        'المشتريات': LocalStores.purchases,
+        'الموردون': LocalStores.suppliers,
+        'المخزون': LocalStores.inventory,
+        'حركات المخزون': LocalStores.stockMovements,
+        'القائمة': LocalStores.menu,
+        'تذاكر المطبخ': LocalStores.kitchenTickets,
+        'العملاء': LocalStores.customers,
+        'الجلسات النقدية': LocalStores.cashSessions,
+        'الموافقات': LocalStores.approvals,
+        'التدقيق': LocalStores.audit,
+      };
       final local = <String, int>{
-        'الطلبات': await _count(db, LocalStores.orders),
-        'المدفوعات': await _count(db, LocalStores.payments),
-        'التوصيل': await _count(db, LocalStores.deliveries),
-        'التحصيلات': await _count(db, LocalStores.collections),
-        'المشتريات': await _count(db, LocalStores.purchases),
-        'الموردون': await _count(db, LocalStores.suppliers),
-        'المخزون': await _count(db, LocalStores.inventory),
-        'حركات المخزون': await _count(db, LocalStores.stockMovements),
-        'القائمة': await _count(db, LocalStores.menu),
-        'تذاكر المطبخ': await _count(db, LocalStores.kitchenTickets),
-        'العملاء': await _count(db, LocalStores.customers),
-        'الجلسات النقدية': await _count(db, LocalStores.cashSessions),
-        'الموافقات': await _count(db, LocalStores.approvals),
-        'التدقيق': await _count(db, LocalStores.audit),
+        for (final e in refs.entries) e.key: await _count(db, e.value),
       };
       final outbox = services.outbox;
       var pending = 0;
@@ -106,7 +111,10 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
       local['الصادر (مستني)'] = pending;
       local['الصادر (اتزامن)'] = synced;
       if (!mounted) return;
-      setState(() => _local = local);
+      setState(() {
+        _local = local;
+        _stores = refs;
+      });
 
       if (services.firebaseReady) await _loadRemote();
     } finally {
@@ -134,6 +142,84 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
       if (!mounted) return;
       setState(() => _remoteError = '$error');
     }
+  }
+
+  /// Shows the first five records of a local store: the answer to
+  /// "the numbers look wrong" starts with seeing actual rows.
+  Future<void> _drill(String label) async {
+    final services = AppScope.of(context);
+    final db = services.database;
+    final store = _stores[label];
+    if (db == null || store == null || !mounted) return;
+    final records =
+        await store.find(db.db, finder: Finder(limit: 5));
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppSpacing.radiusLg)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(label, style: AppText.h1),
+            const SizedBox(height: 4),
+            Text(
+              records.isEmpty
+                  ? 'المخزن فاضي'
+                  : 'أول ${records.length} صفوف',
+              style: AppText.caption,
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final r in records)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text('${r.key}',
+                                style: AppText.mono),
+                            Text(
+                              _summarize(r.value),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption,
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            RmsButton(
+              label: 'اقفل',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _summarize(Map<String, Object?> value) {
+    final s = value.entries
+        .take(3)
+        .map((e) => '${e.key}=${e.value}')
+        .join(' · ');
+    return s.length <= 120 ? s : '${s.substring(0, 120)}…';
   }
 
   Future<void> _prune() async {
@@ -170,10 +256,11 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
                 const Text('بنعدّ…', style: AppText.caption)
               else
                 for (final e in _local.entries)
-                  KeyValue(
+                  _StoreRow(
                     label: e.key,
-                    value: e.value < 0 ? '—' : '${e.value}',
-                    mono: true,
+                    count: e.value,
+                    drillable: _stores.containsKey(e.key),
+                    onDrill: () => _drill(e.key),
                   ),
               const SizedBox(height: 12),
               RmsButton(
@@ -236,6 +323,49 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// One local store row: label, count, and a drill chevron when the store
+/// behind it can show sample rows.
+class _StoreRow extends StatelessWidget {
+  const _StoreRow({
+    required this.label,
+    required this.count,
+    required this.drillable,
+    required this.onDrill,
+  });
+
+  final String label;
+  final int count;
+  final bool drillable;
+  final VoidCallback onDrill;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: drillable ? onDrill : null,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(label, style: AppText.tableCellPrimary),
+            ),
+            Text(
+              count < 0 ? '—' : '$count',
+              style: AppText.mono,
+            ),
+            if (drillable) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_left,
+                  size: 16, color: AppColors.fgGhost),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
