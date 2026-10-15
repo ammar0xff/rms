@@ -3,6 +3,8 @@ import 'package:rms/src/data/local/local_database.dart';
 import 'package:rms/src/data/local/outbox/outbox_entry.dart';
 import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/data/local/outbox/outbox_store.dart';
+import 'package:rms/src/data/repositories/local_inventory_repository.dart';
+import 'package:rms/src/domain/models/inventory_item.dart';
 import 'package:rms/src/data/repositories/local_purchase_repository.dart';
 import 'package:rms/src/data/repositories/local_supplier_repository.dart';
 import 'package:rms/src/domain/models/purchase_order.dart';
@@ -31,8 +33,21 @@ void main() {
 
   setUp(() async {
     db = await _memoryDb();
-    purchases = LocalPurchaseRepository(db);
+    final inventory = LocalInventoryRepository(db);
+    purchases = LocalPurchaseRepository(
+      db,
+      inventory: inventory,
+    );
     suppliers = LocalSupplierRepository(db);
+    await inventory.seedItems([
+      InventoryItemModel(
+        id: 'i-1',
+        name: 'صنف',
+        unit: 'قطعة',
+        onHand: 0,
+        reorderAt: 5,
+      ),
+    ]);
     await suppliers.seedSuppliers([
       SupplierModel(id: 's-1', name: 'مورد', payable: 100),
     ]);
