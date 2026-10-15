@@ -46,7 +46,7 @@ class _SignInScreenState extends State<SignInScreen> {
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'حدث خطأ غير متوقع. حاول مجددًا.');
+      if (mounted) setState(() => _error = 'حصلت مشكلة غير متوقعة. جرّب تاني.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -91,7 +91,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('تسجيل الدخول', style: AppText.h1),
+                      Text('أهلاً بيك', style: AppText.h1),
                       const SizedBox(height: 4),
                       Text(
                         services.isDemo
@@ -149,7 +149,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: RmsButton(
-                          label: _loading ? 'جارٍ الدخول…' : 'دخول',
+                          label: _loading ? 'جارٍ الدخول…' : 'ادخل',
                           icon: _loading
                               ? Icons.hourglass_top
                               : Icons.login_rounded,

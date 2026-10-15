@@ -99,7 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'بيانات تجريبية — لا يوجد مخزن محلي متاح',
+                    'بيانات تجريبية — مفيش مخزن متاح على الجهاز',
                     style: AppText.tableCellPrimary,
                   ),
                 ),
@@ -113,7 +113,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           deltaTone: DeltaTone.positive,
           subtext: useMock
               ? 'مقارنة بمتوسط 14 يومًا'
-              : 'محليًا على هذا الجهاز · ${metrics.todayOrders} طلب',
+              : 'على الجهاز ده · ${metrics.todayOrders} أوردر',
           spark: useMock ? MockData.salesTrend : metrics.hourlySales,
         ),
         GridRow(children: [
@@ -136,13 +136,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ]),
         _SalesCard(
           data: useMock ? MockData.hourlySales : metrics.hourlySales,
-          subtitle: useMock ? 'اليوم · آخر تحديث 12:45' : 'اليوم · محلي',
+          subtitle: useMock ? 'النهاردة · آخر تحديث 12:45' : 'النهاردة · على الجهاز',
           live: !useMock && monitor.online,
           extraStats: useMock
               ? const [('الطلبات', '312'), ('داخل الصالة / توصيل', '198 / 74')]
               : [
                   ('الطلبات', '${metrics.todayOrders}'),
-                  ('غير متزامنة', '${metrics.unsyncedOrders}'),
+                  ('ما اتزامنتش', '${metrics.unsyncedOrders}'),
                 ],
         ),
         ResponsiveRow(
@@ -410,7 +410,7 @@ class _RecentOrders extends StatelessWidget {
                 ),
                 if (o.syncStatus != SyncStatus.synced) ...[
                   const SizedBox(width: 6),
-                  const Tag(label: 'محلي', tone: StatusTone.neutral),
+                  const Tag(label: 'على الجهاز', tone: StatusTone.neutral),
                 ],
               ],
             ),
@@ -467,7 +467,7 @@ class _AlertsPanelState extends State<_AlertsPanel> {
           const SizedBox(height: 12),
           if (!_hasStore)
             const Text(
-              'لا يوجد مخزن متاح لفحص المخزون.',
+              'مفيش مخزن متاح لفحص المخزون.',
               style: AppText.caption,
             )
           else if (_lowStock.isEmpty)
@@ -506,7 +506,7 @@ class _AlertsPanelState extends State<_AlertsPanel> {
                 child: Text(
                   monitor.conflicts > 0
                       ? '${monitor.conflicts} تعارضات غير محلولة'
-                      : 'لا توجد تعارضات',
+                      : 'مفيش تعارضات',
                   style: AppText.tableCellPrimary,
                 ),
               ),
@@ -519,7 +519,7 @@ class _AlertsPanelState extends State<_AlertsPanel> {
             children: [
               const StatusDot(tone: StatusTone.info),
               const SizedBox(width: 8),
-              const Expanded(child: Text('مزامنة القائمة: مخزنة محليًا', style: AppText.tableCellPrimary)),
+              const Expanded(child: Text('مزامنة القائمة: متخزنة على الجهاز', style: AppText.tableCellPrimary)),
               Text(_sinceLabel(monitor), style: AppText.caption),
             ],
           ),
@@ -529,9 +529,9 @@ class _AlertsPanelState extends State<_AlertsPanel> {
   }
 
   String _sinceLabel(SyncMonitor monitor) {
-    if (monitor.total == 0) return 'لم تتم المزامنة بعد';
+    if (monitor.total == 0) return 'لسه ما اتزامنش';
     final d = monitor.sinceLastSync;
-    if (d.inMinutes < 1) return 'الآن';
+    if (d.inMinutes < 1) return 'دلوقتي';
     if (d.inMinutes < 60) return 'قبل ${d.inMinutes} د';
     return 'قبل ${d.inHours} س';
   }
@@ -572,12 +572,12 @@ class _SyncHealthCard extends StatelessWidget {
   String _explain(SyncMonitor monitor, int percent) {
     if (monitor.total == 0) {
       return monitor.online
-          ? 'لا توجد عمليات محلية في الطابور. الجهاز متصل بالخادم.'
-          : 'لا توجد عمليات في الطابور المحلي. ستبدأ المزامنة عند استعادة الاتصال.';
+          ? 'مفيش عمليات على الجهاز في الطابور. الجهاز متصل بالسيرفر.'
+          : 'مفيش عمليات في الطابور على الجهاز. المزامنة هتبدأ لما الاتصال يرجع.';
     }
-    final synced = 'تمت مزامنة $percent% من ${monitor.total} عملية على هذا الجهاز.';
-    if (monitor.online) return '$synced الجهاز متصل بالخادم.';
-    return '$synced يعمل دون اتصال — ${monitor.pending} عملية في الطابور المحلي.';
+    final synced = 'اتزامن $percent% من ${monitor.total} عملية على الجهاز ده.';
+    if (monitor.online) return '$synced الجهاز متصل بالسيرفر.';
+    return '$synced شغال من غير نت — ${monitor.pending} عملية في الطابور على الجهاز.';
   }
 }
 
@@ -641,7 +641,7 @@ class _BranchCard extends StatelessWidget {
   static String _coverageLabel(ConsolidationSnapshot snapshot) {
     if (snapshot.staleCount > 0) return '${snapshot.staleCount} متأخر';
     if (snapshot.missingCount > 0) return '${snapshot.missingCount} بلا بيانات';
-    return 'مكتمل';
+    return 'خلصان';
   }
 
   static StatusTone _coverageTone(ConsolidationSnapshot snapshot) {

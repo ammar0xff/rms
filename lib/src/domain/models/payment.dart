@@ -2,8 +2,8 @@ import '../../data/local/outbox/outbox_status.dart';
 
 /// How a payment was collected.
 enum PaymentMethod {
-  cash('نقدي'),
-  card('بطاقة');
+  cash('كاش'),
+  card('فيزا');
 
   const PaymentMethod(this.label);
 

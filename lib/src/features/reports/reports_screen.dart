@@ -60,7 +60,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     if (snapshot == null) return;
     await Clipboard.setData(ClipboardData(text: snapshot.toCsv()));
     if (!mounted) return;
-    _notify('تم نسخ التقرير بصيغة CSV إلى الحافظة.');
+    _notify('اتنسخ التقرير CSV على الحافظة.');
   }
 
   void _notify(String message) {
@@ -80,7 +80,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             icon: Icons.insights_outlined,
             title: 'التقارير غير متاحة',
             message:
-                'لا يتوفر مخزن محلي في هذه الجلسة، لذا لا يمكن بناء التقارير من البيانات المعتمدة.',
+                'مفيش مخزن محلي في الجلسة دي، فمش هنقدر نبني التقارير.',
           ),
         ],
       );
@@ -102,12 +102,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ],
                 IconBtn(
                   icon: Icons.refresh,
-                  tooltip: 'تحديث',
+                  tooltip: 'حدّث',
                   onPressed: _load,
                 ),
                 const SizedBox(width: 8),
                 RmsButton(
-                  label: 'تصدير CSV',
+                  label: 'نزّل CSV',
                   icon: Icons.download,
                   onPressed: snapshot == null ? null : _exportCsv,
                 ),
@@ -120,7 +120,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: SectionHeader(
                       title: 'التقارير',
                       subtitle:
-                          'قراءة محلية من المخازن الإضافة-فقط · تبقى متسقة دون اتصال',
+                          'قراية من المخازن على الجهاز · شغالة من غير نت',
                     ),
                   ),
                   actions,
@@ -133,7 +133,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SectionHeader(
                   title: 'التقارير',
                   subtitle:
-                      'قراءة محلية من المخازن الإضافة-فقط · تبقى متسقة دون اتصال',
+                      'قراية من المخازن على الجهاز · شغالة من غير نت',
                 ),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
@@ -146,7 +146,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
         if (snapshot == null)
           const SurfaceCard(
-            child: Text('جارٍ تجميع البيانات…', style: AppText.caption),
+            child: Text('بنجمّع البيانات دلوقتي…', style: AppText.caption),
           )
         else ...[
           _hero(snapshot),
@@ -175,7 +175,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'تُحسب كل الأرقام من السجلات الإضافة-فقط (الطلبات، الدفعات، التحصيلات، دفتر المخزون، أوامر الشراء)، لذا تبقى متسقة بعد العمليات المتزامنة وانقطاع الاتصال. يشير عدد العمليات قيد المزامنة إلى مدى تأخر البيانات عن الخادم.',
+                    'كل الأرقام من السجلات الإضافة-فقط (الأوردرات، الدفعات، التحصيلات، دفتر المخزون، أوامر الشراء)، فمتسقة بعد المزامنة وانقطاع النت. عدد اللي بيتزامن يبيّن التأخير عن السيرفر.',
                     style: AppText.body,
                   ),
                 ),
@@ -225,15 +225,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
       StatCard(
         label: 'صافي التحصيل',
         value: money(snapshot.payments.net),
-        delta: 'استردادات ${money(snapshot.payments.refunds)}',
+        delta: 'استرجاعات ${money(snapshot.payments.refunds)}',
         deltaTone: snapshot.payments.refunds > 0
             ? DeltaTone.negative
             : DeltaTone.positive,
       ),
       StatCard(
-        label: 'قيد المزامنة',
+        label: 'بيتزامن',
         value: '${snapshot.pendingOperations}',
-        delta: snapshot.isStale ? 'بيانات غير مؤكدة' : 'متزامن بالكامل',
+        delta: snapshot.isStale ? 'بيانات غير مؤكدة' : 'اتزامن بالكامل',
         deltaTone: pendingTone,
       ),
       StatCard(
@@ -265,7 +265,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: SectionHeader(
               title: 'اتجاه المبيعات',
-              subtitle: 'نافذة متجددة حسب تواريخ الإنشاء المحلية',
+              subtitle: 'نافذة بتتجدد حسب تواريخ الإنشاء على الجهاز',
             ),
           ),
           Padding(
@@ -368,7 +368,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ('أقل من حد الطلب', '${inventory.lowCount}'),
             ('إجمالي الوحدات', _qty(inventory.onHandUnits)),
             ('حركات السجل', '${inventory.movementCount}'),
-            ('حركات قيد المزامنة', '${inventory.pendingMovements}'),
+            ('حركات بيتزامن', '${inventory.pendingMovements}'),
             ('وارد / صادر', '${_qty(inventory.receivedIn)} / ${_qty(inventory.issuedOut)}'),
           ]),
         ],
@@ -388,25 +388,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
           const SizedBox(height: 16),
           _MixRow(
-            label: 'نقدي',
+            label: 'كاش',
             value: money(payments.cash),
             pct: total <= 0 ? '0%' : '${(payments.cash / total * 100).round()}%',
             color: AppColors.positive,
           ),
           _MixRow(
-            label: 'بطاقة',
+            label: 'فيزا',
             value: money(payments.card),
             pct: total <= 0 ? '0%' : '${(payments.card / total * 100).round()}%',
             color: AppColors.info,
           ),
           _MixRow(
-            label: 'استردادات',
+            label: 'استرجاعات',
             value: money(payments.refunds),
             pct: '${payments.refundCount}',
             color: AppColors.negative,
           ),
           _MixRow(
-            label: 'تحصيلات التوصيل',
+            label: 'تحصيلات الدليفري',
             value: money(payments.collections),
             pct: '${payments.collectionsCount}',
             color: AppColors.purple,
@@ -423,8 +423,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Expanded(
                 child: Text(
                   payments.offlinePending > 0
-                      ? 'مدفوعات دون اتصال بانتظار التسوية'
-                      : 'لا مدفوعات معلّقة محليًا',
+                      ? 'مدفوعات من غير نت مستنية التسوية'
+                      : 'مفيش مدفوعات معلّقة على الجهاز',
                   style: AppText.tableCell,
                 ),
               ),
@@ -475,7 +475,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         children: [
           const SectionHeader(
             title: 'الجلسات النقدية',
-            subtitle: 'المتوقع مقابل المعدود عند الإغلاق',
+            subtitle: 'المتوقع مقابل المعدود عند القفل',
           ),
           const SizedBox(height: 12),
           KvPanel(pairs: [
@@ -522,7 +522,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           if (entries.isEmpty)
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Text('لا توجد أحداث مسجلة بعد.', style: AppText.caption),
+              child: Text('مفيش أحداث متسجلة لسه.', style: AppText.caption),
             )
           else
             RmsTable(
@@ -552,9 +552,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   static String _freshnessLabel(ReportsSnapshot snapshot) {
     final pending = snapshot.pendingOperations;
-    final suffix = pending > 0 ? ' · $pending قيد المزامنة' : '';
+    final suffix = pending > 0 ? ' · $pending بيتزامن' : '';
     if (snapshot.lastSyncedAt == null) {
-      return 'لا مزامنة بعد$suffix';
+      return 'مفيش مزامنة لسه$suffix';
     }
     return 'آخر مزامنة ${_relative(DateTime.now().difference(snapshot.lastSyncedAt!))}$suffix';
   }
@@ -568,7 +568,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   static String _relative(Duration age) {
-    if (age.inSeconds < 60) return 'الآن';
+    if (age.inSeconds < 60) return 'دلوقتي';
     if (age.inMinutes < 60) return 'قبل ${age.inMinutes} دقيقة';
     if (age.inHours < 24) return 'قبل ${age.inHours} ساعة';
     return 'قبل ${age.inDays} يوم';

@@ -103,8 +103,8 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
           }
         }
       }
-      local['الصادر (معلّق)'] = pending;
-      local['الصادر (مُزامَن)'] = synced;
+      local['الصادر (مستني)'] = pending;
+      local['الصادر (اتزامن)'] = synced;
       if (!mounted) return;
       setState(() => _local = local);
 
@@ -144,7 +144,7 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
       final removed = await outbox.pruneSynced();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حُذف $removed صفًا مُزامَنًا')),
+        SnackBar(content: Text('اتمسح $removed صف اتزامن')),
       );
       await _load();
     } finally {
@@ -158,7 +158,7 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
       children: [
         const SectionHeader(
           title: 'قاعدة البيانات',
-          subtitle: 'أدوات المطوّر · المحلي والخادم',
+          subtitle: 'أدوات المطوّر · على الجهاز والسيرفر',
         ),
         SurfaceCard(
           child: Column(
@@ -167,7 +167,7 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
               const SectionHeader(title: 'المخزن المحلي'),
               const SizedBox(height: 8),
               if (_local.isEmpty)
-                const Text('جارٍ العد…', style: AppText.caption)
+                const Text('بنعدّ…', style: AppText.caption)
               else
                 for (final e in _local.entries)
                   KeyValue(
@@ -177,7 +177,7 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
                   ),
               const SizedBox(height: 12),
               RmsButton(
-                label: _pruning ? 'جارٍ الحذف…' : 'حذف صفوف الصادر المُزامَنة',
+                label: _pruning ? 'بنمسح…' : 'امسح صفوف الصادر اللي اتزامنت',
                 icon: Icons.cleaning_services_outlined,
                 onPressed: _pruning ? null : _prune,
               ),
@@ -201,14 +201,14 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'تعذّرت القراءة: $_remoteError',
+                        'القراءة فشلت: $_remoteError',
                         style: AppText.caption,
                       ),
                     ),
                   ],
                 )
               else if (_remote.isEmpty)
-                const Text('جارٍ العد…', style: AppText.caption)
+                const Text('بنعدّ…', style: AppText.caption)
               else
                 for (final e in _remote.entries)
                   KeyValue(
@@ -230,7 +230,7 @@ class _DatabaseScreenState extends State<DatabaseScreen> {
                 ),
                 SizedBox(width: 10),
                 Expanded(
-                  child: Text('تحديث العدّادات…', style: AppText.caption),
+                  child: Text('بنحدّث العدّادات…', style: AppText.caption),
                 ),
               ],
             ),

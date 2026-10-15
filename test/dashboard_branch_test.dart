@@ -87,7 +87,7 @@ Future<void> _signIn(WidgetTester tester, AppServices services) async {
 
   await tester.enterText(find.byType(TextField).at(0), 'ammar@rms.dev');
   await tester.enterText(find.byType(TextField).at(1), 'secret');
-  await tester.tap(find.text('دخول'));
+  await tester.tap(find.text('ادخل'));
   await tester.pumpAndSettle();
 }
 

@@ -157,7 +157,7 @@ class UpdateRequiredScreen extends StatelessWidget {
                           // no exit trapped the operator with no way to reach
                           // the work that blocks the retry.
                           RmsButton(
-                            label: 'لاحقًا',
+                            label: 'بعدين',
                             variant: BtnVariant.ghost,
                             onPressed: () {
                               controller.acknowledge();
@@ -181,7 +181,7 @@ class UpdateRequiredScreen extends StatelessWidget {
                         ] else ...[
                           if (dismissible && onDismissed != null) ...[
                             RmsButton(
-                              label: 'لاحقًا',
+                              label: 'بعدين',
                               variant: BtnVariant.ghost,
                               onPressed: onDismissed,
                             ),
@@ -216,18 +216,18 @@ class UpdateRequiredScreen extends StatelessWidget {
 
   static String _bodyFor(UpdatePromptState state) {
     if (state.mode == UpdatePromptMode.working) {
-      return 'يتم تنزيل الحزمة والتحقق من بصمتها قبل التثبيت.';
+      return 'بننزّل الحزمة ونتأكد منها قبل التثبيت.';
     }
     if (state.mode == UpdatePromptMode.completed) {
-      return 'تم تثبيت الإصدار الجديد بنجاح.';
+      return 'الإصدار الجديد اتثبّت تمام.';
     }
     if (state.mode == UpdatePromptMode.failed) {
-      return 'لم يكتمل التحديث. راجع التفاصيل ثم أعد المحاولة.';
+      return 'التحديث ما خلصش. شوف التفاصيل وجرّب تاني.';
     }
     // Mandatory releases explain why the operator cannot carry on, rather than
     // leaving a blocking screen with no justification.
-    return 'هذا الإصدار مطلوب لمتابعة العمل بأمان. تُحفظ أي أعمال محلية غير '
-        'متزامنة ولا تُفقد.';
+    return 'الإصدار ده لازم عشان تكمل شغل بأمان. أي شغل على الجهاز ما اتزامنش '
+        'محفوظ ومش هيضيع.';
   }
 }
 
@@ -310,9 +310,9 @@ class _OptionalPrompt extends StatelessWidget {
             ],
             Text(
               blocked
-                  ? 'هناك أعمال محلية غير مرفوعة. يجب رفعها قبل تثبيت التحديث حتى '
-                      'لا تُفقد.'
-                  : 'يمكن تأجيل هذا التحديث. تُحفظ أي أعمال محلية معلّقة.',
+                  ? 'فيه شغل على الجهاز لسه ما اترفعش. لازم يترفع قبل التحديث '
+                      'عشان ما يضيعش.'
+                  : 'تقدر تأجل التحديث ده. أي شغل مستني محفوظ.',
               style: AppText.caption,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -320,7 +320,7 @@ class _OptionalPrompt extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 RmsButton(
-                  label: 'لاحقًا',
+                  label: 'بعدين',
                   variant: BtnVariant.ghost,
                   onPressed: onDismissed,
                 ),

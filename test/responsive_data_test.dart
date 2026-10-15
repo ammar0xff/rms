@@ -650,7 +650,7 @@ void main() {
 
       expect(find.text('e-x'), findsOneWidget);
       expect(find.text('e-y'), findsOneWidget);
-      expect(find.text('لا توجد تعارضات بانتظار الحل.'), findsNothing);
+      expect(find.text('مفيش تعارضات مستنية الحل.'), findsNothing);
     });
   });
 }

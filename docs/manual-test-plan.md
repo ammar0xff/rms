@@ -5,7 +5,7 @@ they cross process, network, timing, or human boundaries CI cannot reach.
 
 ## 0. Roles — one APK, five apps (do first)
 
-Sign in as each account in turn. Shared-device sign-out (المزيد → خروج)
+Sign in as each account in turn. Shared-device sign-out (المزيد → اخرج)
 between each; confirm the previous operator's screens are gone.
 
 - [ ] **Driver** (`driver.*@`): bottom bar is التوصيل + المزيد only. No POS,

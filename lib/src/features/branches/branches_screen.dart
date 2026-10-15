@@ -58,7 +58,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
     await Clipboard.setData(ClipboardData(text: snapshot.toCsv()));
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(content: Text('تم نسخ تقرير توحيد الفروع بصيغة CSV.')),
+      const SnackBar(content: Text('تقرير توحيد الفروع اتنسخ CSV.')),
     );
   }
 
@@ -73,7 +73,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
             icon: Icons.storefront_outlined,
             title: 'توحيد الفروع غير متاح',
             message:
-                'لا يتوفر مخزن محلي في هذه الجلسة، لذا لا يمكن تجميع بيانات الفروع.',
+                'مفيش مخزن محلي في الجلسة دي، فمش هنقدر نجمّع بيانات الفروع.',
           ),
         ],
       );
@@ -94,10 +94,10 @@ class _BranchesScreenState extends State<BranchesScreen> {
                   const SizedBox(width: 12),
                 ],
                 IconBtn(
-                    icon: Icons.refresh, tooltip: 'تحديث', onPressed: _load),
+                    icon: Icons.refresh, tooltip: 'حدّث', onPressed: _load),
                 const SizedBox(width: 8),
                 RmsButton(
-                  label: 'تصدير CSV',
+                  label: 'نزّل CSV',
                   icon: Icons.download,
                   onPressed: snapshot == null ? null : _exportCsv,
                 ),
@@ -110,7 +110,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
                     child: SectionHeader(
                       title: 'توحيد الفروع',
                       subtitle:
-                          'فرع الجهاز مقروء مباشرةً من المخازن · بقية الفروع من آخر تجميع متزامن',
+                          'فرع الجهاز مقري مباشرة من المخازن · وباقي الفروع من آخر تجميع اتزامن',
                     ),
                   ),
                   actions,
@@ -123,7 +123,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
                 const SectionHeader(
                   title: 'توحيد الفروع',
                   subtitle:
-                      'فرع الجهاز مقروء مباشرةً من المخازن · بقية الفروع من آخر تجميع متزامن',
+                      'فرع الجهاز مقري مباشرة من المخازن · وباقي الفروع من آخر تجميع اتزامن',
                 ),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
@@ -136,7 +136,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
         ),
         if (snapshot == null)
           const SurfaceCard(
-            child: Text('جارٍ تجميع بيانات الفروع…', style: AppText.caption),
+            child: Text('بنجمّع بيانات الفروع دلوقتي…', style: AppText.caption),
           )
         else ...[
           _kpiGrid(snapshot),
@@ -149,7 +149,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'يُحسب فرع هذا الجهاز لحظيًا من السجلات الإضافة-فقط، بينما تأتي بيانات بقية الفروع من آخر تجميع وُصل من الخادم. لذلك يبقى التوحيد متسقًا دون اتصال، وكل ما يتغيّر هو حداثة البيانات: الفروع المتأخرة أو التي لا تملك تجميعًا بعد تظهر بوضوح بدل أن تُحتسب صفرًا.',
+                    'فرع الجهاز ده بيتحسب لحظيًا من السجلات الإضافة-فقط، وباقي الفروع من آخر تجميع وصل من السيرفر. فالتوحيد متسق من غير نت، واللي بيتغيّر بس حداثة البيانات: الفروع المتأخرة أو اللي مفيش عندها تجميع لسه بتبان بوضوح بدل ما تتحسب صفر.',
                     style: AppText.body,
                   ),
                 ),
@@ -172,13 +172,13 @@ class _BranchesScreenState extends State<BranchesScreen> {
       StatCard(
         label: 'الطلبات',
         value: '${snapshot.totalOrders}',
-        delta: 'عبر الشبكة',
+        delta: 'على النت',
         deltaTone: DeltaTone.neutral,
       ),
       StatCard(
         label: 'التحصيل',
         value: money(snapshot.totalCollected),
-        delta: snapshot.isPartial ? 'بيانات جزئية' : 'مكتمل',
+        delta: snapshot.isPartial ? 'بيانات جزئية' : 'خلصان',
         deltaTone: snapshot.isPartial ? DeltaTone.neutral : DeltaTone.positive,
       ),
       StatCard(
@@ -275,7 +275,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
       return const Tag(label: 'مباشر', tone: StatusTone.positive);
     }
     if (!breakdown.hasData) {
-      return const Tag(label: 'لا بيانات', tone: StatusTone.neutral);
+      return const Tag(label: 'مفيش بيانات', tone: StatusTone.neutral);
     }
     if (breakdown.stale) {
       return const Tag(label: 'متأخر', tone: StatusTone.warning);
@@ -294,9 +294,9 @@ class _BranchesScreenState extends State<BranchesScreen> {
       return '${snapshot.staleCount} فرع متأخر';
     }
     if (snapshot.missingCount > 0) {
-      return '${snapshot.missingCount} فرع بلا بيانات';
+      return '${snapshot.missingCount} فرع من غير بيانات';
     }
-    return 'مكتمل · ${snapshot.reportingCount} فرع';
+    return 'خلصان · ${snapshot.reportingCount} فرع';
   }
 
   static StatusTone _freshnessTone(ConsolidationSnapshot snapshot) {
@@ -308,7 +308,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
   static String _age(DateTime? at) {
     if (at == null) return '—';
     final age = DateTime.now().difference(at);
-    if (age.inSeconds < 60) return 'الآن';
+    if (age.inSeconds < 60) return 'دلوقتي';
     if (age.inMinutes < 60) return 'قبل ${age.inMinutes} دقيقة';
     if (age.inHours < 24) return 'قبل ${age.inHours} ساعة';
     return 'قبل ${age.inDays} يوم';

@@ -61,7 +61,7 @@ class _SystemScreenState extends State<SystemScreen> {
                       ),
                     ),
                     RmsButton(
-                      label: _syncing ? 'جارٍ المزامنة…' : 'مزامنة الآن',
+                      label: _syncing ? 'جارٍ المزامنة…' : 'مزامنة دلوقتي',
                       icon: Icons.sync,
                       onPressed: _syncing ? null : _syncNow,
                     ),
@@ -144,7 +144,7 @@ class _SystemScreenState extends State<SystemScreen> {
                     final lines = AppLogger.recentLines(limit: 12);
                     if (lines.isEmpty) {
                       return const Text(
-                        'لا توجد أحداث مسجلة في هذه الجلسة.',
+                        'مفيش أحداث مسجلة في هذه الجلسة.',
                         style: AppText.caption,
                       );
                     }

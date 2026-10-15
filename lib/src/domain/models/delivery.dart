@@ -7,10 +7,10 @@ import 'collection.dart';
 /// back-office settlement live on [CollectionModel] and [SettlementStatus], so a
 /// delivered order is never conflated with a financially settled one.
 enum DeliveryState {
-  waiting('بانتظار الاستلام'),
+  waiting('مستني الاستلام'),
   assigned('مُسند'),
   onRoute('في الطريق'),
-  delivered('تم التسليم');
+  delivered('اتسلّم');
 
   const DeliveryState(this.label);
 

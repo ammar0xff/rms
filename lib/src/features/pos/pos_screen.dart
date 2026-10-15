@@ -153,7 +153,7 @@ class _PosScreenState extends State<PosScreen>
     if (orders == null) {
       _submitting = false;
       messenger.showSnackBar(
-        const SnackBar(content: Text('تعذر الحفظ: التخزين المحلي غير متاح')),
+        const SnackBar(content: Text('الحفظ فشل: التخزين على الجهاز مش متاح')),
       );
       return;
     }
@@ -207,7 +207,7 @@ class _PosScreenState extends State<PosScreen>
         SnackBar(
           content: Text(
             payment == null
-                ? 'تم إنشاء الطلب ${order.provisionalOrderNumber} · يُزامَن عند الاتصال'
+                ? 'اتعمل الأوردر ${order.provisionalOrderNumber} · هيتزامن عند الاتصال'
                 : 'تم تحصيل ${money(order.total)} (${payment.method.label}) · ${order.provisionalOrderNumber}',
           ),
         ),
@@ -216,7 +216,7 @@ class _PosScreenState extends State<PosScreen>
       if (!mounted) return;
       setState(() => _submitting = false);
       messenger.showSnackBar(
-        const SnackBar(content: Text('فشل إنشاء الطلب، حاول مرة أخرى')),
+        const SnackBar(content: Text('الأوردر ما اتعملش، جرّب تاني')),
       );
     }
   }
@@ -479,7 +479,7 @@ class _MenuPaneState extends State<_MenuPane> {
                           style: AppText.body
                               .copyWith(color: AppColors.fgBright),
                           decoration: InputDecoration(
-                            hintText: 'ابحث في القائمة أو امسح الباركود',
+                            hintText: 'دوّر في القائمة أو امسح الباركود',
                             hintStyle: AppText.caption
                                 .copyWith(color: AppColors.fgDim),
                             border: InputBorder.none,
@@ -528,8 +528,8 @@ class _MenuPaneState extends State<_MenuPane> {
           child: items.isEmpty
               ? const EmptyState(
                   icon: Icons.restaurant_menu_outlined,
-                  title: 'لا توجد أصناف',
-                  message: 'أضف أصنافًا من شاشة القائمة لبدء البيع.',
+                  title: 'مفيش أصناف',
+                  message: 'ضيف أصناف من شاشة القائمة عشان تبدأ البيع.',
                 )
               : GridView.builder(
             padding: const EdgeInsets.all(20),
@@ -788,8 +788,8 @@ class _CartPane extends StatelessWidget {
             child: cart.isEmpty
                 ? const EmptyState(
                     icon: Icons.shopping_bag_outlined,
-                    title: 'لا توجد أصناف بعد',
-                    message: 'اضغط على أي منتج لإضافته إلى الطلب.',
+                    title: 'مفيش أصناف بعد',
+                    message: 'اضغط على أي منتج عشان تضيفه للأوردر.',
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -832,7 +832,7 @@ class _CartPane extends StatelessWidget {
                     const StatusDot(tone: StatusTone.warning),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text('يُحفظ محليًا أولاً ثم تتم المزامنة عند الاتصال',
+                      child: Text('يتحفظ على الجهاز الأول وبعدين بيتزامن عند الاتصال',
                           style: AppText.caption.copyWith(color: AppColors.fgDim)),
                     ),
                   ],
@@ -958,7 +958,7 @@ class _OfflineBanner extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'وضع العمل دون اتصال — قائمة مخزنة محليًا. تُحفظ الطلبات محليًا وتُزامن تلقائيًا عند استعادة الاتصال.',
+                  'شغال من غير نت — القائمة متخزنة على الجهاز. الأوردرات بتتحفظ على الجهاز وبتتزامن لوحدها لما النت يرجع.',
                   style: AppText.caption.copyWith(color: AppColors.warning.withValues(alpha: 0.9)),
                 ),
               ),
@@ -1073,7 +1073,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                 ),
             ] else
               Text(
-                'سيتم تسجيل الدفعة على جهاز نقاط البيع.',
+                'الدفعة هتتسجل على الكاشير.',
                 style: AppText.caption,
               ),
             ],
@@ -1087,7 +1087,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         RmsButton(
-          label: 'تأكيد التحصيل',
+          label: 'أكّد التحصيل',
           variant: BtnVariant.primary,
           icon: Icons.payments_outlined,
           onPressed: _canConfirm

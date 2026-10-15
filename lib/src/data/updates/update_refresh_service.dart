@@ -5,16 +5,16 @@ import 'remote_update_source.dart';
 /// Why a refresh ended the way it did.
 enum UpdateRefreshOutcome {
   /// A newer manifest was fetched and cached.
-  updated('تم تحديث بيان الإصدار'),
+  updated('بيان الإصدار اتحدّث'),
 
   /// The backend offered nothing newer, so the cache was left alone.
-  unchanged('لا يوجد إصدار أحدث'),
+  unchanged('مفيش إصدار أحدث'),
 
   /// The backend could not be reached; the cached document still stands.
-  offline('تعذّر الوصول إلى الخادم'),
+  offline('فشل الوصول للسيرفر'),
 
   /// A fetched manifest replaced the cache, or a withdrawn one cleared it.
-  withdrawn('سُحب الإصدار المعلن'),
+  withdrawn('اتسحب الإصدار المعلن'),
 
   /// The device is configured to ignore published releases.
   skipped('التحديثات غير مفعّلة على هذه المنصة');

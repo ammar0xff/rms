@@ -92,7 +92,7 @@ Future<void> _openSettings(WidgetTester tester, AppServices services) async {
 
   await tester.enterText(find.byType(TextField).at(0), 'ammar@rms.dev');
   await tester.enterText(find.byType(TextField).at(1), 'secret');
-  await tester.tap(find.text('دخول'));
+  await tester.tap(find.text('ادخل'));
   await tester.pumpAndSettle();
 
   await tester.tap(find.text('الإعدادات'));
@@ -122,7 +122,7 @@ void main() {
     expect(find.widgetWithText(Tag, 'غير متاح'), findsOneWidget);
     expect(find.text('سبب عدم الإتاحة'), findsOneWidget);
     expect(find.text('النظام الأساسي غير مطابق'), findsOneWidget);
-    expect(find.text('لا يتوفر تحديث لهذا الجهاز'), findsOneWidget);
+    expect(find.text('مفيش تحديث لهذا الجهاز'), findsOneWidget);
   });
 
   testWidgets('settings update card is up to date without a cached manifest',

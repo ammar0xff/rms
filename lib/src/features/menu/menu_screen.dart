@@ -54,7 +54,7 @@ class _MenuScreenState extends State<MenuScreen> {
     final messenger = ScaffoldMessenger.of(context);
     if (menu == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('تعذر الحفظ: التخزين المحلي غير متاح')),
+        const SnackBar(content: Text('الحفظ فشل: التخزين على الجهاز مش متاح')),
       );
       return;
     }
@@ -67,7 +67,7 @@ class _MenuScreenState extends State<MenuScreen> {
     await _load();
     if (!mounted) return;
     messenger.showSnackBar(
-      SnackBar(content: Text('أُضيف الصنف «${created.name}» إلى القائمة المحلية')),
+      SnackBar(content: Text('اتضاف الصنف «${created.name}» للقائمة على الجهاز')),
     );
   }
 
@@ -118,7 +118,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   const Expanded(
                     child: SectionHeader(
                       title: 'القائمة والأسعار',
-                      subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
+                      subtitle: 'نسخة متخزنة · السيرفر هو المرجع، وبتتحدث مع المزامنة',
                     ),
                   ),
                   actions,
@@ -132,7 +132,7 @@ class _MenuScreenState extends State<MenuScreen> {
               children: [
                 const SectionHeader(
                   title: 'القائمة والأسعار',
-                  subtitle: 'نسخة مخزنة · الخادم هو المرجع، تُحدث عند المزامنة',
+                  subtitle: 'نسخة متخزنة · السيرفر هو المرجع، وبتتحدث مع المزامنة',
                 ),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
@@ -183,8 +183,8 @@ class _MenuScreenState extends State<MenuScreen> {
                   padding: EdgeInsets.all(20),
                   child: EmptyState(
                     icon: Icons.restaurant_menu_outlined,
-                    title: 'لا توجد أصناف',
-                    message: 'أنشئ أول صنف بزر صنف جديد.',
+                    title: 'مفيش أصناف',
+                    message: 'ضيف أول صنف من زرار صنف جديد.',
                   ),
                 )
               : RmsTable(
@@ -226,7 +226,7 @@ class _MenuScreenState extends State<MenuScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'تُتطلب مسارات عمل مصرح بها عبر الإنترنت لتعديل القائمة. تستمر الأجهزة دون اتصال في البيع من آخر نسخة مزامنة؛ ويحذر التطبيق عندما يتجاوز عمر النسخة الحد الأقصى.',
+                  'تعديل القائمة محتاج نت وصلاحية. من غير نت البيع شغال من آخر نسخة متزامنة، والتطبيق بينبهك لو النسخة قدمت.',
                   style: AppText.body,
                 ),
               ),
@@ -269,7 +269,7 @@ class _MenuItemDialogState extends State<_MenuItemDialog> {
     final station = _station.text.trim();
     final price = double.tryParse(_price.text.trim());
     if (name.isEmpty || category.isEmpty || station.isEmpty || price == null || price <= 0) {
-      setState(() => _error = 'أكمل جميع الحقول بسعر صالح أكبر من صفر');
+      setState(() => _error = 'كمّل كل الحقول بسعر سليم أكبر من صفر');
       return;
     }
     Navigator.of(context).pop(
@@ -331,7 +331,7 @@ class _MenuItemDialogState extends State<_MenuItemDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         RmsButton(
-          label: 'حفظ',
+          label: 'احفظ',
           variant: BtnVariant.primary,
           icon: Icons.check,
           onPressed: _submit,

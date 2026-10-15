@@ -76,7 +76,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField).at(0), email);
       await tester.enterText(find.byType(TextField).at(1), 'secret');
-      await tester.tap(find.text('دخول'));
+      await tester.tap(find.text('ادخل'));
       await tester.pumpAndSettle();
     }
 
@@ -111,7 +111,7 @@ void main() {
 
       // Shift-first: the board is on screen, and the bar carries shift,
       // sale and more — not kitchen or delivery.
-      expect(find.text('وردية اليوم'), findsOneWidget);
+      expect(find.text('شيفت النهاردة'), findsOneWidget);
       expect(
         tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
             .items,
@@ -146,7 +146,7 @@ void main() {
 
       // The driver branch renders its own empty state; the 8-column ops
       // table and the drivers panel never mount for this role.
-      expect(find.text('لا توجد مهمات مفتوحة. يوم موفق!'), findsOneWidget);
+      expect(find.text('مفيش مهمات مفتوحة. يوم موفق!'), findsOneWidget);
       expect(find.text('السائقون'), findsNothing);
       expect(find.text('قائمة تسوية التحصيلات المعلقة'), findsNothing);
     });
@@ -176,11 +176,11 @@ void main() {
 
       await tester.tap(find.text('المزيد'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('خروج'));
+      await tester.tap(find.text('اخرج'));
       await tester.pumpAndSettle();
 
       // Back where a signed-out operator belongs.
-      expect(find.text('دخول'), findsOneWidget);
+      expect(find.text('ادخل'), findsOneWidget);
     });
   });
 

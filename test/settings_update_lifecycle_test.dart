@@ -432,7 +432,7 @@ void main() {
     expect(find.text('سبب عدم الإتاحة'), findsOneWidget);
     expect(find.text('النظام الأساسي غير مطابق'), findsOneWidget);
     expect(
-      find.text('أعمال محلية معلّقة تحتاج إقرارًا'),
+      find.text('أعمال محلية معلّقة محتاجة إقرار'),
       findsNothing,
     );
   });

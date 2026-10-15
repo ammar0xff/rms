@@ -86,7 +86,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
       createdOffline: true,
     );
     await _load();
-    _notify('تم حفظ المورد محليًا.');
+    _notify('المورد اتحفظ على الجهاز.');
   }
 
   Future<void> _createPurchase() async {
@@ -105,7 +105,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
       createdOffline: true,
     );
     await _load();
-    _notify('تم إنشاء أمر الشراء محليًا.');
+    _notify('أمر الشراء اتعمل على الجهاز.');
   }
 
   Future<void> _receive(PurchaseOrderModel purchase) async {
@@ -115,9 +115,9 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
     await _load();
     _notify(switch (outcome) {
       PurchaseReceiveOutcome.received =>
-        'تم استلام الأمر وترحيل بنوده إلى المخزون.',
-      PurchaseReceiveOutcome.alreadyReceived => 'هذا الأمر مستلَم بالفعل.',
-      PurchaseReceiveOutcome.notFound => 'لم يُعثر على أمر الشراء.',
+        'الأمر اتسلّم واترحّل للمخزون.',
+      PurchaseReceiveOutcome.alreadyReceived => 'الأمر ده اتسلّم قبل كده.',
+      PurchaseReceiveOutcome.notFound => 'أمر الشراء مش موجود.',
     });
   }
 
@@ -127,10 +127,10 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
     final outcome = await repo.cancelPurchase(purchase.id, createdOffline: true);
     await _load();
     _notify(switch (outcome) {
-      PurchaseCancelOutcome.cancelled => 'تم إلغاء أمر الشراء.',
-      PurchaseCancelOutcome.alreadyReceived => 'لا يمكن إلغاء أمر مستلَم بالفعل.',
-      PurchaseCancelOutcome.alreadyCancelled => 'هذا الأمر ملغى بالفعل.',
-      PurchaseCancelOutcome.notFound => 'لم يُعثر على أمر الشراء.',
+      PurchaseCancelOutcome.cancelled => 'أمر الشراء اتلغى.',
+      PurchaseCancelOutcome.alreadyReceived => 'مينفعش تلغي أمر اتسلّم قبل كده.',
+      PurchaseCancelOutcome.alreadyCancelled => 'الأمر ده اتلغى قبل كده.',
+      PurchaseCancelOutcome.notFound => 'أمر الشراء مش موجود.',
     });
   }
 
@@ -150,12 +150,12 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
     );
     await _load();
     _notify(switch (outcome) {
-      SupplierPaymentOutcome.recorded => 'تم تسجيل التسديد محليًا.',
-      SupplierPaymentOutcome.notFound => 'لم يُعثر على المورد.',
+      SupplierPaymentOutcome.recorded => 'التسديد اتسجّل على الجهاز.',
+      SupplierPaymentOutcome.notFound => 'المورد مش موجود.',
       SupplierPaymentOutcome.invalidAmount =>
-        'أدخل مبلغًا صحيحًا أكبر من صفر.',
+        'دخّل مبلغ صح أكبر من صفر.',
       SupplierPaymentOutcome.exceedsPayable =>
-        'المبلغ يتجاوز المستحق على المورد.',
+        'المبلغ أكبر من المستحق على المورد.',
     });
   }
 
@@ -174,7 +174,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
           StatCard(
             label: 'أوامر مفتوحة',
             value: '${_open.length}',
-            delta: 'بانتظار الاستلام',
+            delta: 'مستني الاستلام',
             deltaTone: _open.isEmpty ? DeltaTone.positive : DeltaTone.neutral,
           ),
           StatCard(
@@ -199,7 +199,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'استلام أمر شراء يُرحّل بنوده إلى دفتر المخزون في نفس المعاملة، لذا لا يمكن أن ينفصل المخزون عن الأمر ولا أن يتكرر الاستلام.',
+                  'استلام أمر الشراء بيحوّل بنوده لدفتر المخزون في نفس العملية، فالمخزون والأمر مينفصلوش والاستلام ميتكررش.',
                   style: AppText.body,
                 ),
               ),
@@ -228,7 +228,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
                   ),
                 ),
                 RmsButton(
-                  label: 'إضافة مورد',
+                  label: 'ضيف مورد',
                   icon: Icons.person_add_alt,
                   variant: BtnVariant.secondary,
                   onPressed: _addSupplier,
@@ -292,7 +292,7 @@ class _PurchasingScreenState extends State<PurchasingScreen> {
                 const Expanded(
                   child: SectionHeader(
                     title: 'أوامر الشراء',
-                    subtitle: 'استلام الأمر يزيد المخزون',
+                    subtitle: 'استلام الأمر بيزوّد المخزون',
                   ),
                 ),
                 RmsButton(
@@ -451,7 +451,7 @@ class _SupplierDialogState extends State<_SupplierDialog> {
                   );
                 }
               : null,
-          child: const Text('حفظ'),
+          child: const Text('احفظ'),
         ),
       ],
     );
@@ -520,7 +520,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
             if (entered && !valid) ...[
               const SizedBox(height: 8),
               Text(
-                'يجب أن يكون المبلغ أكبر من صفر ولا يتجاوز المستحق.',
+                'لازم المبلغ يبقى أكبر من صفر وميعدّيش المستحق.',
                 style: AppText.caption.copyWith(color: AppColors.negative),
               ),
             ],
@@ -673,7 +673,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                   ),
                 ),
               const Divider(height: 20),
-              Text('إضافة بند', style: AppText.caption),
+              Text('ضيف بند', style: AppText.caption),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
@@ -712,7 +712,7 @@ class _PurchaseDialogState extends State<_PurchaseDialog> {
                   ),
                   const SizedBox(width: 10),
                   RmsButton(
-                    label: 'إضافة',
+                    label: 'ضيف',
                     variant: BtnVariant.secondary,
                     dense: true,
                     onPressed: _addLine,

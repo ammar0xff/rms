@@ -1,7 +1,7 @@
 /// How insistently the client should ask for the update.
 enum UpdatePromptMode {
   /// Nothing to offer: up to date, ineligible, or no release published.
-  none('لا يوجد تحديث'),
+  none('مفيش تحديث'),
 
   /// A mandatory release. The operator cannot carry on working until it is
   /// applied, so this is shown as a screen rather than a dismissible prompt.

@@ -193,11 +193,11 @@ abstract final class MockData {
   ];
 
   static const orders = <PosOrder>[
-    PosOrder(number: 'ORD-4821', type: 'داخل الصالة', total: 42.50, status: 'قيد التحضير', sync: SyncState.synced, time: '12:41'),
-    PosOrder(number: 'T-019', type: 'الاستلام', total: 18.00, status: 'جاهز', sync: SyncState.pending, time: '12:44', provisional: true),
+    PosOrder(number: 'ORD-4821', type: 'صالة', total: 42.50, status: 'بيتجهز', sync: SyncState.synced, time: '12:41'),
+    PosOrder(number: 'T-019', type: 'تيك أواي', total: 18.00, status: 'جاهز', sync: SyncState.pending, time: '12:44', provisional: true),
     PosOrder(number: 'ORD-4820', type: 'توصيل', total: 27.50, status: 'في الطريق', sync: SyncState.synced, time: '12:33'),
-    PosOrder(number: 'T-018', type: 'الاستلام', total: 9.50, status: 'مكتمل', sync: SyncState.conflict, time: '12:20', provisional: true),
-    PosOrder(number: 'ORD-4819', type: 'داخل الصالة', total: 63.00, status: 'مكتمل', sync: SyncState.synced, time: '12:05'),
+    PosOrder(number: 'T-018', type: 'تيك أواي', total: 9.50, status: 'خلصان', sync: SyncState.conflict, time: '12:20', provisional: true),
+    PosOrder(number: 'ORD-4819', type: 'صالة', total: 63.00, status: 'خلصان', sync: SyncState.synced, time: '12:05'),
   ];
 
   static const tickets = <KitchenTicket>[
@@ -210,7 +210,7 @@ abstract final class MockData {
   static const deliveries = <DeliveryJob>[
     DeliveryJob(id: 'DL-0093', orderRef: 'ORD-4820', driver: 'مروان ر.', address: '42 شارع الأرز، شقة 3ب', amount: 27.50, state: 'في الطريق', offline: false),
     DeliveryJob(id: 'DL-0094', orderRef: 'ORD-4822', driver: 'سارة ك.', address: '11 طريق البتولا', amount: 34.00, state: 'مُسند', offline: true),
-    DeliveryJob(id: 'DL-0095', orderRef: 'ORD-4823', driver: 'غير مُسند', address: '7 شارع الأرز', amount: 21.50, state: 'بانتظار الاستلام', offline: false),
+    DeliveryJob(id: 'DL-0095', orderRef: 'ORD-4823', driver: 'غير مُسند', address: '7 شارع الأرز', amount: 21.50, state: 'مستني الاستلام', offline: false),
     DeliveryJob(id: 'DL-0096', orderRef: 'T-019', driver: 'مروان ر.', address: 'استلام من الفرع', amount: 18.00, state: 'تم التحصيل (محلي)', offline: true),
   ];
 
@@ -238,10 +238,10 @@ abstract final class MockData {
 
   static const ledger = <LedgerRow>[
     LedgerRow(time: '12:44', type: 'نقدي', ref: 'T-019', amount: 18.00, method: 'نقدي', sync: SyncState.pending),
-    LedgerRow(time: '12:41', type: 'بطاقة', ref: 'ORD-4821', amount: 42.50, method: 'جهاز نقاط البيع', sync: SyncState.synced),
+    LedgerRow(time: '12:41', type: 'فيزا', ref: 'ORD-4821', amount: 42.50, method: 'جهاز نقاط البيع', sync: SyncState.synced),
     LedgerRow(time: '12:33', type: 'نقدي', ref: 'ORD-4820', amount: 27.50, method: 'نقدي', sync: SyncState.synced),
-    LedgerRow(time: '12:20', type: 'استرداد', ref: 'T-018', amount: -9.50, method: 'بطاقة', sync: SyncState.conflict),
-    LedgerRow(time: '12:05', type: 'بطاقة', ref: 'ORD-4819', amount: 63.00, method: 'جهاز نقاط البيع', sync: SyncState.synced),
+    LedgerRow(time: '12:20', type: 'استرجاع', ref: 'T-018', amount: -9.50, method: 'فيزا', sync: SyncState.conflict),
+    LedgerRow(time: '12:05', type: 'فيزا', ref: 'ORD-4819', amount: 63.00, method: 'جهاز نقاط البيع', sync: SyncState.synced),
     LedgerRow(time: '11:58', type: 'تحصيل', ref: 'DL-0091', amount: 31.20, method: 'نقدي', sync: SyncState.synced),
   ];
 
@@ -254,7 +254,7 @@ abstract final class MockData {
   static const syncOperations = <SyncOperationRow>[
     SyncOperationRow(operationId: 'op_9f2a…', entity: 'localOrders/T-019', type: 'إنشاء طلب', status: 'pending', attempts: 0),
     SyncOperationRow(operationId: 'op_71bd…', entity: 'payments/pay_44', type: 'تسجيل دفعة', status: 'in_progress', attempts: 1),
-    SyncOperationRow(operationId: 'op_03cc…', entity: 'orders/T-018', type: 'استرداد', status: 'conflict', attempts: 3, lastError: 'تضارب في النسخة'),
+    SyncOperationRow(operationId: 'op_03cc…', entity: 'orders/T-018', type: 'استرجاع', status: 'conflict', attempts: 3, lastError: 'تضارب في النسخة'),
     SyncOperationRow(operationId: 'op_a812…', entity: 'deliveries/DL-0094', type: 'حدث توصيل', status: 'retryable_failure', attempts: 4, lastError: 'انتهت المهلة'),
     SyncOperationRow(operationId: 'op_5510…', entity: 'inventory/wings', type: 'حركة مخزون', status: 'requires_user_action', attempts: 2, lastError: 'تغيير متزامن'),
     SyncOperationRow(operationId: 'op_7c1e…', entity: 'print/kt_2212', type: 'طباعة تذكرة', status: 'synced', attempts: 1),

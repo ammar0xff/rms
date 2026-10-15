@@ -478,7 +478,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
           action: AuditAction.settleDelivery,
           entityType: 'delivery',
           entityId: entry.entityId,
-          summary: 'تسوية معتمدة من الخادم · ${delivery.orderRef}',
+          summary: 'تسوية معتمدة من السيرفر · ${delivery.orderRef}',
           at: _clock(),
           amount: delivery.amount,
         ),

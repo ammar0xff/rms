@@ -21,11 +21,11 @@ void main() {
     await tester.pumpWidget(RmsApp(services: _demoServices()));
     await tester.pumpAndSettle();
 
-    expect(find.text('تسجيل الدخول'), findsOneWidget);
+    expect(find.text('أهلاً بيك'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).at(0), 'ammar@rms.dev');
     await tester.enterText(find.byType(TextField).at(1), 'secret');
-    await tester.tap(find.text('دخول'));
+    await tester.tap(find.text('ادخل'));
     await tester.pumpAndSettle();
 
     expect(find.text('لوحة التحكم'), findsWidgets);

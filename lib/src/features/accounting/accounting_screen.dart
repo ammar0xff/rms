@@ -147,19 +147,19 @@ class _AccountingScreenState extends State<AccountingScreen> {
             deltaTone: DeltaTone.positive,
           ),
           StatCard(
-            label: 'بطاقات مسددة',
+            label: 'فيزا متسددة',
             value: money(_cardTotal),
             delta: '${_payments.where((p) => p.method == PaymentMethod.card).length} عملية',
             deltaTone: DeltaTone.positive,
           ),
           StatCard(
-            label: 'قيد المزامنة',
+            label: 'بيتزامن',
             value: money(_pendingTotal),
             delta: '${_payments.where((p) => p.syncStatus != SyncStatus.synced).length} سجل',
             deltaTone: DeltaTone.neutral,
           ),
           StatCard(
-            label: 'استردادات',
+            label: 'استرجاعات',
             value: money(_refundTotal),
             delta: '${_payments.where((p) => p.isRefund).length} مراجعة',
             deltaTone: DeltaTone.negative,
@@ -191,12 +191,12 @@ class _AccountingScreenState extends State<AccountingScreen> {
           children: [
             const SectionHeader(
               title: 'جلسة النقدية',
-              trailing: Tag(label: 'مغلقة', tone: StatusTone.neutral),
+              trailing: Tag(label: 'مقفولة', tone: StatusTone.neutral),
             ),
             const SizedBox(height: 12),
             if (closed != null) ...[
               KeyValue(
-                label: 'آخر إغلاق',
+                label: 'آخر قفل',
                 value: _time(closed.closedAt ?? closed.openedAt),
               ),
               KeyValue(
@@ -204,7 +204,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                 value: money(closed.expectedCash ?? closed.openingFloat),
               ),
               KeyValue(
-                label: 'النقد المعدود',
+                label: 'الكاش المعدود',
                 value: money(closed.countedCash ?? 0),
               ),
               KeyValue(
@@ -217,11 +217,11 @@ class _AccountingScreenState extends State<AccountingScreen> {
             ] else
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text('لم تُفتح أي جلسة نقدية بعد.', style: AppText.caption),
+                child: Text('مفيش جلسة نقدية اتفتحت لسه.', style: AppText.caption),
               ),
             const SizedBox(height: 12),
             RmsButton(
-              label: 'فتح جلسة جديدة',
+              label: 'افتح جلسة جديدة',
               icon: Icons.lock_open_outlined,
               variant: BtnVariant.primary,
               dense: false,
@@ -245,14 +245,14 @@ class _AccountingScreenState extends State<AccountingScreen> {
           for (final (k, v) in [
             ('الفتح', _time(session.openedAt)),
             ('رأس مال الفتح', money(session.openingFloat)),
-            ('مبيعات نقدية', money(_cashTotal)),
+            ('مبيعات كاش', money(_cashTotal)),
             ('الدرج المتوقع', money(expected)),
-            ('درج معدود', '— لم يُعد بعد'),
+            ('درج معدود', '— لسه ما اتعدّش'),
           ])
             KeyValue(label: k, value: v),
           const SizedBox(height: 12),
           RmsButton(
-            label: 'عدّ وإغلاق الجلسة',
+            label: 'عِدّ واقفل الجلسة',
             icon: Icons.calculate_outlined,
             dense: false,
             onPressed: repo == null ? null : () => _closeSession(session),
@@ -273,13 +273,13 @@ class _AccountingScreenState extends State<AccountingScreen> {
         children: [
           const SectionHeader(
             title: 'يحتاج مراجعة',
-            subtitle: 'الإجراءات المالية تتطلب اعتمادًا',
+            subtitle: 'الإجراءات المالية محتاجة اعتماد',
           ),
           const SizedBox(height: 12),
           if (requests.isEmpty && actions.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text('لا توجد عمليات مالية بانتظار المراجعة.',
+              child: Text('مفيش عمليات مالية مستنية المراجعة.',
                   style: AppText.caption),
             ),
           for (var i = 0; i < requests.length; i++) ...[
@@ -314,7 +314,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
             // when there is a destination for the file.
             child: SectionHeader(
               title: 'سجل المعاملات',
-              subtitle: 'إضافة فقط · إزالة التكرار عند المزامنة',
+              subtitle: 'إضافة بس · التكرار بيتمسح عند المزامنة',
             ),
           ),
           RmsTable(
@@ -330,7 +330,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
               for (final p in _payments.reversed)
                 [
                   Text(_time(p.createdAt), style: AppText.caption),
-                  Text(p.isRefund ? 'استرداد' : 'دفعة', style: AppText.tableCell),
+                  Text(p.isRefund ? 'استرجاع' : 'دفعة', style: AppText.tableCell),
                   Text(p.orderRef, style: AppText.tableCellPrimary),
                   Text(p.method.label, style: AppText.tableCell),
                   StatusText(
@@ -494,7 +494,7 @@ class _CountDialogState extends State<_CountDialog> {
     final value = double.tryParse(_counted.text.trim());
     return AlertDialog(
       backgroundColor: AppColors.surface,
-      title: const Text('عدّ وإغلاق الجلسة'),
+      title: const Text('عِدّ واقفل الجلسة'),
       content: SizedBox(
         width: 320,
         child: Column(
@@ -509,7 +509,7 @@ class _CountDialogState extends State<_CountDialog> {
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'النقد المعدود',
+                labelText: 'الكاش المعدود',
                 prefixText: 'ج.م ',
               ),
               onChanged: (_) => setState(() {}),
@@ -530,7 +530,7 @@ class _CountDialogState extends State<_CountDialog> {
           onPressed: (value != null && value >= 0)
               ? () => Navigator.pop(context, value)
               : null,
-          child: const Text('إغلاق الجلسة'),
+          child: const Text('اقفل الجلسة'),
         ),
       ],
     );

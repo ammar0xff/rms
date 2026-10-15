@@ -18,12 +18,12 @@ import '../../data/services/print_service.dart';
 import '../../domain/services/print_adapter.dart';
 
 (String, StatusTone) _opStatus(OutboxStatus status) => switch (status) {
-      OutboxStatus.pending => ('قيد الانتظار', StatusTone.warning),
-      OutboxStatus.inProgress => ('قيد الإرسال', StatusTone.info),
-      OutboxStatus.synced => ('تمت المزامنة', StatusTone.positive),
+      OutboxStatus.pending => ('مستني', StatusTone.warning),
+      OutboxStatus.inProgress => ('بيتبعت', StatusTone.info),
+      OutboxStatus.synced => ('اتزامن', StatusTone.positive),
       OutboxStatus.conflict => ('تعارض', StatusTone.negative),
-      OutboxStatus.retryableFailure => ('قابل لإعادة المحاولة', StatusTone.warning),
-      OutboxStatus.requiresUserAction => ('يتطلب إجراء', StatusTone.negative),
+      OutboxStatus.retryableFailure => ('ينفع تجرّب تاني', StatusTone.warning),
+      OutboxStatus.requiresUserAction => ('محتاج تدخّل', StatusTone.negative),
       OutboxStatus.permanentlyRejected => ('مرفوض نهائيًا', StatusTone.negative),
     };
 
@@ -36,7 +36,7 @@ class SyncCenterScreen extends StatelessWidget {
       children: [
         LayoutBuilder(
           builder: (context, c) {
-            final action = RmsButton(label: 'إعادة الاتصال والمزامنة الآن', icon: Icons.sync, onPressed: () {
+            final action = RmsButton(label: 'اتصل وزامن دلوقتي', icon: Icons.sync, onPressed: () {
               final svc = AppScope.of(context).sync;
               if (svc != null) svc.requestSync();
               SyncMonitor.instance.refresh();
@@ -47,7 +47,7 @@ class SyncCenterScreen extends StatelessWidget {
                   const Expanded(
                     child: SectionHeader(
                       title: 'مركز المزامنة',
-                      subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
+                      subtitle: 'الصادر · مترتب · محاولات أمان',
                     ),
                   ),
                   action,
@@ -59,7 +59,7 @@ class SyncCenterScreen extends StatelessWidget {
               children: [
                 const SectionHeader(
                   title: 'مركز المزامنة',
-                  subtitle: 'صندوق الصادر · ترتيب بالاعتماديات · إعادة محاولات آمنة',
+                  subtitle: 'الصادر · مترتب · محاولات أمان',
                 ),
                 const SizedBox(height: 8),
                 action,
@@ -72,12 +72,12 @@ class SyncCenterScreen extends StatelessWidget {
           builder: (context, _) {
             final m = SyncMonitor.instance;
             return GridRow(children: [
-              StatCard(label: 'قيد الانتظار', value: '${m.pending}', tone: AppColors.fgBright),
-              StatCard(label: 'تمت المزامنة', value: '${m.synced}', tone: AppColors.fgBright),
+              StatCard(label: 'مستني', value: '${m.pending}', tone: AppColors.fgBright),
+              StatCard(label: 'اتزامن', value: '${m.synced}', tone: AppColors.fgBright),
               StatCard(
                 label: 'فشل',
                 value: '${m.failed}',
-                delta: 'قابل لإعادة المحاولة',
+                delta: 'ينفع تجرّب تاني',
                 deltaTone: DeltaTone.negative,
                 tone: m.failed > 0 ? AppColors.negative : null,
               ),
@@ -107,12 +107,12 @@ class SyncCenterScreen extends StatelessWidget {
             _PolicyCard(
               title: 'التكرار الآمن',
               icon: Icons.fingerprint,
-              body: 'يحمل كل أمر مفتاح تكرار آمن ثابت. يحتفظ الخادم بإيصالات العمليات ويعيد النتيجة القائمة للطلبات المكررة — يطبَّق على الطلبات والمدفوعات والاستردادات والتذاكر والإسنادات والتحصيلات والمخزون.',
+              body: 'كل أمر ليه مفتاح ثابت. السيرفر بيحتفظ بالإيصالات ويرجّع نفس النتيجة — للأوردرات والمدفوعات والاسترجاعات والتذاكر والإسنادات والتحصيلات والمخزون.',
             ),
             _PolicyCard(
               title: 'سياسة إعادة المحاولة',
               icon: Icons.replay,
-              body: 'الفشل العابر يُعاد بمهلة تصاعدية مع تشتيت. الأخطاء الدائمة لا تُعاد إلى ما لا نهاية، وتبقى العمليات المحظورة مرئية مع أسباب قابلة للتنفيذ بدلاً من إهمالها.',
+              body: 'الفشل المؤقت بيتحاول تاني لوحده. الغلط الدائم مش بيتحاول على طول، والمحظور بيفضل باين بسبب واضح.',
             ),
           ],
         ),
@@ -175,8 +175,8 @@ class _OutboxTableState extends State<_OutboxTable> {
               title: 'عمليات صندوق الصادر',
               trailing: StatusText(
                 label: _loaded
-                    ? (_entries.isEmpty ? 'فارغ' : '${_entries.length} معلّقة')
-                    : 'قيد المعالجة',
+                    ? (_entries.isEmpty ? 'فاضي' : '${_entries.length} مستنية')
+                    : 'بيتعالج',
                 tone: _entries.isEmpty ? StatusTone.positive : StatusTone.info,
               ),
             ),
@@ -185,7 +185,7 @@ class _OutboxTableState extends State<_OutboxTable> {
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text(
-                'لا توجد عمليات معلّقة. كل الأعمال المحلية مرفوعة.',
+                'مفيش عمليات مستنية. كل شغل على الجهاز اترفع.',
                 style: AppText.caption,
               ),
             )
@@ -226,13 +226,13 @@ class _SequenceCard extends StatelessWidget {
   const _SequenceCard();
 
   static const _steps = [
-    'إنشاء العميل عند الحاجة',
-    'إرسال الطلب',
-    'مزامنة سجلات الدفع',
-    'مزامنة أحداث المطبخ',
-    'مزامنة إسناد / حالة التوصيل',
-    'مزامنة سجلات التحصيل المؤهلة',
-    'تحديث الملخصات المؤكدة من الخادم',
+    'اعمل العميل لو محتاجه',
+    'ابعت الأوردر',
+    'زامن سجلات الدفع',
+    'زامن أحداث المطبخ',
+    'زامن الإسناد / حالة الدليفري',
+    'زامن سجلات التحصيل اللي تنفع',
+    'حدّث الملخصات المتأكدة من السيرفر',
   ];
 
   @override
@@ -241,7 +241,7 @@ class _SequenceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(title: 'ترتيب المزامنة', subtitle: 'يحترم الاعتماديات'),
+          const SectionHeader(title: 'ترتيب المزامنة', subtitle: 'بيمشي بالترتيب'),
           const SizedBox(height: 14),
           for (var i = 0; i < _steps.length; i++)
             Padding(
@@ -319,7 +319,7 @@ class _PrintQueueSection extends StatelessWidget {
                 children: [
                   const Icon(Icons.print_rounded, size: 16, color: AppColors.fgMuted),
                   const SizedBox(width: 6),
-                  Text('طابور الطباعة (محلي)', style: AppText.sectionHeading),
+                  Text('طابور الطباعة (على الجهاز)', style: AppText.sectionHeading),
                   const Spacer(),
                   Text('${jobs.length}', style: AppText.caption),
                 ],
@@ -328,7 +328,7 @@ class _PrintQueueSection extends StatelessWidget {
               if (jobs.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Center(child: Text('لا توجد مهام طباعة', style: AppText.caption)),
+                  child: Center(child: Text('مفيش مهام طباعة', style: AppText.caption)),
                 )
               else
                 RmsTable(

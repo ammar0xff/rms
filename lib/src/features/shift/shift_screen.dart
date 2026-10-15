@@ -100,8 +100,8 @@ class _ShiftScreenState extends State<ShiftScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SectionHeader(
-                  title: 'وردية اليوم',
-                  subtitle: _hasStore ? null : 'لا يوجد مخزن متاح',
+                  title: 'شيفت النهاردة',
+                  subtitle: _hasStore ? null : 'مفيش مخزن متاح',
                 ),
                 const SizedBox(height: 12),
                 GridRow(children: [
@@ -121,7 +121,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${money(_stats.unsynced)} لم تُزامَن بعد',
+                          '${money(_stats.unsynced)} لسه ما اتزامنش',
                           style: AppText.tableCellPrimary,
                         ),
                       ),
@@ -145,7 +145,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
                     child: Text(
-                      'لا يوجد مخزن متاح لعرض الطلبات.',
+                      'مفيش مخزن متاح لعرض الأوردرات.',
                       style: AppText.caption,
                     ),
                   )
@@ -153,7 +153,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
                     child: Text(
-                      'لا توجد طلبات اليوم بعد. البيع من تبويب البيع.',
+                      'لسه مفيش أوردرات النهاردة. البيع من تبويب البيع.',
                       style: AppText.caption,
                     ),
                   )
@@ -177,8 +177,8 @@ class _ShiftScreenState extends State<ShiftScreen> {
                               style: AppText.tableCell),
                           StatusText(
                             label: o.syncStatus == SyncStatus.synced
-                                ? 'مُزامَن'
-                                : 'محلي',
+                                ? 'اتزامن'
+                                : 'على الجهاز',
                             tone: o.syncStatus == SyncStatus.synced
                                 ? StatusTone.positive
                                 : StatusTone.warning,

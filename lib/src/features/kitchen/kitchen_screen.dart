@@ -121,7 +121,7 @@ class _KitchenScreenState extends State<KitchenScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                RmsButton(label: 'استدعاء السابقة', icon: Icons.replay, onPressed: _load),
+                RmsButton(label: 'استرجع اللي فات', icon: Icons.replay, onPressed: _load),
               ],
             );
             if (c.maxWidth >= 600) {
@@ -225,9 +225,9 @@ class _DayStrip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          _DayCount(label: 'بانتظار', count: queued),
+          _DayCount(label: 'مستني', count: queued),
           _DayDivider(),
-          _DayCount(label: 'قيد التحضير', count: preparing),
+          _DayCount(label: 'بيتجهز', count: preparing),
           _DayDivider(),
           _DayCount(label: 'جاهز', count: ready),
         ],
@@ -356,7 +356,7 @@ class _KdsColumn extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Center(
-                        child: Text('فارغ', style: AppText.caption),
+                        child: Text('فاضي', style: AppText.caption),
                       ),
                     ),
                 ],
@@ -400,7 +400,7 @@ class _TicketCard extends StatelessWidget {
                 Tag(label: ticket.station, tone: StatusTone.neutral),
                 const Spacer(),
                 if (ticket.provisional)
-                  const Tag(label: 'محلي', tone: StatusTone.warning),
+                  const Tag(label: 'على الجهاز', tone: StatusTone.warning),
               ],
             ),
             const SizedBox(height: 6),
@@ -431,7 +431,7 @@ class _TicketCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 if (ticket.state != TicketState.ready)
                   RmsButton(
-                    label: ticket.state == TicketState.queued ? 'بدء' : 'تحديد كجاهز',
+                    label: ticket.state == TicketState.queued ? 'ابدأ' : 'علّم كجاهز',
                     icon: Icons.play_arrow_rounded,
                     variant: BtnVariant.secondary,
                     onPressed: () {
@@ -449,7 +449,7 @@ class _TicketCard extends StatelessWidget {
                   )
                 else ...[
                   RmsButton(
-                    label: 'إعادة طباعة',
+                    label: 'اطبع تاني',
                     icon: Icons.print_rounded,
                     variant: BtnVariant.ghost,
                     onPressed: () {
@@ -461,7 +461,7 @@ class _TicketCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   RmsButton(
-                    label: 'تم التقديم',
+                    label: 'اتقدّم',
                     icon: Icons.check_rounded,
                     variant: BtnVariant.primary,
                     onPressed: () =>

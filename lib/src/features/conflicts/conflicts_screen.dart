@@ -66,7 +66,7 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
     services.sync?.requestSync();
     if (!mounted) return;
     messenger.showSnackBar(
-      SnackBar(content: Text('أُعيد إدراج العملية ${entry.entityType}/${entry.entityId} للمزامنة')),
+      SnackBar(content: Text('رجّعنا العملية ${entry.entityType}/${entry.entityId} للمزامنة تاني')),
     );
   }
 
@@ -79,11 +79,11 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
             const Expanded(
               child: SectionHeader(
                 title: 'التعارضات',
-                subtitle: 'تُكتشف عند المزامنة · التعارضات المالية تتطلب مراجعة',
+                subtitle: 'بتبان مع المزامنة · المالية محتاجة مراجعة',
               ),
             ),
             Tag(
-              label: '${_conflicts.length} غير محلولة',
+              label: '${_conflicts.length} ما اتحلّتش',
               tone: _conflicts.isEmpty ? StatusTone.positive : StatusTone.negative,
             ),
           ],
@@ -104,7 +104,7 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'لا تُحل التعارضات ذات الأهمية المالية تلقائيًا بقاعدة آخر كاتب يفوز. تُحفظ نسختا الحالة للتحقيق حتى يقوم مستخدم مصرح به بالحل.',
+                  'تعارضات الفلوس مش بتتحل لوحدها بآخر كاتب. بنحتفظ بالنسختين لحد ما حد مسموح له يحلها.',
                   style: AppText.body,
                 ),
               ),
@@ -124,12 +124,12 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
-            child: SectionHeader(title: 'غير محلولة'),
+            child: SectionHeader(title: 'ما اتحلّتش'),
           ),
           if (_conflicts.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-              child: Text('لا توجد تعارضات بانتظار الحل.', style: AppText.caption),
+              child: Text('مفيش تعارضات مستنية الحل.', style: AppText.caption),
             ),
           for (var i = 0; i < _conflicts.length; i++) ...[
             _ConflictTile(entry: _conflicts[i], onResolve: () => _resolve(_conflicts[i])),
@@ -194,7 +194,7 @@ class _ConflictTile extends StatelessWidget {
                 Text('${entry.entityType} · ${entry.operationType}',
                     style: AppText.tableCellPrimary),
                 Text(
-                  '${entry.lastError ?? 'بانتظار المراجعة'} · ${entry.attemptCount} محاولات',
+                  '${entry.lastError ?? 'مستني المراجعة'} · ${entry.attemptCount} محاولات',
                   style: AppText.caption,
                 ),
               ],
@@ -211,15 +211,15 @@ class _StrategyCard extends StatelessWidget {
   const _StrategyCard();
 
   static const _strategies = [
-    ('إعدادات القائمة', 'مرجعها الخادم؛ تحديث اللقطات القديمة'),
-    ('إنشاء الطلب', 'إنشاء آمن بمفتاح مستقر'),
+    ('إعدادات القائمة', 'المرجع السيرفر؛ حدّث اللقطات القديمة'),
+    ('إنشاء الطلب', 'بيتعمل بأمان بمفتاح ثابت'),
     ('أصناف الطلب', 'فحوصات النسخة والتعامل الصريح'),
-    ('حالة المطبخ', 'التحقق من الانتقالات القانونية؛ الاحتفاظ بالسجل'),
-    ('المدفوعات النقدية', 'إضافة فقط مع إزالة التكرار'),
-    ('تحصيلات السائقين', 'إضافة فقط + مطابقة'),
-    ('التسويات', 'تحقق موثوق؛ لا قاعدة آخر كاتب يفوز'),
-    ('المخزون', 'حركات إضافة فقط؛ حل التعارضات'),
-    ('الأدوار والصلاحيات', 'مرجعها الخادم؛ لا تعديل دون اتصال'),
+    ('حالة المطبخ', 'بنتأكد من النقلات الصح؛ وبنحتفظ بالسجل'),
+    ('مدفوعات الكاش', 'إضافة بس مع شيل التكرار'),
+    ('تحصيلات الطيارين', 'إضافة بس + مطابقة'),
+    ('التسويات', 'تأكيد موثوق؛ مفيش آخر كاتب يكسب'),
+    ('المخزون', 'حركات إضافة بس؛ حل التعارض'),
+    ('الأدوار والصلاحيات', 'المرجع السيرفر؛ مفيش تعديل من غير نت'),
   ];
 
   @override

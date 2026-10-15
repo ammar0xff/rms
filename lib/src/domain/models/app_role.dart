@@ -9,11 +9,11 @@
 /// but the shell defines the exact navigation sets, not this enum.
 enum AppRole {
   /// Own deliveries, collections, and personal queue. Mobile-first.
-  driver('سائق', 'التوصيل'),
+  driver('طيار', 'الدليفري'),
 
   /// Sells: POS, customers, and the dashboard. The default when a role cannot
   /// be determined.
-  cashier('كاشير', 'نقطة البيع'),
+  cashier('كاشير', 'الكاشير'),
 
   /// Kitchen display and the menu it cooks from.
   chef('شيف', 'المطبخ'),

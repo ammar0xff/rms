@@ -11,23 +11,23 @@ String money(double value, {String symbol = 'ج.م'}) {
 
 (String label, StatusTone tone) orderSyncView(SyncStatus status) =>
     switch (status) {
-      SyncStatus.localOnly => ('محلي', StatusTone.neutral),
-      SyncStatus.pendingSync => ('قيد المزامنة', StatusTone.warning),
-      SyncStatus.synced => ('متزامن', StatusTone.positive),
+      SyncStatus.localOnly => ('على الجهاز', StatusTone.neutral),
+      SyncStatus.pendingSync => ('بيتزامن', StatusTone.warning),
+      SyncStatus.synced => ('اتزامن', StatusTone.positive),
       SyncStatus.conflict => ('تعارض', StatusTone.negative),
     };
 
 (String label, StatusTone tone) syncStateView(SyncState state) => switch (state) {
-      SyncState.local => ('محلي', StatusTone.neutral),
-      SyncState.pending => ('قيد المزامنة', StatusTone.warning),
-      SyncState.synced => ('متزامن', StatusTone.positive),
+      SyncState.local => ('على الجهاز', StatusTone.neutral),
+      SyncState.pending => ('بيتزامن', StatusTone.warning),
+      SyncState.synced => ('اتزامن', StatusTone.positive),
       SyncState.conflict => ('تعارض', StatusTone.negative),
     };
 
 (String label, StatusTone tone) ticketStateView(TicketState state) =>
     switch (state) {
-      TicketState.queued => ('في الانتظار', StatusTone.info),
-      TicketState.preparing => ('قيد التحضير', StatusTone.warning),
+      TicketState.queued => ('مستني', StatusTone.info),
+      TicketState.preparing => ('بيتجهز', StatusTone.warning),
       TicketState.ready => ('جاهز', StatusTone.positive),
-      TicketState.completed => ('مكتمل', StatusTone.neutral),
+      TicketState.completed => ('خلصان', StatusTone.neutral),
     };

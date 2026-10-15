@@ -1,10 +1,10 @@
 /// The outcome of verifying a downloaded artifact against the release manifest.
 enum ArtifactVerificationStatus {
   /// The file matches the manifest's checksum and is ready for installation.
-  verified('تم التحقق بنجاح'),
+  verified('اتحقّق'),
 
   /// No checksum is present in the manifest to verify against.
-  noChecksum('لا يوجد بصمة للتحقق'),
+  noChecksum('مفيش بصمة للتحقق'),
 
   /// The downloaded file was not found or could not be read.
   notFound('لم يُعثر على الملف المحمل'),
@@ -44,7 +44,7 @@ enum DownloadStage {
   verifying('جاري التحقق'),
   completed('اكتمل التنزيل'),
   failed('فشل التنزيل'),
-  cancelled('أُلغي التنزيل');
+  cancelled('التنزيل اتلغى');
 
   const DownloadStage(this.label);
 

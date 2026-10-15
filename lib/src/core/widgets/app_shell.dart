@@ -485,7 +485,7 @@ class _MoreScreen extends StatelessWidget {
                 ),
               ),
               RmsButton(
-                label: 'خروج',
+                label: 'اخرج',
                 icon: Icons.logout,
                 variant: BtnVariant.ghost,
                 onPressed: onSignOut,

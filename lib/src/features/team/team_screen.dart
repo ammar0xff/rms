@@ -77,7 +77,7 @@ class _TeamScreenState extends State<TeamScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذّر حفظ الدور: $error')),
+        SnackBar(content: Text('حفظ الدور فشل: $error')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -103,7 +103,7 @@ class _TeamScreenState extends State<TeamScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'إدارة الفريق تتطلب Firebase. في وضع العرض لا توجد حسابات حقيقية تُدار.',
+                    'إدارة الفريق تتطلب Firebase. في وضع العرض مفيش حسابات حقيقية تُدار.',
                     style: AppText.body,
                   ),
                 ),
@@ -119,7 +119,7 @@ class _TeamScreenState extends State<TeamScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'تعذّر تحميل الفريق: $_error',
+                    'تحميل الفريق فشل: $_error',
                     style: AppText.body,
                   ),
                 ),
@@ -129,7 +129,7 @@ class _TeamScreenState extends State<TeamScreen> {
         else if (_members.isEmpty)
           const SurfaceCard(
             child: Text(
-              'لا توجد حسابات بعد. أنشئ أول مستخدم من الكونسول ثم أسند الأدوار هنا.',
+              'مفيش حسابات بعد. أنشئ أول مستخدم من الكونسول ثم أسند الأدوار هنا.',
               style: AppText.body,
             ),
           )

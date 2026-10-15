@@ -2,7 +2,7 @@ import '../../data/local/outbox/outbox_status.dart';
 import 'payment.dart';
 
 enum ApprovalKind {
-  refund('استرداد'),
+  refund('استرجاع'),
   adjustment('تسوية يدوية');
 
   const ApprovalKind(this.label);
@@ -11,7 +11,7 @@ enum ApprovalKind {
 }
 
 enum ApprovalStatus {
-  pending('بانتظار الاعتماد'),
+  pending('مستني الاعتماد'),
   approved('معتمد'),
   rejected('مرفوض');
 

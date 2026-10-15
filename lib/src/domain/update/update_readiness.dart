@@ -9,19 +9,19 @@ export 'local_work_snapshot.dart';
 /// Whether installing the offered release would risk unsynced local work.
 enum UpdateReadinessStatus {
   /// The decision offers nothing to install; the gate has nothing to hold.
-  noUpdate('لا يوجد تحديث للتثبيت'),
+  noUpdate('مفيش تحديث للتثبيت'),
 
   /// No outstanding local work; the release may be downloaded and installed.
   ready('جاهز للتثبيت'),
 
   /// Unsynced work exists and the device is online, so sync first.
-  awaitingSync('بانتظار مزامنة الأعمال المحلية'),
+  awaitingSync('مستني مزامنة الأعمال المحلية'),
 
   /// Unsynced work exists and the device is offline, so a connection is needed.
-  offlineBacklog('يلزم اتصال لرفع الأعمال المحلية'),
+  offlineBacklog('لازم اتصال لرفع الأعمال المحلية'),
 
   /// Work the backend rejected needs a human decision before installing.
-  needsAcknowledgement('أعمال محلية معلّقة تحتاج إقرارًا');
+  needsAcknowledgement('أعمال محلية معلّقة محتاجة إقرار');
 
   const UpdateReadinessStatus(this.label);
 

@@ -44,7 +44,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
     if (repo == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('التخزين المحلي غير متاح')),
+        const SnackBar(content: Text('التخزين على الجهاز مش متاح')),
       );
       return;
     }
@@ -70,11 +70,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
             const Expanded(
               child: SectionHeader(
                 title: 'العملاء',
-                subtitle: 'دليل عناوين التوصيل · يُزامَن عند الاتصال',
+                subtitle: 'دليل عناوين الدليفري · بيتزامن عند الاتصال',
               ),
             ),
             RmsButton(
-              label: 'إضافة عميل',
+              label: 'ضيف عميل',
               icon: Icons.person_add_alt,
               onPressed: _add,
             ),
@@ -88,8 +88,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   padding: EdgeInsets.all(20),
                   child: EmptyState(
                     icon: Icons.people_alt_outlined,
-                    title: 'لا يوجد عملاء بعد',
-                    message: 'أضف أول عميل بزر إضافة عميل.',
+                    title: 'مفيش عملاء لسه',
+                    message: 'ضيف أول عميل بزرار ضيف عميل.',
                   ),
                 )
               : RmsTable(
@@ -128,8 +128,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         ),
                         StatusText(
                           label: c.syncStatus == SyncStatus.synced
-                              ? 'مُزامَن'
-                              : 'محلي',
+                              ? 'اتزامن'
+                              : 'على الجهاز',
                           tone: c.syncStatus == SyncStatus.synced
                               ? StatusTone.positive
                               : StatusTone.warning,
@@ -178,7 +178,7 @@ class _CustomerDialogState extends State<_CustomerDialog> {
 
   void _submit() {
     if (_name.text.trim().isEmpty) {
-      setState(() => _error = 'الاسم مطلوب');
+      setState(() => _error = 'لازم تكتب الاسم');
       return;
     }
     Navigator.of(context).pop(_CustomerDraft(
@@ -250,7 +250,7 @@ class _CustomerDialogState extends State<_CustomerDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         RmsButton(
-          label: 'حفظ',
+          label: 'احفظ',
           variant: BtnVariant.primary,
           icon: Icons.check,
           onPressed: _submit,

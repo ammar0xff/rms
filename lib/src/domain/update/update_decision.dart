@@ -7,7 +7,7 @@ enum UpdateDecisionStatus {
   optional('تحديث اختياري متاح'),
   recommended('تحديث مُوصى به'),
   mandatory('تحديث إلزامي'),
-  ineligible('التحديث غير متاح لهذا الجهاز');
+  ineligible('مفيش تحديث لهذا الجهاز');
 
   const UpdateDecisionStatus(this.label);
 
@@ -34,7 +34,7 @@ enum UpdateBlockReason {
   branchExcluded('الفرع خارج نطاق النشر'),
   groupExcluded('مجموعة الأجهزة خارج نطاق النشر'),
   rolloutExcluded('الجهاز خارج نسبة النشر'),
-  backendIncompatible('توافق الخادم غير مطابق'),
+  backendIncompatible('توافق السيرفر غير مطابق'),
   schemaIncompatible('توافق المخطط المحلي غير مطابق');
 
   const UpdateBlockReason(this.label);

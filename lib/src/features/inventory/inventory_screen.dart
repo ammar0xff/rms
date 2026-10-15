@@ -79,7 +79,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       createdOffline: true,
     );
     await _load();
-    _notify('تم تسجيل الحركة في السجل المحلي.');
+    _notify('الحركة اتسجّلت على الجهاز.');
   }
 
   Future<void> _countStock() async {
@@ -99,8 +99,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
     await _load();
     _notify(outcome == StockCountOutcome.conflict
-        ? 'تعارض جرد: أُبقي الرصيد الأحدث وأُضيف الجرد للمراجعة.'
-        : 'تم تحديث الرصيد بعد الجرد.');
+        ? 'تعارض جرد: خلّينا الرصيد الأحدث والجرد مستني المراجعة.'
+        : 'الرصيد اتحدّث بعد الجرد.');
   }
 
   void _notify(String message) {
@@ -125,7 +125,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           StatCard(
             label: 'حركات في السجل',
             value: '${_movements.length}',
-            delta: '$_pendingMovements بانتظار المزامنة',
+            delta: '$_pendingMovements مستني المزامنة',
             deltaTone: DeltaTone.neutral,
           ),
           StatCard(
@@ -161,7 +161,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   const Expanded(
                     child: SectionHeader(
                       title: 'مستويات المخزون',
-                      subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
+                      subtitle: 'الحركات بتتسجّل إضافة بس وبتتحل صراحة عند المزامنة',
                     ),
                   ),
                   actions,
@@ -173,7 +173,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               children: [
                 const SectionHeader(
                   title: 'مستويات المخزون',
-                  subtitle: 'الحركات تُسجّل إضافة فقط وتُحل صراحة عند المزامنة',
+                  subtitle: 'الحركات بتتسجّل إضافة بس وبتتحل صراحة عند المزامنة',
                 ),
                 const SizedBox(height: 8),
                 SingleChildScrollView(
@@ -186,7 +186,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
         if (_items.isEmpty)
           const SurfaceCard(
-            child: Text('لا توجد أصناف مخزون بعد.', style: AppText.caption),
+            child: Text('مفيش أصناف مخزون لسه.', style: AppText.caption),
           )
         else
           SurfaceCard(
@@ -232,7 +232,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'تُعلَّم حركات المخزون المتزامنة من أجهزة معزولة كتعارضات وتتطلب حلاً صريحًا — لا حلّ تلقائي أبدًا.',
+                  'حركات المخزون اللي اتزامنت من أجهزة معزولة بتتعلّم كتعارضات ولازم تتحل صراحة — مفيش حل تلقائي أبدًا.',
                   style: AppText.body,
                 ),
               ),
@@ -397,7 +397,7 @@ class _MovementDialogState extends State<_MovementDialog> {
                 ),
                 decoration: const InputDecoration(
                   labelText: 'الكمية',
-                  helperText: 'موجب للإضافة، سالب للصرف',
+                  helperText: 'موجب يزوّد، سالب يصرف',
                 ),
                 onChanged: (_) => setState(() {}),
               ),
@@ -506,7 +506,7 @@ class _CountDialogState extends State<_CountDialog> {
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'الكمية المعدودة',
-                  helperText: 'يُسجَّل الفرق كتسوية جرد',
+                  helperText: 'الفرق بيتسجّل تسوية جرد',
                 ),
                 onChanged: (_) => setState(() {}),
               ),

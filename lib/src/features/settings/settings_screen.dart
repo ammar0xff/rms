@@ -169,11 +169,11 @@ class _VersionCard extends StatelessWidget {
             ('مخطط البيانات المحلي', AppVersion.localSchema),
             (
               'المخطط المطبق',
-              migration == null ? 'لا يوجد مخزن' : 'v${migration!.toVersion}',
+              migration == null ? 'مفيش مخزن' : 'v${migration!.toVersion}',
             ),
             ('عقد الـ API', AppVersion.apiContract),
             ('الإعدادات', services.config.environment),
-            ('الخلفية', services.firebaseReady ? 'Firebase' : 'محلي (وضع العرض)'),
+            ('الخلفية', services.firebaseReady ? 'Firebase' : 'على الجهاز (وضع العرض)'),
             // Never-configured and configured-but-failed are different states
             // with different fixes (add the keys vs check them); collapsing
             // them sent operators to re-check keys that were never the problem.
@@ -183,7 +183,7 @@ class _VersionCard extends StatelessWidget {
                   ? 'غير مهيأة'
                   : services.firebaseReady
                       ? 'متصلة'
-                      : 'فشل الاتصال — راجع الإعدادات أو الشبكة'
+                      : 'فشل الاتصال — راجع الإعدادات أو النت'
             ),
           ])
             KeyValue(label: k, value: v, mono: true),
@@ -308,7 +308,7 @@ class _UpdateCard extends StatelessWidget {
             if (current?.bucket != null) ('شريحة النشر', '${current!.bucket} / 100'),
             if (current?.blockReason != null)
               ('سبب عدم الإتاحة', current!.blockReason!.label),
-            if (current?.requiresMigration ?? false) ('ترحيل محلي مطلوب', 'نعم'),
+            if (current?.requiresMigration ?? false) ('ترحيل محلي مطلوب', 'أيوه'),
             if (readiness != null && current?.isUpdate == true)
               ('جاهزية التثبيت', readiness!.status.label),
             // What was already signed off: when new work arrives after an
@@ -371,7 +371,7 @@ class _UpdateCard extends StatelessWidget {
                     )
                   else
                     const Tag(
-                      label: 'يتطلب الإقرار مديرًا',
+                      label: 'الإقرار محتاج مدير',
                       tone: StatusTone.warning,
                     ),
                 ],
@@ -396,20 +396,20 @@ class _UpdateCard extends StatelessWidget {
     final work = readiness!.work;
     return switch (readiness.status) {
       UpdateReadinessStatus.awaitingSync => (
-          'بانتظار مزامنة الأعمال المحلية',
+          'مستني مزامنة الأعمال المحلية',
           'لا يُثبَّت التحديث قبل رفع ${work.unsynced} عملية محلية حتى لا تُفقد.',
           StatusTone.warning,
           Icons.sync,
         ),
       UpdateReadinessStatus.offlineBacklog => (
           'يلزم اتصال بالإنترنت',
-          'هناك ${work.unsynced} عملية محلية غير مرفوعة؛ اتصل بالشبكة لرفعها ثم التحديث.',
+          'هناك ${work.unsynced} عملية محلية غير مرفوعة؛ اتصل بالنت لرفعها ثم التحديث.',
           StatusTone.warning,
           Icons.cloud_off,
         ),
       UpdateReadinessStatus.needsAcknowledgement => (
           'أعمال محلية معلّقة',
-          'هناك ${work.stuck} عملية رفضها الخادم؛ راجعها وأقرّها قبل التحديث.',
+          'هناك ${work.stuck} عملية رفضها السيرفر؛ راجعها وأقرّها قبل التحديث.',
           StatusTone.warning,
           Icons.report_problem_outlined,
         ),
@@ -442,14 +442,14 @@ class _UpdateCard extends StatelessWidget {
           Icons.priority_high,
         ),
       UpdateDecisionStatus.ineligible => (
-          'لا يتوفر تحديث لهذا الجهاز',
+          'مفيش تحديث لهذا الجهاز',
           'الإصدار غير متاح لهذا الجهاز؛ السبب موضّح في التفاصيل أعلاه.',
           StatusTone.neutral,
           Icons.block,
         ),
       UpdateDecisionStatus.upToDate => (
           'أنت على أحدث إصدار',
-          'لا يوجد تحديث معلن لهذا الجهاز حاليًا.',
+          'مفيش تحديث معلن لهذا الجهاز حاليًا.',
           StatusTone.positive,
           Icons.check_circle_outline,
         ),
@@ -486,9 +486,9 @@ class _MigrationCard extends StatelessWidget {
             ? StatusTone.positive
             : StatusTone.negative;
     final label = migration == null
-        ? 'لا يوجد مخزن'
+        ? 'مفيش مخزن'
         : succeeded
-            ? 'مكتمل'
+            ? 'خلصان'
             : 'فشل';
     return SurfaceCard(
       child: Column(
@@ -503,9 +503,9 @@ class _MigrationCard extends StatelessWidget {
             (
               'الإصدار',
               migration == null
-                  ? 'لا يوجد مخزن'
+                  ? 'مفيش مخزن'
                   : migration.fromVersion < 0
-                      ? 'تعذّر الفحص'
+                      ? 'الفحص فشل'
                       : 'v${migration.fromVersion} ← v${migration.toVersion}',
             ),
             (
@@ -514,7 +514,7 @@ class _MigrationCard extends StatelessWidget {
                   ? 'لا شيء'
                   : migration.applied.join(' · '),
             ),
-            ('صندوق الصادر محفوظ', 'نعم — لا تُمس إدخالاته'),
+            ('صندوق الصادر محفوظ', 'أيوه — لا تُمس إدخالاته'),
             ('نسخة التراجع', 'محفوظة'),
             if (migration?.error != null) ('الخطأ', migration!.error!),
           ])
@@ -586,14 +586,14 @@ class _FlagsCard extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(20, 14, 20, 4),
             child: SectionHeader(
               title: 'مؤشرات الميزات',
-              subtitle: 'تُدار من الخادم · ليست بديلاً عن صلاحية الواجهة الخلفية',
+              subtitle: 'تُدار من السيرفر · ليست بديلاً عن صلاحية الواجهة الخلفية',
             ),
           ),
           const SizedBox(height: 8),
           if (flags.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text('لا يوجد بيان إصدار مخزّن على هذا الجهاز.',
+              child: Text('مفيش بيان إصدار مخزّن على هذا الجهاز.',
                   style: AppText.caption),
             ),
           for (var i = 0; i < flags.length; i++) ...[
@@ -676,7 +676,7 @@ class _DiagnosticsCard extends StatelessWidget {
         children: [
           const SectionHeader(
             title: 'تشخيص النظام',
-            subtitle: 'حالة حية من هذا الجهاز · لا تعتمد على الخادم',
+            subtitle: 'حالة حية من هذا الجهاز · لا تعتمد على السيرفر',
           ),
           const SizedBox(height: 12),
           AnimatedBuilder(
@@ -732,7 +732,7 @@ class _DiagnosticsCard extends StatelessWidget {
                         final lines = AppLogger.recentLines(limit: 30);
                         if (lines.isEmpty) {
                           return const Text(
-                            'لا توجد أحداث مسجلة بعد في هذه الجلسة.',
+                            'مفيش أحداث مسجلة بعد في هذه الجلسة.',
                             style: AppText.caption,
                           );
                         }

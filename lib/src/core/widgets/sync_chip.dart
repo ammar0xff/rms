@@ -18,16 +18,16 @@ class SyncChip extends StatelessWidget {
       animation: monitor,
       builder: (context, _) {
         final (label, tone) = monitor.online
-            ? (monitor.pending > 0 ? 'جارٍ المزامنة (${monitor.pending})' : 'متصل', StatusTone.positive)
+            ? (monitor.pending > 0 ? 'بيتزامن (${monitor.pending})' : 'متصل', StatusTone.positive)
             // Short on purpose: this chip lives in the 48px top bar next to
             // the title and action buttons, and the counts live in the sync
             // center. A long label overflows narrow screens.
-            : ('غير متصل', StatusTone.warning);
+            : ('مفيش نت', StatusTone.warning);
         final color = toneColor(tone);
         return Tooltip(
           message: monitor.online
               ? 'متصل · آخر مزامنة قبل ${monitor.sinceLastSync.inMinutes} د'
-              : 'يعمل دون اتصال. التغييرات محفوظة محليًا.',
+              : 'شغال من غير نت. التغييرات محفوظة على الجهاز.',
           child: InkWell(
             // Display-only unless a caller wires an action. The old default
             // flipped a display boolean that feeds real decisions (the update
@@ -77,7 +77,7 @@ class SyncStatRow extends StatelessWidget {
       animation: monitor,
       builder: (context, _) => Row(
         children: [
-          _cell('قيد الانتظار', '${monitor.pending}', AppColors.fgBright),
+          _cell('مستني', '${monitor.pending}', AppColors.fgBright),
           _divider(),
           _cell('فشلها', '${monitor.failed}', AppColors.negative),
           _divider(),

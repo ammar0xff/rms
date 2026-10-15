@@ -69,8 +69,8 @@ class UpdatePromptState {
           },
         UpdatePromptMode.dismissible => 'تحديث متاح',
         UpdatePromptMode.working => 'جارٍ تثبيت التحديث',
-        UpdatePromptMode.failed => 'تعذّر إكمال التحديث',
-        UpdatePromptMode.completed => 'تم تثبيت التحديث',
+        UpdatePromptMode.failed => 'فشل إكمال التحديث',
+        UpdatePromptMode.completed => 'التحديث اتثبّت',
       };
 
   /// Picks the mode for a freshly completed check.

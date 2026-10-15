@@ -59,5 +59,5 @@ console (Firestore Database > Rules). Summary:
 - `releases/{id}`, `activeReleases/{id}`: signed-in read, deny write
   (transition only — the app tracks GitHub Releases now).
 
-Shared devices sign out from المزيد → خروج. Cached screens clear on every
+Shared devices sign out from المزيد → اخرج. Cached screens clear on every
 account change, so the next operator never sees the previous one's state.

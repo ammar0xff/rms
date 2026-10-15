@@ -109,7 +109,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     final waiting = _waiting.firstOrNull;
     if (waiting == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('لا توجد مهام بانتظار الإسناد')),
+        const SnackBar(content: Text('مفيش مهام مستنية الإسناد')),
       );
       return;
     }
@@ -119,7 +119,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
     if (driver == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('لا يوجد سائقون متاحون')),
+        const SnackBar(content: Text('مفيش سائقون متاحون')),
       );
       return;
     }
@@ -133,7 +133,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         content: Text(
           outcome == AssignmentOutcome.conflict
               ? 'تعارض إسناد على ${waiting.id}: طلب المراجعة'
-              : 'أُسندت المهمة ${waiting.id} إلى $driver',
+              : 'اتسندت المهمة ${waiting.id} إلى $driver',
         ),
       ),
     );
@@ -155,8 +155,8 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       SnackBar(
         content: Text(
           results.isEmpty
-              ? 'لا توجد مهام بانتظار الإسناد'
-              : 'أُسندت ${results.length} مهمة تلقائيًا',
+              ? 'مفيش مهام مستنية الإسناد'
+              : 'اتسندت ${results.length} مهمة تلقائيًا',
         ),
       ),
     );
@@ -173,7 +173,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
     if (driver == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('لا يوجد سائقون متاحون')),
+        const SnackBar(content: Text('مفيش سائقون متاحون')),
       );
       return;
     }
@@ -190,7 +190,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         content: Text(
           outcome == AssignmentOutcome.conflict
               ? 'تعارض إسناد على ${delivery.id}: طلب المراجعة'
-              : 'أُسندت المهمة ${delivery.id} إلى $driver',
+              : 'اتسندت المهمة ${delivery.id} إلى $driver',
         ),
       ),
     );
@@ -245,10 +245,10 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
       SnackBar(
         content: Text(
           collection == null
-              ? 'تعذّر تسجيل التحصيل — ربما سُجّل من قبل'
+              ? 'التحصيل ما اتسجلش — ممكن اتسجل قبل كده'
               : offline
-                  ? 'سُجّل تحصيل ${money(amount)} محليًا · يُسوّى عند الاتصال'
-                  : 'سُجّل تحصيل ${money(amount)}',
+                  ? 'اتسجل تحصيل ${money(amount)} على الجهاز · التسوية عند الاتصال'
+                  : 'اتسجل تحصيل ${money(amount)}',
         ),
       ),
     );
@@ -263,7 +263,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     _refreshMonitor();
     if (!mounted) return;
     messenger.showSnackBar(
-      const SnackBar(content: Text('أُرسل طلب التسوية للخادم · الاعتماد بعد التحقق')),
+      const SnackBar(content: Text('اتبعت التسوية للسيرفر · الاعتماد بعد التحقق')),
     );
   }
 
@@ -305,7 +305,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                showMineOnly ? 'مهامي اليوم' : 'المهمات المفتوحة',
+                showMineOnly ? 'مهامي النهاردة' : 'المهمات المفتوحة',
                 style: AppText.h2,
               ),
               const SizedBox(height: 12),
@@ -329,7 +329,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'لا توجد مهمات مفتوحة. يوم موفق!',
+                    'مفيش مهمات مفتوحة. يوم موفق!',
                     style: AppText.body,
                   ),
                 ),
@@ -365,10 +365,10 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               StatCard(
                 label: 'توصيلات نشطة',
                 value: '${_open.length}',
-                delta: '${_waiting.length} بانتظار الإسناد',
+                delta: '${_waiting.length} مستني الإسناد',
               ),
               StatCard(
-                label: 'بانتظار الإسناد',
+                label: 'مستني الإسناد',
                 value: '${_waiting.length}',
                 delta: '—',
                 deltaTone: DeltaTone.neutral,
@@ -382,7 +382,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               StatCard(
                 label: 'مُسوّى',
                 value: money(_settledTotal),
-                delta: 'معتمد من الخادم',
+                delta: 'معتمد من السيرفر',
                 deltaTone: DeltaTone.positive,
               ),
             ]),
@@ -411,7 +411,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
             child: SectionHeader(
-              title: 'التوصيلات',
+              title: 'الدليفري',
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -492,9 +492,9 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           label: 'إسناد',
           onPressed: _drivers.isEmpty ? null : () => _assign(d),
         ),
-      DeliveryState.assigned => RmsButton(label: 'بدء', onPressed: () => _advance(d)),
+      DeliveryState.assigned => RmsButton(label: 'ابدأ', onPressed: () => _advance(d)),
       DeliveryState.onRoute => RmsButton(
-          label: 'تم التسليم',
+          label: 'اتسلّم',
           variant: BtnVariant.primary,
           onPressed: () => _advance(d),
         ),
@@ -524,7 +524,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         children: [
           SectionHeader(
             title: 'السائقون',
-            subtitle: 'الوردية · 12:00–20:00',
+            subtitle: 'شيفت · 12:00–20:00',
             trailing: Tag(
               label: _autoAssignEnabled
                   ? 'إسناد تلقائي مُفعّل'
@@ -562,7 +562,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'لا يمكن إنهاء تحصيلات المسجلة محليًا بدون تحقق من الخادم.',
+            'ماينفعش تقفل تحصيلات متسجلة على الجهاز من غير تحقق السيرفر.',
             style: AppText.caption,
           ),
         ],
@@ -583,8 +583,8 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             child: SectionHeader(
               title: 'قائمة التسوية المعلقة',
               subtitle: canFinalize
-                  ? 'الطلبات المحصلة محليًا جاهزة للمطابقة مع الخادم'
-                  : 'يتطلب اتصالًا بالخادم لإنهاء التسوية',
+                  ? 'الأوردرات المتحصلة على الجهاز جاهزة للمطابقة مع السيرفر'
+                  : 'لازم اتصال بالسيرفر عشان نخلّص التسوية',
               trailing: Tag(
                 label: '${pending.length} عملية · ${money(_outstandingTotal)}',
                 tone: pending.isEmpty ? StatusTone.positive : StatusTone.warning,
@@ -594,7 +594,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           if (pending.isEmpty)
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 4, 20, 20),
-              child: Text('لا توجد تسويات معلقة.', style: AppText.caption),
+              child: Text('مفيش تسويات معلقة.', style: AppText.caption),
             )
           else
             RmsTable(
@@ -613,11 +613,11 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                     Text(c.driver, style: AppText.tableCell),
                     Text(c.method.label, style: AppText.tableCell),
                     Tag(
-                      label: c.createdOffline ? 'محلي' : 'متصل',
+                      label: c.createdOffline ? 'على الجهاز' : 'متصل',
                       tone: c.createdOffline ? StatusTone.warning : StatusTone.neutral,
                     ),
                     RmsButton(
-                      label: 'إنهاء التسوية',
+                      label: 'خلّص التسوية',
                       icon: Icons.verified_outlined,
                       onPressed: canFinalize ? () => _finalize(c) : null,
                     ),
@@ -653,7 +653,7 @@ class _DriverJobCard extends StatelessWidget {
   /// (waiting for assignment, or already delivered).
   String? get _advanceLabel => switch (job.state) {
         DeliveryState.assigned => 'استلام',
-        DeliveryState.onRoute => 'تم التسليم',
+        DeliveryState.onRoute => 'اتسلّم',
         _ => null,
       };
 
@@ -729,7 +729,7 @@ class _DriverJobCard extends StatelessWidget {
               job.state != DeliveryState.delivered)
             Text(
               job.state == DeliveryState.waiting
-                  ? 'بانتظار الإسناد من الإدارة'
+                  ? 'مستني الإسناد من الإدارة'
                   : 'مغلّقة',
               style: AppText.caption,
             ),
@@ -861,9 +861,9 @@ class _OfflineCollectionNotice extends StatelessWidget {
               text: TextSpan(
                 style: AppText.body,
                 children: const [
-                  TextSpan(text: 'التحصيل المسجل محليًا هو مطالبة وليس دليلاً على الاستلام. '),
+                  TextSpan(text: 'التحصيل المتسجل على الجهاز مطالبة مش إثبات استلام. '),
                   TextSpan(
-                    text: 'المطابقة واعتماد التسوية يتطلبان تحققًا من الخادم.',
+                    text: 'المطابقة واعتماد التسوية محتاجين تحقق من السيرفر.',
                     style: TextStyle(color: AppColors.fgBright, fontWeight: FontWeight.w500),
                   ),
                 ],

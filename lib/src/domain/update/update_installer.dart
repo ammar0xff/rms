@@ -3,7 +3,7 @@ import '../models/update_manifest.dart';
 /// The outcome of an installation attempt.
 enum InstallResult {
   ok('نجح التثبيت'),
-  cancelled('أُلغي التثبيت'),
+  cancelled('التثبيت اتلغى'),
   failed('فشل التثبيت');
 
   const InstallResult(this.label);
