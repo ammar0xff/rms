@@ -56,6 +56,7 @@ import '../../domain/models/stock_movement.dart';
 import '../../domain/models/supplier.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
+import '../../data/sync/record_mirror.dart';
 import '../../data/sync/firestore_sync_transport.dart';
 import '../../data/sync/sync_coordinator.dart';
 import '../../data/sync/sync_engine.dart';
@@ -121,23 +122,30 @@ Future<AppServices> _resolveAuth(
 ) async {
   final outbox = database == null ? null : OutboxStore(database);
   final audit = database == null ? null : AuditLog(database);
+  // Best-effort Firestore mirror of record snapshots (see [RecordMirror]).
+  // Only in configured builds: demo mode has no backend to mirror to. The
+  // mirror resolves Firestore lazily at call time, so this never touches
+  // plugins during startup.
+  final mirror = config.isConfigured ? FirestoreRecordMirror() : null;
   final orders = (database == null || outbox == null)
       ? null
-      : LocalOrderRepository(database, outbox: outbox);
+      : LocalOrderRepository(database, outbox: outbox, mirror: mirror);
   final menu = database == null ? null : LocalMenuRepository(database);
-  final kitchen = database == null ? null : LocalKitchenRepository(database);
+  final kitchen = database == null
+      ? null
+      : LocalKitchenRepository(database, mirror: mirror);
   final payments = (database == null || outbox == null)
       ? null
-      : LocalPaymentRepository(database, outbox: outbox, audit: audit);
+      : LocalPaymentRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final deliveries = (database == null || outbox == null)
       ? null
-      : LocalDeliveryRepository(database, outbox: outbox, audit: audit);
+      : LocalDeliveryRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final cashSessions = (database == null || outbox == null)
       ? null
-      : LocalCashSessionRepository(database, outbox: outbox, audit: audit);
+      : LocalCashSessionRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final approvals = (database == null || outbox == null)
       ? null
-      : LocalApprovalRepository(database, outbox: outbox, audit: audit);
+      : LocalApprovalRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final features =
       database == null ? null : LocalFeatureFlagRepository(database);
   final updates = database == null ? null : LocalUpdateRepository(database);
@@ -163,10 +171,10 @@ Future<AppServices> _resolveAuth(
         );
   final inventory = (database == null || outbox == null)
       ? null
-      : LocalInventoryRepository(database, outbox: outbox, audit: audit);
+      : LocalInventoryRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final suppliers = (database == null || outbox == null)
       ? null
-      : LocalSupplierRepository(database, outbox: outbox, audit: audit);
+      : LocalSupplierRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final purchases = (database == null || outbox == null || inventory == null)
       ? null
       : LocalPurchaseRepository(
@@ -174,6 +182,7 @@ Future<AppServices> _resolveAuth(
           inventory: inventory,
           outbox: outbox,
           audit: audit,
+          mirror: mirror,
         );
   final reports = (orders == null ||
           payments == null ||

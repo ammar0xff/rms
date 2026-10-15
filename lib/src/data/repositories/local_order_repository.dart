@@ -10,6 +10,7 @@ import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
 import '../local/outbox/outbox_status.dart';
 import '../local/outbox/outbox_store.dart';
+import '../sync/record_mirror.dart';
 import '../sync/sync_ack.dart';
 import 'order_repository.dart';
 
@@ -24,14 +25,20 @@ class LocalOrderRepository implements OrderRepository {
     OutboxStore? outbox,
     Uuid? uuid,
     DateTime Function()? clock,
+    RecordMirror? mirror,
   })  : _outbox = outbox ?? OutboxStore(_db),
         _uuid = uuid ?? const Uuid(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _mirror = mirror;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
   final Uuid _uuid;
   final DateTime Function() _clock;
+
+  /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
+  /// mode, where there is nowhere to mirror to.
+  final RecordMirror? _mirror;
 
   @override
   Future<Order> createOrder(OrderDraft draft) async {
@@ -101,6 +108,11 @@ class LocalOrderRepository implements OrderRepository {
       order.canonicalOrderNumber = canonicalOrderNumber;
     }
     await record.put(_db.db, order.toRecord());
+    await _mirror?.write(
+      entityType: 'order',
+      entityId: entry.entityId,
+      snapshot: order.toRecord(),
+    );
   }
 
   String _provisionalNumber(DateTime now, String localId) {

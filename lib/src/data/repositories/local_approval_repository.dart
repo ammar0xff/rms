@@ -7,6 +7,7 @@ import '../../domain/models/approval_request.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/payment.dart';
 import '../local/audit_log.dart';
+import '../sync/record_mirror.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
@@ -27,16 +28,22 @@ class LocalApprovalRepository implements ApprovalRepository {
     AuditLog? audit,
     Uuid? uuid,
     DateTime Function()? clock,
+    RecordMirror? mirror,
   })  : _outbox = outbox ?? OutboxStore(_db),
         _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _mirror = mirror;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
   final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
+
+  /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
+  /// mode, where there is nowhere to mirror to.
+  final RecordMirror? _mirror;
 
   @override
   Future<ApprovalRequest> requestRefund({
@@ -231,6 +238,11 @@ class LocalApprovalRepository implements ApprovalRepository {
       request.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, request.toRecord());
+    await _mirror?.write(
+      entityType: 'approval',
+      entityId: entry.entityId,
+      snapshot: request.toRecord(),
+    );
   }
 
   /// Writes pre-existing requests without queueing commands (demo seeding).

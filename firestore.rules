@@ -48,6 +48,46 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    // Data mirrors: on every acknowledgement the app upserts the current
+    // record snapshot here (merge by stable local id), so Firestore holds
+    // readable orders/, payments/, … instead of only the opaque op log. Same
+    // bar as the outbox — any signed-in operator reads and writes — because
+    // the team screens read these directly. Best-effort from the client, so a
+    // denied write only delays convergence; the outbox stays authoritative.
+    match /orders/{id} {
+      allow read, write: if signedIn();
+    }
+    match /payments/{id} {
+      allow read, write: if signedIn();
+    }
+    match /collections/{id} {
+      allow read, write: if signedIn();
+    }
+    match /deliveries/{id} {
+      allow read, write: if signedIn();
+    }
+    match /purchases/{id} {
+      allow read, write: if signedIn();
+    }
+    match /suppliers/{id} {
+      allow read, write: if signedIn();
+    }
+    match /kitchenTickets/{id} {
+      allow read, write: if signedIn();
+    }
+    match /stockMovements/{id} {
+      allow read, write: if signedIn();
+    }
+    match /inventoryItems/{id} {
+      allow read, write: if signedIn();
+    }
+    match /cashSessions/{id} {
+      allow read, write: if signedIn();
+    }
+    match /approvals/{id} {
+      allow read, write: if signedIn();
+    }
+
     // Server-assigned order numbers. Clients must never read the counter
     // (it leaks sequence position) and must never write it (they would mint
     // their own numbers). The counter transaction runs under these rules and

@@ -9,6 +9,7 @@ import '../../domain/models/purchase_order.dart';
 import '../../domain/models/stock_movement.dart';
 import '../../domain/models/supplier.dart';
 import '../local/audit_log.dart';
+import '../sync/record_mirror.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
@@ -30,11 +31,13 @@ class LocalPurchaseRepository implements PurchaseRepository {
     AuditLog? audit,
     Uuid? uuid,
     DateTime Function()? clock,
+    RecordMirror? mirror,
   })  : _inventory = inventory,
         _outbox = outbox ?? OutboxStore(_db),
         _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _mirror = mirror;
 
   final LocalDatabase _db;
   final LocalInventoryRepository _inventory;
@@ -42,6 +45,10 @@ class LocalPurchaseRepository implements PurchaseRepository {
   final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
+
+  /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
+  /// mode, where there is nowhere to mirror to.
+  final RecordMirror? _mirror;
 
   @override
   Future<List<PurchaseOrderModel>> listPurchases() async {
@@ -289,6 +296,11 @@ class LocalPurchaseRepository implements PurchaseRepository {
       purchase.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, purchase.toRecord());
+    await _mirror?.write(
+      entityType: 'purchase',
+      entityId: entry.entityId,
+      snapshot: purchase.toRecord(),
+    );
     // Receiving bumped the supplier's payable without queueing a supplier
     // command, so no supplier ack ever clears the flag. Clear it here once
     // nothing for this supplier is still outstanding.

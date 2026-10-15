@@ -8,6 +8,7 @@ import '../../domain/models/cash_session.dart';
 import '../../domain/models/payment.dart';
 import '../../domain/money.dart';
 import '../local/audit_log.dart';
+import '../sync/record_mirror.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
@@ -28,16 +29,22 @@ class LocalCashSessionRepository implements CashSessionRepository {
     AuditLog? audit,
     Uuid? uuid,
     DateTime Function()? clock,
+    RecordMirror? mirror,
   })  : _outbox = outbox ?? OutboxStore(_db),
         _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _mirror = mirror;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
   final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
+
+  /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
+  /// mode, where there is nowhere to mirror to.
+  final RecordMirror? _mirror;
 
   @override
   Future<List<CashSession>> listSessions() async {
@@ -234,6 +241,11 @@ class LocalCashSessionRepository implements CashSessionRepository {
       session.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, session.toRecord());
+    await _mirror?.write(
+      entityType: 'cashSession',
+      entityId: entry.entityId,
+      snapshot: session.toRecord(),
+    );
   }
 
   /// Writes pre-existing sessions without queueing commands (demo seeding).

@@ -11,6 +11,7 @@ import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
 import '../local/outbox/outbox_status.dart';
+import '../sync/record_mirror.dart';
 import '../local/outbox/outbox_store.dart';
 import 'inventory_repository.dart';
 
@@ -27,16 +28,22 @@ class LocalInventoryRepository implements InventoryRepository {
     AuditLog? audit,
     Uuid? uuid,
     DateTime Function()? clock,
+    RecordMirror? mirror,
   })  : _outbox = outbox ?? OutboxStore(_db),
         _audit = audit ?? AuditLog(_db),
         _uuid = uuid ?? const Uuid(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _mirror = mirror;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
   final AuditLog _audit;
   final Uuid _uuid;
   final DateTime Function() _clock;
+
+  /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
+  /// mode, where there is nowhere to mirror to.
+  final RecordMirror? _mirror;
 
   @override
   Future<List<InventoryItemModel>> listItems() async {
@@ -332,6 +339,20 @@ class LocalInventoryRepository implements InventoryRepository {
     movement.syncStatus = SyncStatus.synced;
     await record.put(_db.db, movement.toRecord());
     await _refreshItemSync(_db.db, movement.itemId);
+    await _mirror?.write(
+      entityType: 'stockMovement',
+      entityId: entry.entityId,
+      snapshot: movement.toRecord(),
+    );
+    final itemRecord = LocalStores.inventory.record(movement.itemId);
+    final itemExisting = await itemRecord.get(_db.db);
+    if (itemExisting != null) {
+      await _mirror?.write(
+        entityType: 'inventoryItem',
+        entityId: movement.itemId,
+        snapshot: itemExisting,
+      );
+    }
   }
 
   /// Marks an item synced once it has no movements still awaiting the backend.

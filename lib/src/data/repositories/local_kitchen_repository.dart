@@ -14,14 +14,20 @@ class LocalKitchenRepository implements KitchenRepository {
     DateTime Function()? clock,
     OutboxStore? outbox,
     Uuid? uuid,
+    RecordMirror? mirror,
   })  : _clock = clock ?? DateTime.now,
         _outbox = outbox ?? OutboxStore(_db),
-        _uuid = uuid ?? const Uuid();
+        _uuid = uuid ?? const Uuid(),
+        _mirror = mirror;
 
   final LocalDatabase _db;
   final DateTime Function() _clock;
   final OutboxStore _outbox;
   final Uuid _uuid;
+
+  /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
+  /// mode, where there is nowhere to mirror to.
+  final RecordMirror? _mirror;
 
   OutboxEntry _entry({
     required String entityId,
@@ -175,6 +181,14 @@ class LocalKitchenRepository implements KitchenRepository {
         ticket.copyWith(syncStatus: 'synced').toRecord(),
       );
     }
+    // Mirror the settled state, not the pre-flip read: re-read after the
+    // write above so the snapshot carries the flipped flag.
+    final settled = await record.get(_db.db);
+    await _mirror?.write(
+      entityType: 'kitchenTicket',
+      entityId: entry.entityId,
+      snapshot: settled ?? existing,
+    );
   }
 
   static Filter? _buildFilter({String? station, Set<TicketState>? states}) {
