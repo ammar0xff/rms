@@ -77,8 +77,9 @@ class OutboxEntry {
         schemaVersion: record['schemaVersion'] as int,
         idempotencyKey: record['idempotencyKey'] as String,
         createdAt: DateTime.parse(record['createdAt'] as String),
-        dependencyIds:
-            (record['dependencyIds'] as List?)?.cast<String>() ?? const [],
+        // No dependencyIds: the key was removed (stored by nothing, read by
+        // nothing). Old rows still carrying it parse fine — unknown keys are
+        // simply never read.
         attemptCount: record['attemptCount'] as int? ?? 0,
         lastAttemptAt: record['lastAttemptAt'] == null
             ? null
