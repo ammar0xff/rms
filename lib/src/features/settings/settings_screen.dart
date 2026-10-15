@@ -17,6 +17,7 @@ import '../../data/local/migrations/local_migration_runner.dart';
 import '../../domain/models/release_manifest.dart';
 import '../../domain/update/device_update_status.dart';
 import '../../domain/update/release_audit_event.dart';
+import '../../domain/models/app_role.dart';
 import '../../domain/update/update_acknowledgement.dart';
 import '../../domain/update/update_decision.dart';
 import '../../domain/update/update_readiness.dart';
@@ -306,11 +307,19 @@ class _UpdateCard extends StatelessWidget {
                 ),
                 if (needsAck) ...[
                   const SizedBox(width: 10),
-                  RmsButton(
-                    label: acknowledging ? 'جارٍ الحفظ…' : 'إقرار',
-                    variant: BtnVariant.primary,
-                    onPressed: acknowledging ? null : onAcknowledge,
-                  ),
+                  if ((AppScope.of(context).auth.currentUser?.role ??
+                          AppRole.cashier)
+                      .isPrivileged)
+                    RmsButton(
+                      label: acknowledging ? 'جارٍ الحفظ…' : 'إقرار',
+                      variant: BtnVariant.primary,
+                      onPressed: acknowledging ? null : onAcknowledge,
+                    )
+                  else
+                    const Tag(
+                      label: 'يتطلب الإقرار مديرًا',
+                      tone: StatusTone.warning,
+                    ),
                 ],
               ],
             ),

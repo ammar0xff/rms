@@ -1,3 +1,4 @@
+import '../../domain/models/app_role.dart';
 import '../../domain/models/app_user.dart';
 
 /// Authentication boundary. Implementations may be backend-backed (Firebase)
@@ -15,6 +16,11 @@ abstract class AuthRepository {
   });
 
   Future<void> signOut();
+
+  /// Resolves the operator's role. Never throws: unknown or unreadable roles
+  /// fall back to [AppRole.cashier], because a role lookup failure must not
+  /// lock anyone out — nor silently promote them.
+  Future<AppRole> roleFor(AppUser user);
 }
 
 class AuthException implements Exception {

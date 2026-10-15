@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text.dart';
+import '../../domain/models/app_role.dart';
+import '../../domain/models/app_user.dart';
 import '../../features/accounting/accounting_screen.dart';
 import '../../features/branches/branches_screen.dart';
 import '../../features/conflicts/conflicts_screen.dart';
@@ -11,6 +15,7 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/delivery/delivery_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
 import '../../features/kitchen/kitchen_screen.dart';
+import '../../features/team/team_screen.dart';
 import '../di/app_services.dart';
 import '../../features/menu/menu_screen.dart';
 import '../../features/pos/pos_screen.dart';
@@ -22,6 +27,7 @@ import '../../features/updates/update_controller.dart';
 import '../../domain/update/update_prompt_mode.dart';
 import '../../features/updates/update_prompt.dart';
 import 'buttons.dart';
+import 'status.dart';
 import 'sync_chip.dart';
 
 class NavEntry {
@@ -60,12 +66,71 @@ final navGroups = <NavGroup>[
   NavGroup('النظام', [
     NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
     NavEntry('conflicts', 'التعارضات', Icons.call_split_outlined, _conflicts),
+    NavEntry('team', 'الفريق', Icons.group_outlined, _team),
     NavEntry('settings', 'الإعدادات', Icons.settings_outlined, _settings),
   ]),
 ];
 
 List<NavEntry> get _flatEntries =>
     [for (final g in navGroups) ...g.entries];
+
+/// Navigation shape per role: bottom tabs, More-grid contents, landing screen.
+///
+/// The signed-in account is the key to what is displayed: one APK, five
+/// different apps sharing a theme. Anything not listed here is unreachable
+/// for the role — on narrow screens and, via the filtered sidebar, on wide
+/// ones too.
+class _RoleNav {
+  const _RoleNav({
+    required this.tabs,
+    required this.more,
+    required this.home,
+  });
+
+  /// Bottom-bar entry ids, in order.
+  final List<String> tabs;
+
+  /// More-grid entry ids, in display order.
+  final List<String> more;
+
+  /// Landing entry id.
+  final String home;
+}
+
+const _allIds = [
+  'dashboard', 'pos', 'kitchen', 'delivery', 'menu', 'inventory',
+  'purchasing', 'customers', 'accounting', 'reports', 'branches',
+  'sync', 'conflicts', 'team', 'settings',
+];
+
+_RoleNav _navFor(AppRole role) => switch (role) {
+      // Mobile-first: deliveries, then everything else behind المزيد.
+      AppRole.driver => const _RoleNav(
+          tabs: ['delivery'],
+          more: ['delivery', 'sync', 'settings'],
+          home: 'delivery',
+        ),
+      AppRole.cashier => const _RoleNav(
+          tabs: ['pos', 'dashboard'],
+          more: ['dashboard', 'pos', 'menu', 'customers', 'sync', 'settings'],
+          home: 'pos',
+        ),
+      AppRole.chef => const _RoleNav(
+          tabs: ['kitchen', 'menu'],
+          more: ['kitchen', 'menu', 'dashboard', 'sync', 'settings'],
+          home: 'kitchen',
+        ),
+      AppRole.manager => const _RoleNav(
+          tabs: ['dashboard', 'pos', 'kitchen', 'delivery'],
+          more: _allIds,
+          home: 'dashboard',
+        ),
+      AppRole.developer => const _RoleNav(
+          tabs: ['dashboard', 'sync'],
+          more: _allIds,
+          home: 'dashboard',
+        ),
+    };
 
 Widget _dashboard(BuildContext c) => const DashboardScreen();
 Widget _pos(BuildContext c) => const PosScreen();
@@ -80,6 +145,7 @@ Widget _reports(BuildContext c) => const ReportsScreen();
 Widget _branches(BuildContext c) => const BranchesScreen();
 Widget _sync(BuildContext c) => const SyncCenterScreen();
 Widget _conflicts(BuildContext c) => const ConflictsScreen();
+Widget _team(BuildContext c) => const TeamScreen();
 Widget _settings(BuildContext c) => const SettingsScreen();
 
 class AppShell extends StatefulWidget {
@@ -97,18 +163,33 @@ class _AppShellState extends State<AppShell> {
   /// search, kitchen scroll position — on each tab switch. Cached bodies stay
   /// alive offstage instead; only 'more' rebuilds, since it is stateless and
   /// needs the fresh selection highlight.
+  ///
+  /// Cleared on every account change: a shared device must never show the
+  /// previous operator's screens to the next one.
   final _bodies = <String, Widget>{};
 
   Widget _bodyFor(String id, BuildContext context) {
-    if (id == 'more') return _MoreScreen(selected: id, onSelect: _select);
+    if (id == 'more') {
+      final role = _role;
+      final user = _user;
+      return _MoreScreen(
+        allowedIds: role == null ? const {} : {..._navFor(role).more},
+        selected: _selected,
+        user: user,
+        onSelect: _select,
+        onSignOut: () => AppScope.of(context).auth.signOut(),
+      );
+    }
     return _bodies.putIfAbsent(id, () => _entryFor(id).builder(context));
   }
 
   NavEntry _entryFor(String id) =>
       _flatEntries.firstWhere((e) => e.id == id, orElse: () => _flatEntries.first);
 
-  /// The five thumb-reachable destinations. Everything else lives under المزيد.
-  static const _primaryIds = ['dashboard', 'pos', 'kitchen', 'delivery'];
+  StreamSubscription<AppUser?>? _authSub;
+  String? _authUid;
+  AppUser? _user;
+  AppRole? _role;
 
   UpdateController? _updates;
   bool _dismissedOptional = false;
@@ -116,24 +197,45 @@ class _AppShellState extends State<AppShell> {
   NavEntry get _current =>
       _flatEntries.firstWhere((e) => e.id == _selected, orElse: () => _flatEntries.first);
 
-  /// Bottom-bar index: the four primaries, or المزيد for everything else —
+  /// Bottom-bar index: the role's tabs, or المزيد for everything else —
   /// including the menu grid itself.
-  int get _barIndex {
-    final i = _primaryIds.indexOf(_selected);
-    return i == -1 ? 4 : i;
+  int _barIndex(List<String> tabs) {
+    final i = tabs.indexOf(_selected);
+    return i == -1 ? tabs.length : i;
   }
 
   void _select(String id) {
     setState(() => _selected = id);
   }
 
-  void _onBarTap(int index) {
-    _select(index < 4 ? _primaryIds[index] : 'more');
+  void _onBarTap(List<String> tabs, int index) {
+    _select(index < tabs.length ? tabs[index] : 'more');
+  }
+
+  Future<void> _onUser(AppUser? user) async {
+    if (!mounted) return;
+    if (user?.uid == _authUid && _role != null) return;
+    setState(() {
+      _authUid = user?.uid;
+      _user = user;
+      _role = null;
+      _bodies.clear();
+    });
+    if (user == null) return;
+    final role =
+        await AppScope.of(context).auth.roleFor(user).catchError((_) => AppRole.cashier);
+    if (!mounted) return;
+    setState(() {
+      _role = role;
+      _selected = _navFor(role).home;
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _authSub ??=
+        AppScope.of(context).auth.authStateChanges().listen(_onUser);
     if (_updates != null) return;
     final runtime = AppScope.of(context).updateRuntime;
     if (runtime == null) return;
@@ -145,33 +247,64 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _authSub?.cancel();
     _updates?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final role = _role;
+    // Role unresolved: the account is the key to what is displayed, so nothing
+    // renders before it. This also covers the sign-out gap.
+    if (role == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.base,
+        body: SafeArea(
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
         final updates = _updates;
+        final nav = _navFor(role);
+        // Guard against a selection the role cannot see (e.g. right after the
+        // account changed and before the home reset lands).
+        final selected =
+            (nav.tabs.contains(_selected) || nav.more.contains(_selected) || _selected == 'more')
+                ? _selected
+                : nav.home;
+        final allowed = {...nav.tabs, ...nav.more};
+        final sidebarGroups = [
+          for (final group in navGroups)
+            NavGroup(group.label, [
+              for (final entry in group.entries)
+                if (allowed.contains(entry.id)) entry,
+            ]),
+        ]..removeWhere((group) => group.entries.isEmpty);
         // Every visited screen stays mounted offstage; the visible one is the
         // only one laid out. Entries build lazily on first visit (see
         // [_bodies]), so startup still mounts a single screen.
-        if (_selected != 'more') _bodyFor(_selected, context);
+        if (selected != 'more') _bodyFor(selected, context);
         final stacked = Stack(
           children: [
             for (final id in _bodies.keys)
               Offstage(
-                offstage: id != _selected,
+                offstage: id != selected,
                 child: TickerMode(
-                  enabled: id == _selected,
+                  enabled: id == selected,
                   child: _bodies[id]!,
                 ),
               ),
-            if (_selected == 'more') _bodyFor('more', context),
+            if (selected == 'more') _bodyFor('more', context),
           ],
         );
+        final title =
+            selected == 'more' ? 'المزيد' : _entryFor(selected).label;
         return Stack(
           children: [
             Scaffold(
@@ -179,14 +312,17 @@ class _AppShellState extends State<AppShell> {
                 child: wide
                     ? Row(
                         children: [
-                          _Sidebar(selected: _selected, onSelect: _select),
+                          _Sidebar(
+                            groups: sidebarGroups,
+                            selected: selected,
+                            onSelect: _select,
+                            user: _user,
+                          ),
                           const VerticalDivider(width: 1, color: AppColors.borderStrong),
                           Expanded(
                             child: Column(
                               children: [
-                                _TopBar(
-                                  title: _selected == 'more' ? 'المزيد' : _current.label,
-                                ),
+                                _TopBar(title: title),
                                 const Divider(height: 1, color: AppColors.borderStrong),
                                 Expanded(child: stacked),
                               ],
@@ -196,9 +332,7 @@ class _AppShellState extends State<AppShell> {
                       )
                     : Column(
                         children: [
-                          _TopBar(
-                            title: _selected == 'more' ? 'المزيد' : _current.label,
-                          ),
+                          _TopBar(title: title),
                           const Divider(height: 1, color: AppColors.borderStrong),
                           Expanded(child: stacked),
                         ],
@@ -207,36 +341,21 @@ class _AppShellState extends State<AppShell> {
               bottomNavigationBar: wide
                   ? null
                   : BottomNavigationBar(
-                      currentIndex: _barIndex,
-                      onTap: _onBarTap,
+                      currentIndex: _barIndex(nav.tabs),
+                      onTap: (index) => _onBarTap(nav.tabs, index),
                       type: BottomNavigationBarType.fixed,
                       backgroundColor: AppColors.surface,
                       selectedItemColor: AppColors.brand,
                       unselectedItemColor: AppColors.fgMuted,
                       selectedLabelStyle: AppText.label,
                       unselectedLabelStyle: AppText.label,
-                      items: const [
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.space_dashboard_outlined),
-                          activeIcon: Icon(Icons.space_dashboard),
-                          label: 'الرئيسية',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.point_of_sale_outlined),
-                          activeIcon: Icon(Icons.point_of_sale),
-                          label: 'البيع',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.soup_kitchen_outlined),
-                          activeIcon: Icon(Icons.soup_kitchen),
-                          label: 'المطبخ',
-                        ),
-                        BottomNavigationBarItem(
-                          icon: Icon(Icons.moped_outlined),
-                          activeIcon: Icon(Icons.moped),
-                          label: 'التوصيل',
-                        ),
-                        BottomNavigationBarItem(
+                      items: [
+                        for (final id in nav.tabs)
+                          BottomNavigationBarItem(
+                            icon: Icon(_entryFor(id).icon),
+                            label: _tabLabel(id),
+                          ),
+                        const BottomNavigationBarItem(
                           icon: Icon(Icons.apps_outlined),
                           activeIcon: Icon(Icons.apps),
                           label: 'المزيد',
@@ -264,22 +383,106 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
+/// Short thumb-sized labels for bottom tabs. The full entry labels stay in the
+/// sidebar and the More grid, where there is room for them.
+String _tabLabel(String id) => switch (id) {
+      'dashboard' => 'الرئيسية',
+      'pos' => 'البيع',
+      'kitchen' => 'المطبخ',
+      'delivery' => 'التوصيل',
+      'menu' => 'القائمة',
+      'sync' => 'المزامنة',
+      _ => _flatEntries
+          .firstWhere((e) => e.id == id, orElse: () => _flatEntries.first)
+          .label,
+    };
+
 /// The menu grid behind المزيد: every destination, grouped, thumb-reachable.
 ///
 /// Fourteen entries cannot fit a bottom bar, and the drawer they lived in was
 /// built for a mouse. On a phone the overflow belongs in a screen of its own.
 class _MoreScreen extends StatelessWidget {
-  const _MoreScreen({required this.selected, required this.onSelect});
+  const _MoreScreen({
+    required this.allowedIds,
+    required this.selected,
+    required this.user,
+    required this.onSelect,
+    required this.onSignOut,
+  });
 
+  final Set<String> allowedIds;
   final String selected;
+  final AppUser? user;
   final ValueChanged<String> onSelect;
+  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
+    final role = user?.role ?? AppRole.cashier;
+    final name = (user?.displayName?.trim().isNotEmpty ?? false)
+        ? user!.displayName!.trim()
+        : (user?.email ?? '—');
+    final groups = [
+      for (final group in navGroups)
+        NavGroup(group.label, [
+          for (final entry in group.entries)
+            if (allowedIds.contains(entry.id)) entry,
+        ]),
+    ]..removeWhere((group) => group.entries.isEmpty);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        for (final group in navGroups) ...[
+        // Identity header: on narrow screens the sidebar (and its user row)
+        // does not exist, so this is where the account shows itself — and
+        // where a shared device signs out.
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.borderStrong),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: AppColors.hover,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  user?.initials ?? '؟',
+                  style: AppText.bodyStrong,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.bodyStrong,
+                    ),
+                    const SizedBox(height: 2),
+                    Tag(label: role.label, tone: StatusTone.info),
+                  ],
+                ),
+              ),
+              RmsButton(
+                label: 'خروج',
+                icon: Icons.logout,
+                variant: BtnVariant.ghost,
+                onPressed: onSignOut,
+              ),
+            ],
+          ),
+        ),
+        for (final group in groups) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
             child: Text(group.label.toUpperCase(), style: AppText.label),
@@ -342,10 +545,17 @@ class _MoreScreen extends StatelessWidget {
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.selected, required this.onSelect});
+  const _Sidebar({
+    required this.groups,
+    required this.selected,
+    required this.onSelect,
+    required this.user,
+  });
 
+  final List<NavGroup> groups;
   final String selected;
   final ValueChanged<String> onSelect;
+  final AppUser? user;
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +612,7 @@ class _Sidebar extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               children: [
-                for (final group in navGroups) ...[
+                for (final group in groups) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 14, 10, 5),
                     child: Text(group.label.toUpperCase(), style: AppText.label),
@@ -419,7 +629,7 @@ class _Sidebar extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: AppColors.borderStrong),
-          const _UserRow(),
+          _UserRow(user: user),
         ],
       ),
     );
@@ -492,10 +702,16 @@ decoration: BoxDecoration(
 }
 
 class _UserRow extends StatelessWidget {
-  const _UserRow();
+  const _UserRow({required this.user});
+
+  final AppUser? user;
 
   @override
   Widget build(BuildContext context) {
+    final name = (user?.displayName?.trim().isNotEmpty ?? false)
+        ? user!.displayName!.trim()
+        : (user?.email ?? '—');
+    final role = user?.role ?? AppRole.cashier;
     return Padding(
       padding: const EdgeInsets.all(10),
       child: Row(
@@ -508,15 +724,23 @@ class _UserRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Text('أ', style: AppText.caption),
+            child: Text(
+              (user?.initials ?? '؟'),
+              style: AppText.caption,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('أمّار', style: AppText.bodyStrong),
-                Text('مدير', style: AppText.caption),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.bodyStrong,
+                ),
+                Text(role.label, style: AppText.caption),
               ],
             ),
           ),

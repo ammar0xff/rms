@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// Reviewed 2026-10-15. Apply in the Firebase console (Firestore Database >
+// Rules) — these live here so changes are reviewable; the console is
+// authoritative until the rules are deployed from here.
+//
+// Principles:
+// - Everything requires a signed-in operator. There are no public reads.
+// - Clients never mint order numbers or publish releases: counters are
+//   unreadable and releases/activeReleases are read-only. The Admin SDK used
+//   by the release publisher bypasses rules entirely.
+// - Team membership gates itself: anyone signed in can read their own user
+//   document; listing and writing need a manager/developer role.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Role of the caller, or '' when they have no user document yet. A missing
+    // document fails closed (get() errors), so the first account must be
+    // created directly in the console before anyone can manage the team.
+    function myRole() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      ).data.get('role', '');
+    }
+
+    function isPrivileged() {
+      return myRole() == 'manager' || myRole() == 'developer';
+    }
+
+    // Operator accounts and roles.
+    match /users/{uid} {
+      // Anyone reads their own document (this is how sign-in resolves roles).
+      allow get: if signedIn() && request.auth.uid == uid;
+      // Managers and developers list the team and read any member.
+      allow get, list: if signedIn() && isPrivileged();
+      // Managers and developers assign roles. Nobody edits their own role
+      // (enforced in the app; rules cannot compare easily — do not grant
+      // broader write without adding that check).
+      allow create, update: if signedIn() && isPrivileged();
+      allow delete: if false;
+    }
+
+    // Offline outbox drain: the sync engine's write path.
+    match /sync_operations/{id} {
+      allow read, write: if signedIn();
+    }
+
+    // Server-assigned order numbers. Clients must never read the counter
+    // (it leaks sequence position) and must never write it (they would mint
+    // their own numbers). The counter transaction runs under these rules and
+    // fails closed when denied — the push retries instead of syncing a
+    // numberless order.
+    match /counters/{id} {
+      allow read, write: if false;
+    }
+
+    // Published releases and the per-platform pointer. Read-only to clients;
+    // only the release publisher (Admin SDK) writes them. Note: the app no
+    // longer reads these for updates (it tracks GitHub Releases); they stay
+    // readable during the transition for pre-0.14.0 clients.
+    match /releases/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /activeReleases/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+  }
+}

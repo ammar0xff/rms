@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../domain/models/app_role.dart';
 import '../../domain/models/app_user.dart';
 import 'auth_repository.dart';
 
@@ -35,11 +36,13 @@ class DemoAuthRepository implements AuthRepository {
     if (email.trim().isEmpty || password.isEmpty) {
       throw const AuthException('أدخل البريد الإلكتروني وكلمة المرور.');
     }
+    final address = email.trim();
     final user = AppUser(
-      uid: 'demo-${email.trim().hashCode.toUnsigned(20)}',
-      email: email.trim(),
-      displayName: email.trim().split('@').first,
+      uid: 'demo-${address.hashCode.toUnsigned(20)}',
+      email: address,
+      displayName: address.split('@').first,
       isDemo: true,
+      role: _inferRole(address),
     );
     _current = user;
     _controller.add(user);
@@ -50,5 +53,30 @@ class DemoAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     _current = null;
     _controller.add(null);
+  }
+
+  /// Demo convention: the email local part names the role
+  /// (`driver.ahmed@…`, `dev@…`). Anything else signs in as a manager, so
+  /// demo mode stays fully explorable without configuration.
+  @override
+  Future<AppRole> roleFor(AppUser user) async => _inferRole(user.email);
+
+  static AppRole _inferRole(String? email) {
+    final local = (email ?? '').trim().toLowerCase().split('@').first;
+    for (final entry in const [
+      ('driver', AppRole.driver),
+      ('cashier', AppRole.cashier),
+      ('chef', AppRole.chef),
+      ('manager', AppRole.manager),
+      ('developer', AppRole.developer),
+      ('dev', AppRole.developer),
+    ]) {
+      if (local == entry.$1 ||
+          local.startsWith('${entry.$1}.') ||
+          local.startsWith('${entry.$1}_')) {
+        return entry.$2;
+      }
+    }
+    return AppRole.manager;
   }
 }

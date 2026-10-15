@@ -10,6 +10,8 @@ import 'package:rms/src/data/local/outbox/outbox_entry.dart';
 import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/data/local/update_store_contracts.dart';
 import 'package:rms/src/data/repositories/demo_auth_repository.dart';
+import 'package:rms/src/domain/models/app_role.dart';
+import 'package:rms/src/domain/models/app_user.dart';
 import 'package:rms/src/data/repositories/update_repository.dart';
 import 'package:rms/src/domain/models/update_manifest.dart';
 import 'package:rms/src/domain/update/device_update_status.dart';
@@ -136,7 +138,15 @@ AppServices _services({
 }) =>
     AppServices(
       config: const FirebaseConfig.empty(),
-      auth: DemoAuthRepository(),
+      // Signed in as a manager, like production behind the AuthGate: the
+      // acknowledgement action is privileged.
+      auth: DemoAuthRepository(
+        initialUser: const AppUser(
+          uid: 'u-manager',
+          email: 'manager@rms.dev',
+          role: AppRole.manager,
+        ),
+      ),
       firebaseReady: false,
       updates: _FakeUpdates(_manifest()),
       // Null would mean "backlog unreadable" and withhold the install; the
@@ -395,7 +405,13 @@ void main() {
       AppScope(
         services: AppServices(
           config: const FirebaseConfig.empty(),
-          auth: DemoAuthRepository(),
+          auth: DemoAuthRepository(
+            initialUser: const AppUser(
+              uid: 'u-manager',
+              email: 'manager@rms.dev',
+              role: AppRole.manager,
+            ),
+          ),
           firebaseReady: false,
           updates: _FakeUpdates(_otherPlatformManifest()),
           updateStatus: _FakeStatusStore(),

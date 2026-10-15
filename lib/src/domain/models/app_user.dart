@@ -1,3 +1,5 @@
+import 'app_role.dart';
+
 /// Identity of the authenticated user, decoupled from Firebase types so the
 /// domain and UI layers never import the backend SDK directly.
 class AppUser {
@@ -6,6 +8,7 @@ class AppUser {
     this.email,
     this.displayName,
     this.isDemo = false,
+    this.role = AppRole.cashier,
   });
 
   final String uid;
@@ -14,6 +17,9 @@ class AppUser {
 
   /// True when the session is a local, non-backend demo session.
   final bool isDemo;
+
+  /// Resolved at sign-in ([AuthRepository.roleFor]); cashier until then.
+  final AppRole role;
 
   String get initials {
     final source = (displayName?.trim().isNotEmpty ?? false)

@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../domain/models/app_role.dart';
 import '../../domain/models/app_user.dart';
 import 'auth_repository.dart';
 
@@ -38,10 +40,16 @@ class _FirebaseAuthBackend implements AuthBackend {
 
   final FirebaseAuth _auth;
 
+  /// Last resolved role per uid. The synchronous mapping reads through here
+  /// so `currentUser` carries the role once known, instead of permanently
+  /// reporting the cashier default to UI gates.
+  final Map<String, AppRole> roles = {};
+
   AppUser? _map(User user) => AppUser(
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
+        role: roles[user.uid] ?? AppRole.cashier,
       );
 
   @override
@@ -77,11 +85,17 @@ class _FirebaseAuthBackend implements AuthBackend {
 
 /// Backend-backed authentication using Firebase Auth (email/password).
 class FirebaseAuthRepository implements AuthRepository {
-  FirebaseAuthRepository({FirebaseAuth? auth, AuthBackend? backend})
-      : _backend =
-            backend ?? _FirebaseAuthBackend(auth ?? FirebaseAuth.instance);
+  FirebaseAuthRepository(
+      {FirebaseAuth? auth, AuthBackend? backend, FirebaseFirestore? firestore})
+      : _backend = backend ?? _FirebaseAuthBackend(auth ?? FirebaseAuth.instance),
+        _firestore = firestore;
 
   final AuthBackend _backend;
+
+  /// Explicit Firestore for tests. Production leaves it null and the instance
+  /// is resolved lazily at call time — never in the constructor — so an
+  /// uninitialized Firebase cannot crash startup through this class.
+  final FirebaseFirestore? _firestore;
 
   @override
   AppUser? get currentUser => _backend.currentUser;
@@ -110,6 +124,23 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _backend.signOut();
+
+  /// Reads the operator's role from `users/{uid}`. Any failure — missing
+  /// document, offline, denied rules — falls back to cashier rather than
+  /// locking the operator out or promoting them.
+  @override
+  Future<AppRole> roleFor(AppUser user) async {
+    try {
+      final db = _firestore ?? FirebaseFirestore.instance;
+      final doc = await db.collection('users').doc(user.uid).get();
+      final role = AppRole.tryParse(doc.data()?['role']) ?? AppRole.cashier;
+      final backend = _backend;
+      if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = role;
+      return role;
+    } catch (_) {
+      return AppRole.cashier;
+    }
+  }
 }
 
 /// The operator-facing message for a Firebase Auth error [code].
