@@ -129,6 +129,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               lastStatus: _lastStatus,
               trail: _auditTrail,
               onAcknowledge: _acknowledgeStuckWork,
+              acknowledging: _acking,
+              lastAck: _lastAck,
             ),
           ],
         ),

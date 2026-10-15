@@ -31,7 +31,7 @@ class LocalReportsRepository implements ReportsRepository {
     OutboxStore? outbox,
     this.windowDays = 7,
     this.auditLimit = 8,
-  })  : _audit = audit ?? AuditLog(_db),
+  })  : _audit = audit,
         _outbox = outbox;
 
   final OrderRepository _orders;
@@ -41,7 +41,7 @@ class LocalReportsRepository implements ReportsRepository {
   final InventoryRepository _inventory;
   final PurchaseRepository _purchases;
   final SupplierRepository _suppliers;
-  final AuditLog _audit;
+  final AuditLog? _audit;
   final OutboxStore? _outbox;
 
   /// Number of days in the rolling sales window.
@@ -63,7 +63,9 @@ class LocalReportsRepository implements ReportsRepository {
     final purchases = await _purchases.listPurchases();
     final suppliers = await _suppliers.listSuppliers();
 
-    final audit = await _audit.list(limit: auditLimit);
+    final audit = _audit == null
+        ? const <AuditEntry>[]
+        : await _audit.list(limit: auditLimit);
     final outbox = _outbox == null
         ? const <OutboxEntry>[]
         : await _outbox.all();
