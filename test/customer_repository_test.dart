@@ -133,7 +133,7 @@ void main() {
       expect(await store.pruneSynced(), 2);
       final remaining = await store.all();
       expect(remaining, hasLength(1));
-      expect(remaining.single.syncStatus, SyncStatus.pendingSync);
+      expect(remaining.single.syncStatus, OutboxStatus.pending);
     });
 
     test('is a no-op on an empty outbox', () async {
