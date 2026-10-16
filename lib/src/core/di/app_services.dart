@@ -18,6 +18,7 @@ import '../../data/local/update_store_contracts.dart';
 import '../../data/updates/update_runtime.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/payment_repository.dart';
+import '../../data/repositories/local_facility_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
 import '../../data/repositories/table_repository.dart';
 import '../../data/repositories/transfer_repository.dart';
@@ -56,6 +57,7 @@ class AppServices {
     this.transfers,
     this.reports,
     this.branches,
+    this.facility,
     this.updates,
     this.updateAudit,
     this.updateStatus,
@@ -145,6 +147,9 @@ class AppServices {
 
   /// Branch directory and consolidation read-model, or null when unavailable.
   final BranchRepository? branches;
+
+  /// Terminal facility profile (local-only), or null when unavailable.
+  final LocalFacilityRepository? facility;
 
   /// Cached release manifest used to classify app updates, or null when
   /// unavailable.

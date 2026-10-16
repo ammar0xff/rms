@@ -40,6 +40,7 @@ import '../../data/repositories/local_order_repository.dart';
 import '../../data/repositories/local_payment_repository.dart';
 import '../../data/repositories/local_purchase_repository.dart';
 import '../../data/repositories/local_reports_repository.dart';
+import '../../data/repositories/local_facility_repository.dart';
 import '../../data/repositories/local_supplier_repository.dart';
 import '../../data/repositories/local_table_repository.dart';
 import '../../data/repositories/local_transfer_repository.dart';
@@ -220,6 +221,8 @@ Future<AppServices> _resolveAuth(
   final branches = (database == null || reports == null)
       ? null
       : LocalBranchRepository(database, reports: reports);
+  final facility =
+      database == null ? null : LocalFacilityRepository(database);
   await _primeMenuCache(menu);
   await _primeKitchenCache(kitchen);
   await _primeDeliveryData(deliveries);
@@ -297,6 +300,7 @@ Future<AppServices> _resolveAuth(
       transfers: transfers,
       reports: reports,
       branches: branches,
+      facility: facility,
       updates: updates,
       updateAudit: updateAudit,
       updateStatus: updateStatus,
@@ -341,6 +345,7 @@ Future<AppServices> _resolveAuth(
       transfers: transfers,
       reports: reports,
       branches: branches,
+      facility: facility,
       updates: updates,
       updateAudit: updateAudit,
       updateStatus: updateStatus,
@@ -378,6 +383,7 @@ Future<AppServices> _resolveAuth(
       transfers: transfers,
       reports: reports,
       branches: branches,
+      facility: facility,
       updates: updates,
       updateAudit: updateAudit,
       updateStatus: updateStatus,

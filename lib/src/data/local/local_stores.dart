@@ -71,6 +71,10 @@ abstract final class LocalStores {
   static final StoreRef<String, Map<String, Object?>> tables =
       stringMapStoreFactory.store('tables');
 
+  /// Terminal facility profile (single record, local-only).
+  static final StoreRef<String, Map<String, Object?>> facility =
+      stringMapStoreFactory.store('facility');
+
   /// Inter-branch stock transfers with their lifecycle state.
   static final StoreRef<String, Map<String, Object?>> transfers =
       stringMapStoreFactory.store('transfers');
