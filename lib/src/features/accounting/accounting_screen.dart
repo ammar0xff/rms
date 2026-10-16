@@ -7,6 +7,8 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';
+import '../../core/widgets/pin_gate.dart';
+import '../../data/services/pin_service.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/rms_table.dart';
@@ -117,6 +119,19 @@ class _AccountingScreenState extends State<AccountingScreen> {
       {required bool approved, String? note}) async {
     final approvals = AppScope.of(context).approvals;
     if (approvals == null) return;
+    // Approving money passes the manager PIN when one is set. Demo mode
+    // has no PIN store, so approval stays one tap there.
+    if (approved && await PinService().isSet) {
+      if (!mounted) return;
+      final passed = await showDialog<bool>(
+        context: context,
+        builder: (_) => PinGateDialog(
+          title: 'اعتماد ${money(request.amount)}',
+          onVerify: (pin) => PinService().verify(pin),
+        ),
+      );
+      if (passed != true) return;
+    }
     await approvals.decide(request.id, approved: approved, note: note);
     await _load();
     if (!mounted) return;

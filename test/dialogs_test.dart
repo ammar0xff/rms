@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/core/theme/app_theme.dart';
+import 'package:rms/src/core/widgets/pin_gate.dart';
 import 'package:rms/src/domain/models/inventory_item.dart';
 import 'package:rms/src/domain/models/supplier.dart';
 import 'package:rms/src/features/accounting/accounting_screen.dart';
@@ -105,6 +106,31 @@ void main() {
       // Empty confirms nothing: pick a chip, then confirm enables.
       await t.tap(find.text('خطأ كاشير'));
       await t.pumpAndSettle();
+    });
+
+    testWidgets('pin gate verifies four digits', (t) async {
+      var seen = '';
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: PinGateDialog(
+              title: 'اعتماد',
+              onVerify: (pin) async {
+                seen = pin;
+                return true;
+              },
+            ),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      for (final digit in ['1', '2', '3', '4']) {
+        await t.tap(find.text(digit));
+        await t.pump();
+      }
+      await t.pumpAndSettle();
+      expect(seen, '1234');
     });
 
     testWidgets('customer', (t) async {

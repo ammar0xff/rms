@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/widgets/blocks.dart';
+import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
+import '../../data/services/pin_service.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../domain/models/app_role.dart';
@@ -63,6 +66,42 @@ class _TeamScreenState extends State<TeamScreen> {
     }
   }
 
+  /// Sets or replaces the manager PIN (4-8 digits, twice to confirm).
+  /// Privileged roles only; the hash lives in Firestore, never on device.
+  Future<void> _setPin() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final first = await showDialog<String>(
+      context: context,
+      builder: (_) => const _PinEntrySheet(title: 'PIN جديد للمدير'),
+    );
+    if (first == null || first.isEmpty) return;
+    if (!mounted) return;
+    final second = await showDialog<String>(
+      context: context,
+      builder: (_) => const _PinEntrySheet(title: 'أكّد الـ PIN الجديد'),
+    );
+    if (second == null || second.isEmpty) return;
+    if (first != second) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('الرقمين مش زي بعض — جرّب تاني')),
+      );
+      return;
+    }
+    try {
+      await PinService().setPin(first);
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('تعذّر حفظ الـ PIN — تحقق من الاتصال')),
+      );
+      return;
+    }
+    if (!mounted) return;
+    messenger.showSnackBar(
+      const SnackBar(content: Text('اتحفظ الـ PIN الجديد')),
+    );
+  }
+
   Future<void> _setRole(_Member member, AppRole role) async {
     if (_saving || role == member.role) return;
     setState(() => _saving = true);
@@ -91,9 +130,16 @@ class _TeamScreenState extends State<TeamScreen> {
     final canEdit = (me?.role ?? AppRole.cashier).isPrivileged;
     return PageBody(
       children: [
-        const SectionHeader(
+        SectionHeader(
           title: 'الفريق',
           subtitle: 'الحساب هو مفتاح ما يُعرض: الدور يحدد التطبيق',
+          trailing: canEdit && services.firebaseReady
+              ? RmsButton(
+                  label: 'PIN المدير',
+                  icon: Icons.pin_outlined,
+                  onPressed: _setPin,
+                )
+              : null,
         ),
         if (!services.firebaseReady)
           const SurfaceCard(
@@ -183,6 +229,59 @@ class _TeamScreenState extends State<TeamScreen> {
               );
             },
           ),
+      ],
+    );
+  }
+}
+
+/// PIN entry with confirmation display. Returns the digits, or null.
+class _PinEntrySheet extends StatefulWidget {
+  const _PinEntrySheet({required this.title});
+
+  final String title;
+
+  @override
+  State<_PinEntrySheet> createState() => _PinEntrySheetState();
+}
+
+class _PinEntrySheetState extends State<_PinEntrySheet> {
+  final _pin = TextEditingController();
+
+  @override
+  void dispose() {
+    _pin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DialogShell(
+      title: widget.title,
+      subtitle: 'من ٤ لـ ٨ أرقام.',
+      content: TextField(
+        controller: _pin,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        maxLength: 8,
+        onChanged: (_) => setState(() {}),
+        decoration: const InputDecoration(
+          hintText: '••••',
+          border: OutlineInputBorder(),
+          counterText: '',
+        ),
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'تأكيد',
+          onPressed: _pin.text.trim().length >= 4
+              ? () => Navigator.of(context).pop(_pin.text.trim())
+              : null,
+        ),
       ],
     );
   }

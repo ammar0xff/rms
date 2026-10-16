@@ -43,6 +43,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Terminal security settings (manager PIN hash). Privileged roles
+    // only: the document holds a salted hash, never the PIN, and only
+    // managers set or rotate it.
+    match /settings/{id} {
+      allow read, write: if signedIn() && isPrivileged();
+    }
+
     // Offline outbox drain: the sync engine's write path.
     match /sync_operations/{id} {
       allow read, write: if signedIn();
