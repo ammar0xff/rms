@@ -141,6 +141,42 @@ class _OutboxTableState extends State<_OutboxTable> {
   List<OutboxEntry> _entries = const [];
   bool _loaded = false;
 
+  /// 0 الكل · 1 مستني · 2 متعثر (فشل، تعارض، محتاج تدخل).
+  int _filter = 0;
+
+  List<OutboxEntry> get _visible {
+    switch (_filter) {
+      case 1:
+        return _entries
+            .where((e) =>
+                e.syncStatus == OutboxStatus.pending ||
+                e.syncStatus == OutboxStatus.inProgress)
+            .toList();
+      case 2:
+        return _entries
+            .where((e) =>
+                e.syncStatus != OutboxStatus.pending &&
+                e.syncStatus != OutboxStatus.inProgress)
+            .toList();
+      default:
+        return _entries;
+    }
+  }
+
+  /// Money or reference the entry carries, so a stuck row identifies
+  /// itself without opening anything.
+  static String _payloadBits(OutboxEntry entry) {
+    final payload = entry.payload;
+    final bits = <String>[];
+    for (final key in ['amount', 'total']) {
+      final value = payload[key];
+      if (value is num) bits.add('$value');
+    }
+    final ref = payload['orderRef'];
+    if (ref is String && ref.isNotEmpty) bits.add(ref);
+    return bits.isEmpty ? '' : ' · ${bits.join(' · ')}';
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -190,11 +226,31 @@ class _OutboxTableState extends State<_OutboxTable> {
               ),
             ),
           ),
-          if (_loaded && _entries.isEmpty)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < 3; i++) ...[
+                    if (i > 0) const SizedBox(width: 6),
+                    ChoiceChip(
+                      label: Text(['الكل', 'مستني', 'متعثر'][i]),
+                      selected: _filter == i,
+                      onSelected: (_) => setState(() => _filter = i),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (_loaded && _visible.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text(
-                'مفيش عمليات مستنية. كل شغل على الجهاز اترفع.',
+                _entries.isEmpty
+                    ? 'مفيش عمليات مستنية. كل شغل على الجهاز اترفع.'
+                    : 'مفيش عمليات في الفلتر ده.',
                 style: AppText.caption,
               ),
             )
@@ -217,12 +273,12 @@ class _OutboxTableState extends State<_OutboxTable> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final op in _entries) ...[
+          for (final op in _visible) ...[
             FeedRow(
               tone: _opStatus(op.syncStatus).$2,
               title: op.operationId,
               subtitle:
-                  '${op.entityType} · ${op.operationType} · ${op.attemptCount} محاولات${op.lastError == null ? '' : ' · ${op.lastError}'}',
+                  '${op.entityType} · ${op.operationType} · ${op.attemptCount} محاولات${_payloadBits(op)}${op.lastError == null ? '' : ' · ${op.lastError}'}',
               trailing: Tag(
                 label: _opStatus(op.syncStatus).$1,
                 tone: _opStatus(op.syncStatus).$2,
