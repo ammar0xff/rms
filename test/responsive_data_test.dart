@@ -13,6 +13,7 @@ import 'package:rms/src/features/purchasing/purchasing_screen.dart';
 import 'package:rms/src/features/reports/reports_screen.dart';
 import 'package:rms/src/features/shift/shift_screen.dart';
 import 'package:rms/src/features/sync/sync_center_screen.dart';
+import 'package:rms/src/features/tables/tables_screen.dart';
 
 import 'support/app_fakes.dart';
 
@@ -97,6 +98,14 @@ void main() {
 
       expect(find.text('بوابة الشمال الرئيسية'), findsWidgets);
       expect(find.text('شبكة الفروع'), findsOneWidget);
+    });
+
+    testWidgets('tables floor with occupied card', (tester) async {
+      await pumpPhone(tester, const TablesScreen());
+
+      expect(find.text('الصالة'), findsOneWidget);
+      expect(find.text('T-01'), findsOneWidget);
+      expect(find.text('مطلوب الشيك'), findsOneWidget);
     });
 
     testWidgets('shift renders today\'s order rows', (tester) async {

@@ -83,7 +83,6 @@ void main() {
         (t) => _pumpDesktopBare(t, const ConflictsScreen()));
     testWidgets('team renders', (t) => _pumpDesktopBare(t, const TeamScreen()));
     testWidgets('tables renders', (t) => _pumpDesktopBare(t, const TablesScreen()));
-    testWidgets('tables renders', (t) => _pumpDesktopBare(t, const TablesScreen()));
     testWidgets('settings renders',
         (t) => _pumpDesktopBare(t, const SettingsScreen()));
   });
@@ -159,13 +158,6 @@ void main() {
       await pumpDesktop(tester, const ReportsScreen());
 
       expect(find.text('اتجاه المبيعات'), findsOneWidget);
-    });
-
-    testWidgets('tables floor with zones', (tester) async {
-      await pumpDesktop(tester, const TablesScreen());
-
-      expect(find.text('الصالة'), findsOneWidget);
-      expect(find.text('T-01'), findsOneWidget);
     });
 
     testWidgets('tables floor with zones', (tester) async {
