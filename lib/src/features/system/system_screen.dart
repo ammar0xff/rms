@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:sembast/sembast.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/di/app_services.dart';
+import '../../data/local/local_stores.dart';
 import '../../core/logging/app_logger.dart';
 import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
@@ -31,6 +35,41 @@ class SystemScreen extends StatefulWidget {
 
 class _SystemScreenState extends State<SystemScreen> {
   bool _syncing = false;
+  String? _nodeId;
+
+  /// Stable per-device id for matching diagnostics to hardware. Created
+  /// once, then read from the config store.
+  Future<String?> _node() async {
+    if (_nodeId != null) return _nodeId;
+    final db = AppScope.of(context).database;
+    if (db == null) return null;
+    const key = 'nodeId';
+    try {
+      final existing =
+          await LocalStores.config.record(key).get(db.db);
+      final id = existing?['id'] as String?;
+      if (id != null && id.isNotEmpty) {
+        _nodeId = id;
+        return id;
+      }
+      final fresh = const Uuid().v4().substring(0, 8).toUpperCase();
+      await LocalStores.config.record(key).put(db.db, {'id': fresh});
+      _nodeId = fresh;
+      return fresh;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _exportLog() async {
+    final lines = AppLogger.recentLines(limit: 200);
+    if (lines.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('اتنسخ السجل للحافظة')),
+    );
+  }
 
   Future<void> _syncNow() async {
     final sync = AppScope.of(context).sync;
@@ -162,6 +201,20 @@ class _SystemScreenState extends State<SystemScreen> {
                           ? 'متصلة'
                           : 'فشل الاتصال',
                   mono: true,
+                ),
+                FutureBuilder<String?>(
+                  future: _node(),
+                  builder: (context, snapshot) => KeyValue(
+                    label: 'الجهاز',
+                    value: snapshot.data ?? '…',
+                    mono: true,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                RmsButton(
+                  label: 'انسخ السجل',
+                  icon: Icons.copy_outlined,
+                  onPressed: _exportLog,
                 ),
               ],
             ),
