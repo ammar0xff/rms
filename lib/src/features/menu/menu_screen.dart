@@ -340,13 +340,28 @@ class MenuItemDialog extends StatefulWidget {
   State<MenuItemDialog> createState() => _MenuItemDialogState();
 }
 
+/// One modifier group under construction in the item dialog.
+class _GroupDraft {
+  _GroupDraft({required this.name});
+
+  String name;
+  bool required = false;
+  bool multi = true;
+  final List<ModifierOption> options = [];
+}
+
 class _MenuItemDialogState extends State<MenuItemDialog> {
   final _name = TextEditingController();
   final _category = TextEditingController();
   final _price = TextEditingController();
   final _station = TextEditingController();
+  final _groupName = TextEditingController();
+  final _optionName = TextEditingController();
+  final _optionPrice = TextEditingController();
   bool _available = true;
   String? _error;
+  final List<_GroupDraft> _groups = [];
+  String? _editingGroup;
 
   @override
   void dispose() {
@@ -354,6 +369,9 @@ class _MenuItemDialogState extends State<MenuItemDialog> {
     _category.dispose();
     _price.dispose();
     _station.dispose();
+    _groupName.dispose();
+    _optionName.dispose();
+    _optionPrice.dispose();
     super.dispose();
   }
 
@@ -376,6 +394,114 @@ class _MenuItemDialogState extends State<MenuItemDialog> {
         available: _available,
         lastModifiedAt: DateTime.now(),
         syncStatus: 'pending',
+        modifierGroups: [
+          for (final g in _groups)
+            ModifierGroup(
+              id: g.name,
+              name: g.name,
+              required: g.required,
+              multi: g.multi,
+              options: List.of(g.options),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _groupEditor(_GroupDraft group) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSunken,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                  child: Text('إلزامي', style: AppText.tableCell)),
+              Switch.adaptive(
+                value: group.required,
+                onChanged: (v) => setState(() => group.required = v),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              const Expanded(
+                  child:
+                      Text('اختيارات متعددة', style: AppText.tableCell)),
+              Switch.adaptive(
+                value: group.multi,
+                onChanged: (v) => setState(() => group.multi = v),
+              ),
+            ],
+          ),
+          for (final option in group.options)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    option.deltaPrice > 0
+                        ? '${option.name} (+${money(option.deltaPrice)})'
+                        : option.name,
+                    style: AppText.tableCellPrimary,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(
+                      () => group.options.remove(option)),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.delete_outline,
+                        size: 16, color: AppColors.negative),
+                  ),
+                ),
+              ],
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: _Field(
+                  controller: _optionName,
+                  label: 'اختيار جديد',
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 76,
+                child: _Field(
+                  controller: _optionPrice,
+                  label: 'سعر +',
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 6),
+              RmsButton(
+                label: 'ضيف',
+                onPressed: _optionName.text.trim().isEmpty
+                    ? null
+                    : () => setState(() {
+                          group.options.add(ModifierOption(
+                            id:
+                                '${group.name}:${_optionName.text.trim()}',
+                            name: _optionName.text.trim(),
+                            deltaPrice: double.tryParse(
+                                    _optionPrice.text.trim()) ??
+                                0,
+                          ));
+                          _optionName.clear();
+                          _optionPrice.clear();
+                        }),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -400,6 +526,63 @@ class _MenuItemDialogState extends State<MenuItemDialog> {
             _Field(controller: _price, label: 'السعر', keyboardType: TextInputType.number),
             const SizedBox(height: 10),
             _Field(controller: _station, label: 'محطة التحضير'),
+            const SizedBox(height: 12),
+            const Text('مجموعات التخصيص', style: AppText.bodyStrong),
+            const SizedBox(height: 6),
+            for (final g in _groups) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${g.name} (${g.options.length})${g.required ? ' · إلزامي' : ''}',
+                      style: AppText.tableCellPrimary,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () =>
+                        setState(() => _editingGroup = g.name),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(Icons.edit_outlined, size: 16),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _groups.remove(g);
+                      if (_editingGroup == g.name) _editingGroup = null;
+                    }),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(Icons.delete_outline,
+                          size: 16, color: AppColors.negative),
+                    ),
+                  ),
+                ],
+              ),
+              if (_editingGroup == g.name) _groupEditor(g),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: _Field(
+                    controller: _groupName,
+                    label: 'اسم مجموعة جديدة',
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                RmsButton(
+                  label: 'ضيف مجموعة',
+                  onPressed: _groupName.text.trim().isEmpty
+                      ? null
+                      : () => setState(() {
+                            _groups.add(_GroupDraft(
+                                name: _groupName.text.trim()));
+                            _groupName.clear();
+                          }),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -441,12 +624,14 @@ class _Field extends StatelessWidget {
     required this.label,
     this.autofocus = false,
     this.keyboardType,
+    this.onChanged,
   });
 
   final TextEditingController controller;
   final String label;
   final bool autofocus;
   final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -454,6 +639,7 @@ class _Field extends StatelessWidget {
       controller: controller,
       autofocus: autofocus,
       keyboardType: keyboardType,
+      onChanged: onChanged,
       style: AppText.body.copyWith(color: AppColors.fgBright),
       decoration: InputDecoration(
         labelText: label,
