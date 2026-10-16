@@ -134,7 +134,7 @@ void main() {
       expect(
         tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
             .items,
-        hasLength(4),
+        hasLength(5),
       );
     });
 

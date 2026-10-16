@@ -19,6 +19,7 @@ import 'package:rms/src/features/reports/reports_screen.dart';
 import 'package:rms/src/features/settings/settings_screen.dart';
 import 'package:rms/src/features/shift/shift_screen.dart';
 import 'package:rms/src/features/sync/sync_center_screen.dart';
+import 'package:rms/src/features/tables/tables_screen.dart';
 import 'package:rms/src/features/system/system_screen.dart';
 import 'package:rms/src/features/team/team_screen.dart';
 
@@ -79,6 +80,7 @@ void main() {
     testWidgets('conflicts renders',
         (t) => _pumpPhone(t, const ConflictsScreen()));
     testWidgets('team renders', (t) => _pumpPhone(t, const TeamScreen()));
+    testWidgets('tables renders', (t) => _pumpPhone(t, const TablesScreen()));
     testWidgets('settings renders',
         (t) => _pumpPhone(t, const SettingsScreen()));
   });

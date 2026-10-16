@@ -19,6 +19,7 @@ import 'package:rms/src/data/repositories/payment_repository.dart';
 import 'package:rms/src/data/repositories/purchase_repository.dart';
 import 'package:rms/src/data/repositories/reports_repository.dart';
 import 'package:rms/src/data/repositories/supplier_repository.dart';
+import 'package:rms/src/data/repositories/table_repository.dart';
 import 'package:rms/src/domain/models/approval_request.dart';
 import 'package:rms/src/domain/models/branch.dart';
 import 'package:rms/src/domain/models/cash_session.dart';
@@ -32,6 +33,7 @@ import 'package:rms/src/domain/models/payment.dart';
 import 'package:rms/src/domain/models/purchase_order.dart';
 import 'package:rms/src/domain/models/report.dart';
 import 'package:rms/src/domain/models/stock_movement.dart';
+import 'package:rms/src/domain/models/dining_table.dart';
 import 'package:rms/src/domain/models/supplier.dart';
 
 /// Tables and lists WITH rows, at phone width.
@@ -443,6 +445,26 @@ class _BranchRepo implements BranchRepository {
 }
 
 /// Every repository, wired. [outbox] is the one a test may want to replace.
+class _TablesRepo implements TableRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+
+  @override
+  Future<List<DiningTable>> listTables() async => [
+        DiningTable(
+          id: 'T-H-1',
+          code: 'T-01',
+          zone: 'الصالة',
+          capacity: 4,
+          status: TableStatus.occupied,
+          partySize: 3,
+          steward: 'سارة',
+        ),
+        DiningTable(id: 'T-H-2', code: 'T-02', zone: 'الصالة', capacity: 2),
+      ];
+}
+
 AppServices fakeServices({OutboxAccess? outbox}) => AppServices(
       config: const FirebaseConfig.empty(),
       auth: DemoAuthRepository(),
@@ -458,6 +480,7 @@ AppServices fakeServices({OutboxAccess? outbox}) => AppServices(
       suppliers: _SupplierRepo(),
       customers: _CustomerRepo(),
       purchases: _PurchaseRepo(),
+      tables: _TablesRepo(),
       reports: _ReportsRepo(),
       branches: _BranchRepo(),
     );

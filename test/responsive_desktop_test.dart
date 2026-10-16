@@ -20,6 +20,7 @@ import 'package:rms/src/features/reports/reports_screen.dart';
 import 'package:rms/src/features/settings/settings_screen.dart';
 import 'package:rms/src/features/shift/shift_screen.dart';
 import 'package:rms/src/features/sync/sync_center_screen.dart';
+import 'package:rms/src/features/tables/tables_screen.dart';
 import 'package:rms/src/features/system/system_screen.dart';
 import 'package:rms/src/features/team/team_screen.dart';
 
@@ -81,6 +82,7 @@ void main() {
     testWidgets('conflicts renders',
         (t) => _pumpDesktopBare(t, const ConflictsScreen()));
     testWidgets('team renders', (t) => _pumpDesktopBare(t, const TeamScreen()));
+    testWidgets('tables renders', (t) => _pumpDesktopBare(t, const TablesScreen()));
     testWidgets('settings renders',
         (t) => _pumpDesktopBare(t, const SettingsScreen()));
   });
@@ -156,6 +158,13 @@ void main() {
       await pumpDesktop(tester, const ReportsScreen());
 
       expect(find.text('اتجاه المبيعات'), findsOneWidget);
+    });
+
+    testWidgets('tables floor with zones', (tester) async {
+      await pumpDesktop(tester, const TablesScreen());
+
+      expect(find.text('الصالة'), findsOneWidget);
+      expect(find.text('T-01'), findsOneWidget);
     });
 
     testWidgets('branches cards and detail sheet', (tester) async {
