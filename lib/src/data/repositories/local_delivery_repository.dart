@@ -270,10 +270,19 @@ class LocalDeliveryRepository implements DeliveryRepository {
       final existing = await record.get(txn);
       if (existing == null) return;
       final delivery = DeliveryModel.fromRecord(existing);
-      // Deliveries move forward only: waiting → assigned → onRoute →
-      // delivered. Reopening a delivered run would un-collect settled money,
-      // so backward transitions throw instead of silently corrupting state.
-      if (state.index < delivery.state.index) {
+      // Explicit transitions: the normal run ends at delivered; a stop
+      // that cannot complete branches to failed and only ever returns.
+      // Reopening a delivered run would un-collect settled money, so
+      // anything else throws instead of silently corrupting state.
+      const allowed = {
+        DeliveryState.waiting: [DeliveryState.assigned],
+        DeliveryState.assigned: [DeliveryState.onRoute],
+        DeliveryState.onRoute: [DeliveryState.delivered, DeliveryState.failed],
+        DeliveryState.failed: [DeliveryState.returned],
+        DeliveryState.delivered: <DeliveryState>[],
+        DeliveryState.returned: <DeliveryState>[],
+      };
+      if (!allowed[delivery.state]!.contains(state)) {
         throw StateError(
           'illegal delivery transition ${delivery.state.name} -> ${state.name}',
         );

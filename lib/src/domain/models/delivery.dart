@@ -10,7 +10,9 @@ enum DeliveryState {
   waiting('مستني الاستلام'),
   assigned('مُسند'),
   onRoute('في الطريق'),
-  delivered('اتسلّم');
+  delivered('اتسلّم'),
+  failed('اتعثر التسليم'),
+  returned('رجع الفرع');
 
   const DeliveryState(this.label);
 
@@ -22,6 +24,23 @@ enum DeliveryState {
       this == DeliveryState.onRoute;
 
   bool get isDelivered => this == DeliveryState.delivered;
+
+  /// A failed stop leaves the queue; only the return leg follows it.
+  bool get isFailed => this == DeliveryState.failed;
+}
+
+/// Why a stop could not complete. Mandatory on the failed transition —
+/// the dispatcher and the audit trail both read it.
+enum DeliveryFailureReason {
+  noAnswer('مابيردّش'),
+  wrongAddress('عنوان غلط'),
+  refused('رفض الاستلام'),
+  cashIssue('مشكلة كاش'),
+  breakdown('عطل');
+
+  const DeliveryFailureReason(this.label);
+
+  final String label;
 }
 
 /// A delivery job attached to an order and (optionally) a driver.
@@ -38,6 +57,8 @@ class DeliveryModel {
     this.settlementStatus = SettlementStatus.pending,
     this.localRevision = 1,
     this.syncStatus = SyncStatus.pendingSync,
+    this.failedReason,
+    this.failedAt,
   });
 
   static const String unassignedDriver = 'غير مُسند';
@@ -64,6 +85,11 @@ class DeliveryModel {
 
   SyncStatus syncStatus;
 
+  /// Set on the failed transition, cleared never (audit trail). Failed COD
+  /// never enters custody because no collection is recorded for it.
+  DeliveryFailureReason? failedReason;
+  DateTime? failedAt;
+
   bool get isUnassigned => driver.isEmpty || driver == unassignedDriver;
 
   Map<String, Object?> toRecord() => {
@@ -78,6 +104,8 @@ class DeliveryModel {
         'settlementStatus': settlementStatus.name,
         'localRevision': localRevision,
         'syncStatus': syncStatus.name,
+        'failedReason': failedReason?.name,
+        'failedAt': failedAt?.toIso8601String(),
       };
 
   static DeliveryModel fromRecord(Map<String, Object?> record) => DeliveryModel(
@@ -93,6 +121,13 @@ class DeliveryModel {
             .byName(record['settlementStatus'] as String? ?? 'pending'),
         localRevision: (record['localRevision'] as int?) ?? 1,
         syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
+        failedReason: record['failedReason'] == null
+            ? null
+            : DeliveryFailureReason.values
+                .byName(record['failedReason'] as String),
+        failedAt: record['failedAt'] == null
+            ? null
+            : DateTime.parse(record['failedAt'] as String),
       );
 }
 
