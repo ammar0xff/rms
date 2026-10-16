@@ -44,6 +44,7 @@ class DashboardMetrics {
 
     for (final order in orders) {
       if (!_isSameDay(order.createdAt, at)) continue;
+      if (order.voided) continue;
       count++;
       total += order.total;
       if (order.createdOffline) offline++;

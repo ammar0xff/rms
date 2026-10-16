@@ -49,6 +49,7 @@ class ShiftStats {
 
   static ShiftStats of(List<Order> orders, DateTime now) {
     final today = orders.where((o) {
+      if (o.voided) return false;
       final created = o.createdAt;
       return created.year == now.year &&
           created.month == now.month &&

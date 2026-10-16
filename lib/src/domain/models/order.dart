@@ -15,6 +15,8 @@ class Order {
     this.localRevision = 1,
     this.serverRevision,
     this.syncStatus = SyncStatus.localOnly,
+    this.voided = false,
+    this.voidReason,
   });
 
   final String localId;
@@ -36,6 +38,12 @@ class Order {
   int? serverRevision;
   SyncStatus syncStatus;
 
+  /// A voided order stays in the ledger (audit trail) but counts for
+  /// nothing: totals, kitchen, and delivery all skip it. Voiding goes
+  /// through a manager approval, never a delete.
+  bool voided;
+  String? voidReason;
+
   double get subtotal =>
       items.fold(0, (sum, item) => sum + item.unitPrice * item.quantity);
 
@@ -52,6 +60,8 @@ class Order {
         'serverId': serverId,
         'canonicalOrderNumber': canonicalOrderNumber,
         'localRevision': localRevision,
+        'voided': voided,
+        'voidReason': voidReason,
         'serverRevision': serverRevision,
         'syncStatus': syncStatus.name,
       };
@@ -73,6 +83,8 @@ class Order {
         serverId: record['serverId'] as String?,
         canonicalOrderNumber: record['canonicalOrderNumber'] as String?,
         localRevision: record['localRevision'] as int? ?? 1,
+        voided: record['voided'] as bool? ?? false,
+        voidReason: record['voidReason'] as String?,
         serverRevision: record['serverRevision'] as int?,
         syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
       );
