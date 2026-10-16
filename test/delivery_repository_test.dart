@@ -238,6 +238,32 @@ void main() {
     );
   });
 
+  test('a stop can fail and return, but delivered can never fail', () async {
+    final delivery = await repo.createDelivery(
+      orderRef: 'O-fail',
+      address: 'شارع الأرز',
+      amount: 10,
+    );
+    await repo.assignDriver(delivery.id, 'مروان ر.');
+    await repo.updateState(delivery.id, DeliveryState.onRoute);
+    await repo.updateState(delivery.id, DeliveryState.failed);
+    expect(
+      (await repo.listDeliveries()).single.state,
+      DeliveryState.failed,
+    );
+    await repo.updateState(delivery.id, DeliveryState.returned);
+    expect(
+      (await repo.listDeliveries()).single.state,
+      DeliveryState.returned,
+    );
+
+    final done = await delivered('O-done');
+    expect(
+      repo.updateState(done.id, DeliveryState.failed),
+      throwsStateError,
+    );
+  });
+
   test('finalizeSettlement queues exactly one settle command', () async {
     final delivery = await delivered('O-8');
     await repo.recordCollection(deliveryId: delivery.id, amount: 10);
