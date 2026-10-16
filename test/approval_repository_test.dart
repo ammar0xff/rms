@@ -56,6 +56,33 @@ void main() {
     expect(actions, contains(AuditAction.requestApproval));
   });
 
+  test('approving a void marks the order without deleting it', () async {
+    await LocalStores.orders.record('o9').put(db.db, {
+      'localId': 'o9',
+      'provisionalOrderNumber': 'طلب-009',
+      'items': [],
+      'createdOffline': false,
+      'createdAt': DateTime(2026, 10, 13, 14).toIso8601String(),
+      'orderType': 'dineIn',
+      'taxAmount': 0,
+      'localRevision': 1,
+      'syncStatus': 'synced',
+    });
+    final request = await repo.requestVoid(
+      orderLocalId: 'o9',
+      orderRef: 'طلب-009',
+      amount: 120,
+      reason: 'تراجع العميل',
+    );
+    expect(request.kind, ApprovalKind.voidOrder);
+
+    final decided = await repo.decide(request.id, approved: true);
+    expect(decided!.status, ApprovalStatus.approved);
+    final stored = await LocalStores.orders.record('o9').get(db.db);
+    expect(stored!['voided'], isTrue);
+    expect(stored['voidReason'], 'تراجع العميل');
+  });
+
   test('approving posts a negative payment exactly once', () async {
     final request = await repo.requestRefund(
       orderLocalId: 'o1',
