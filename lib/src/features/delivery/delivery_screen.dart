@@ -314,6 +314,8 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     }
     final rest =
         hero == null ? visible : visible.where((d) => d.id != hero!.id).toList();
+    final heroPosition =
+        hero == null ? '' : 'المحطة ${visible.indexOf(hero!) + 1} من ${visible.length}';
     final accent = roleAccent(AppRole.driver);
     // A driver console stays narrow by design, even on a wide screen.
     return PageBody(
@@ -322,6 +324,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         if (hero != null)
           _NextStopHero(
             job: hero,
+            position: heroPosition,
             onAdvance: () => _advance(hero!),
             onCollect: () => _collect(hero!),
           ),
@@ -694,11 +697,13 @@ class _NavigateButton extends StatelessWidget {
 class _NextStopHero extends StatelessWidget {
   const _NextStopHero({
     required this.job,
+    required this.position,
     required this.onAdvance,
     required this.onCollect,
   });
 
   final DeliveryModel job;
+  final String position;
   final VoidCallback onAdvance;
   final VoidCallback onCollect;
 
@@ -711,7 +716,9 @@ class _NextStopHero extends StatelessWidget {
     };
     return RoleHero(
       role: AppRole.driver,
-      kicker: 'المحطة الجاية · ${job.state.label}',
+      kicker: position.isEmpty
+          ? 'المحطة الجاية · ${job.state.label}'
+          : '$position · ${job.state.label}',
       title: job.address,
       subtitle: '${job.orderRef} · ${job.driver}',
       value: money(job.amount),
@@ -803,6 +810,12 @@ class _DriverJobCard extends StatelessWidget {
             Text(
               'حُصّل ${money(collection!.amount)} · ${collection!.method.label}',
               style: AppText.caption.copyWith(color: AppColors.positive),
+            ),
+          ] else if (job.state == DeliveryState.delivered) ...[
+            const SizedBox(height: 4),
+            Text(
+              'الدفع عند التسليم · ${money(job.amount)}',
+              style: AppText.caption,
             ),
           ],
           const SizedBox(height: 12),
