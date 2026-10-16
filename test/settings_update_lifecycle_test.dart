@@ -66,6 +66,12 @@ class _FakeStatusStore implements UpdateStatusStore {
   Future<void> save(DeviceUpdateStatus status) async {
     this.status = status;
   }
+
+  @override
+  Future<DateTime?> snoozedUntil() async => null;
+
+  @override
+  Future<void> setSnoozedUntil(DateTime? until) async {}
 }
 
 class _FakeAuditTrail implements ReleaseAuditTrail {

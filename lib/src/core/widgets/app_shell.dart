@@ -202,6 +202,28 @@ class _AppShellState extends State<AppShell> {
   UpdateController? _updates;
   bool _dismissedOptional = false;
 
+  /// A persisted snooze survives restarts: dismissing the optional prompt
+  /// shelves it for the rest of the shift (8h), not just the session.
+  Future<void> _snoozeOptional() async {
+    final store = AppScope.of(context).updateStatus;
+    if (store != null) {
+      await store.setSnoozedUntil(
+        DateTime.now().add(const Duration(hours: 8)),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _dismissedOptional = true);
+  }
+
+  Future<void> _restoreSnooze() async {
+    final store = AppScope.of(context).updateStatus;
+    final until = await store?.snoozedUntil();
+    if (!mounted) return;
+    if (until != null && until.isAfter(DateTime.now())) {
+      setState(() => _dismissedOptional = true);
+    }
+  }
+
   /// Bottom-bar index: the role's tabs, or المزيد for everything else —
   /// including the menu grid itself.
   int _barIndex(List<String> tabs) {
@@ -246,6 +268,7 @@ class _AppShellState extends State<AppShell> {
     if (runtime == null) return;
     final controller = UpdateController(runtime: runtime);
     _updates = controller;
+    _restoreSnooze();
     // A check after the first frame, so startup is never blocked on the network.
     WidgetsBinding.instance.addPostFrameCallback((_) => controller.refresh());
   }
@@ -380,7 +403,7 @@ class _AppShellState extends State<AppShell> {
                     updates.state.mode == UpdatePromptMode.dismissible))
               UpdatePrompt(
                 controller: updates,
-                onDismissed: () => setState(() => _dismissedOptional = true),
+                onDismissed: _snoozeOptional,
               ),
           ],
         );

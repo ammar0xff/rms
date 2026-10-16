@@ -129,6 +129,12 @@ class _RecordingStatusStore implements UpdateStatusStore {
 
   @override
   Future<void> save(DeviceUpdateStatus status) async => saved = status;
+
+  @override
+  Future<DateTime?> snoozedUntil() async => null;
+
+  @override
+  Future<void> setSnoozedUntil(DateTime? until) async {}
 }
 
 void main() {

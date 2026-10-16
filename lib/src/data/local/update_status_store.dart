@@ -31,4 +31,24 @@ class LocalUpdateStatusStore implements UpdateStatusStore {
   @override
   Future<void> save(DeviceUpdateStatus status) =>
       LocalStores.config.record(statusKey).put(_db.db, status.toRecord());
+
+  static const String snoozeKey = 'updateSnoozedUntil';
+
+  @override
+  Future<DateTime?> snoozedUntil() async {
+    final record = await LocalStores.config.record(snoozeKey).get(_db.db);
+    final raw = record?['at'];
+    if (raw is! String) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  @override
+  Future<void> setSnoozedUntil(DateTime? until) async {
+    final record = LocalStores.config.record(snoozeKey);
+    if (until == null || !until.isAfter(DateTime.now())) {
+      await record.delete(_db.db);
+      return;
+    }
+    await record.put(_db.db, {'at': until.toIso8601String()});
+  }
 }

@@ -13,6 +13,12 @@ abstract class UpdateStatusStore {
   Future<DeviceUpdateStatus?> load();
 
   Future<void> save(DeviceUpdateStatus status);
+
+  /// When the operator snoozed the optional prompt until, or null.
+  Future<DateTime?> snoozedUntil();
+
+  /// Snoozes the optional prompt until [until]. Past timestamps clear it.
+  Future<void> setSnoozedUntil(DateTime? until);
 }
 
 /// Read access to the append-only update lifecycle audit trail.
