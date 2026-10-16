@@ -41,6 +41,8 @@ import '../../data/repositories/local_payment_repository.dart';
 import '../../data/repositories/local_purchase_repository.dart';
 import '../../data/repositories/local_reports_repository.dart';
 import '../../data/repositories/local_supplier_repository.dart';
+import '../../data/repositories/local_table_repository.dart';
+import '../../data/repositories/local_transfer_repository.dart';
 import '../../data/repositories/local_update_repository.dart';
 import '../../domain/models/approval_request.dart';
 import '../../domain/models/branch.dart';
@@ -54,6 +56,7 @@ import '../../domain/models/payment.dart';
 import '../../domain/models/purchase_order.dart';
 import '../../domain/models/release_manifest.dart';
 import '../../domain/models/stock_movement.dart';
+import '../../domain/models/dining_table.dart';
 import '../../domain/models/supplier.dart';
 import '../../data/mock/mock_data.dart' as mock;
 import '../../data/sync/connectivity_monitor.dart';
@@ -188,6 +191,13 @@ Future<AppServices> _resolveAuth(
           audit: audit,
           mirror: mirror,
         );
+  final tables = database == null
+      ? null
+      : LocalTableRepository(database, mirror: mirror);
+  final transfers = (database == null || inventory == null)
+      ? null
+      : LocalTransferRepository(database,
+          inventory: inventory, mirror: mirror);
   final reports = (orders == null ||
           payments == null ||
           deliveries == null ||
@@ -220,6 +230,7 @@ Future<AppServices> _resolveAuth(
   await _primeInventoryData(inventory);
   await _primePurchasingData(suppliers, purchases);
   await _primeBranchData(branches);
+  await _primeTables(tables);
   await _primeUpdateManifest(updates);
 
   // Built here rather than alongside the other repositories: it needs
@@ -282,6 +293,8 @@ Future<AppServices> _resolveAuth(
       suppliers: suppliers,
       customers: customers,
       purchases: purchases,
+      tables: tables,
+      transfers: transfers,
       reports: reports,
       branches: branches,
       updates: updates,
@@ -323,6 +336,8 @@ Future<AppServices> _resolveAuth(
       suppliers: suppliers,
       customers: customers,
       purchases: purchases,
+      tables: tables,
+      transfers: transfers,
       reports: reports,
       branches: branches,
       updates: updates,
@@ -358,6 +373,8 @@ Future<AppServices> _resolveAuth(
       suppliers: suppliers,
       customers: customers,
       purchases: purchases,
+      tables: tables,
+      transfers: transfers,
       reports: reports,
       branches: branches,
       updates: updates,
@@ -401,6 +418,8 @@ SyncService? _buildSync(
       await suppliers?.applySynced(entry);
       await purchases?.applySynced(entry);
       await customers?.applySynced(entry);
+      await tables?.applySynced(entry);
+      await transfers?.applySynced(entry);
     },
   );
   return SyncService(
@@ -481,6 +500,40 @@ Future<void> _primeKitchenCache(LocalKitchenRepository? kitchen) async {
   } catch (error, stackTrace) {
     AppLogger.error('Failed to prime kitchen cache', error, stackTrace);
   }
+}
+
+/// Seeds a default floor (12 main hall + 4 smoking + 2 VIP) when the
+/// store is empty. Counts mirror the demo branch sizes; zones and capacity
+/// are editable in-app afterwards via saveFloor.
+Future<void> _primeTables(LocalTableRepository? tables) async {
+  if (tables == null) return;
+  try {
+    if ((await tables.listTables()).isNotEmpty) return;
+    final floor = <DiningTable>[
+      for (var i = 1; i <= 12)
+        DiningTable(
+          id: 'T-H-$i',
+          code: 'T-${i.toString().padLeft(2, '0')}',
+          zone: 'الصالة',
+          capacity: 4,
+        ),
+      for (var i = 1; i <= 4)
+        DiningTable(
+          id: 'T-S-$i',
+          code: 'S-${i.toString().padLeft(2, '0')}',
+          zone: 'تدخين',
+          capacity: 4,
+        ),
+      for (var i = 1; i <= 2)
+        DiningTable(
+          id: 'T-V-$i',
+          code: 'V-0$i',
+          zone: 'VIP',
+          capacity: 6,
+        ),
+    ];
+    await tables.saveFloor(floor);
+  } catch (_) {}
 }
 
 /// Seeds the courier roster and a few demo delivery jobs when the store is

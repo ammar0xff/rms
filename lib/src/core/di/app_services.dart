@@ -19,6 +19,8 @@ import '../../data/updates/update_runtime.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
+import '../../data/repositories/table_repository.dart';
+import '../../data/repositories/transfer_repository.dart';
 import '../../data/repositories/reports_repository.dart';
 import '../../data/repositories/customer_repository.dart';
 import '../../data/repositories/supplier_repository.dart';
@@ -50,6 +52,8 @@ class AppServices {
     this.suppliers,
     this.customers,
     this.purchases,
+    this.tables,
+    this.transfers,
     this.reports,
     this.branches,
     this.updates,
@@ -129,6 +133,12 @@ class AppServices {
 
   /// Purchase orders, or null when the store is unavailable.
   final PurchaseRepository? purchases;
+
+  /// Dine-in floor tables, or null when the store is unavailable.
+  final TableRepository? tables;
+
+  /// Inter-branch stock transfers, or null when the store is unavailable.
+  final TransferRepository? transfers;
 
   /// Local-first reporting read-model, or null when the store is unavailable.
   final ReportsRepository? reports;
