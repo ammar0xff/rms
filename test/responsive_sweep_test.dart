@@ -11,6 +11,7 @@ import 'package:rms/src/features/customers/customers_screen.dart';
 import 'package:rms/src/features/dashboard/dashboard_screen.dart';
 import 'package:rms/src/features/database/database_screen.dart';
 import 'package:rms/src/features/delivery/delivery_screen.dart';
+import 'package:rms/src/features/delivery/trip_log_screen.dart';
 import 'package:rms/src/features/inventory/inventory_screen.dart';
 import 'package:rms/src/features/menu/menu_screen.dart';
 import 'package:rms/src/features/pos/pos_screen.dart';
@@ -81,6 +82,8 @@ void main() {
         (t) => _pumpPhone(t, const ConflictsScreen()));
     testWidgets('team renders', (t) => _pumpPhone(t, const TeamScreen()));
     testWidgets('tables renders', (t) => _pumpPhone(t, const TablesScreen()));
+    testWidgets('trip log renders',
+        (t) => _pumpPhone(t, const TripLogScreen()));
     testWidgets('settings renders',
         (t) => _pumpPhone(t, const SettingsScreen()));
   });

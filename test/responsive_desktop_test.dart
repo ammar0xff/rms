@@ -12,6 +12,7 @@ import 'package:rms/src/features/customers/customers_screen.dart';
 import 'package:rms/src/features/dashboard/dashboard_screen.dart';
 import 'package:rms/src/features/database/database_screen.dart';
 import 'package:rms/src/features/delivery/delivery_screen.dart';
+import 'package:rms/src/features/delivery/trip_log_screen.dart';
 import 'package:rms/src/features/inventory/inventory_screen.dart';
 import 'package:rms/src/features/menu/menu_screen.dart';
 import 'package:rms/src/features/pos/pos_screen.dart';
@@ -83,6 +84,8 @@ void main() {
         (t) => _pumpDesktopBare(t, const ConflictsScreen()));
     testWidgets('team renders', (t) => _pumpDesktopBare(t, const TeamScreen()));
     testWidgets('tables renders', (t) => _pumpDesktopBare(t, const TablesScreen()));
+    testWidgets('trip log renders',
+        (t) => _pumpDesktopBare(t, const TripLogScreen()));
     testWidgets('settings renders',
         (t) => _pumpDesktopBare(t, const SettingsScreen()));
   });
@@ -158,6 +161,14 @@ void main() {
       await pumpDesktop(tester, const ReportsScreen());
 
       expect(find.text('اتجاه المبيعات'), findsOneWidget);
+    });
+
+    testWidgets('trip log day totals', (tester) async {
+      await pumpDesktop(tester, const TripLogScreen());
+
+      expect(find.text('أوردرات خلصانة'), findsOneWidget);
+      await tester.tap(find.text('المرتجعات'));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('tables floor with zones', (tester) async {
