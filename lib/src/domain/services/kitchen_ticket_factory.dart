@@ -48,7 +48,10 @@ class KitchenTicketFactory {
     final base = item.quantity > 1
         ? '${item.name} × ${item.quantity}'
         : item.name;
+    final mods = item.modifiers.isEmpty
+        ? ''
+        : ' (${item.modifiers.join('، ')})';
     final note = item.note?.trim() ?? '';
-    return note.isEmpty ? base : '$base (ملاحظة: $note)';
+    return note.isEmpty ? '$base$mods' : '$base$mods (ملاحظة: $note)';
   }
 }

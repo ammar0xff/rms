@@ -22,13 +22,27 @@ import '../common/format.dart';
 
 /// A line in the POS cart, keyed by the cached menu item identity.
 class CartLine {
-  CartLine(this.item, {this.quantity = 1, this.note});
+  CartLine(this.item,
+      {this.quantity = 1, this.note, this.selected = const []});
 
   final MenuItemModel item;
   int quantity;
   String? note;
 
-  double get total => item.price * quantity;
+  /// Chosen modifier options. Part of the line identity: the same item
+  /// with different options is a different line, never merged.
+  List<ModifierOption> selected;
+
+  /// Item id plus sorted option ids — the merge key.
+  String get key {
+    final ids = selected.map((o) => o.id).toList()..sort();
+    return '${item.id}|${ids.join(',')}';
+  }
+
+  double get unitPrice =>
+      item.price + selected.fold(0.0, (sum, o) => sum + o.deltaPrice);
+
+  double get total => unitPrice * quantity;
 }
 
 /// The result of the POS payment dialog.
@@ -121,15 +135,35 @@ class _PosScreenState extends State<PosScreen>
   double get _tax => _subtotal * 0.08;
   double get _total => _subtotal + _tax;
 
-  void _add(MenuItemModel item) {
+  void _add(MenuItemModel item, {List<ModifierOption> options = const []}) {
+    final probe = CartLine(item, selected: options);
     setState(() {
-      final existing = _cart.where((l) => l.item.id == item.id).firstOrNull;
+      final existing = _cart.where((l) => l.key == probe.key).firstOrNull;
       if (existing != null) {
         existing.quantity++;
       } else {
-        _cart.add(CartLine(item));
+        _cart.add(probe);
       }
     });
+  }
+
+  /// Customization sheet for items with modifier groups. Returns the
+  /// selection, or null when dismissed. Required groups must be satisfied
+  /// before confirm enables.
+  Future<void> _customize(MenuItemModel item, {CartLine? line}) async {
+    final selected = await showDialog<List<ModifierOption>>(
+      context: context,
+      builder: (_) => _CustomizeSheet(
+        item: item,
+        initial: line?.selected ?? const [],
+      ),
+    );
+    if (selected == null) return;
+    if (line != null) {
+      setState(() => line.selected = selected);
+    } else {
+      _add(item, options: selected);
+    }
   }
 
   void _dec(CartLine line) {
@@ -244,10 +278,12 @@ class _PosScreenState extends State<PosScreen>
         OrderItem(
           productId: line.item.id,
           name: line.item.name,
-          unitPrice: line.item.price,
+          unitPrice: line.unitPrice,
           quantity: line.quantity,
           station: line.item.station,
           note: line.note?.trim().isEmpty ?? true ? null : line.note!.trim(),
+          unitPrice: line.unitPrice,
+          modifiers: line.selected.map((o) => o.name).toList(),
         ),
     ];
     // Cents-rounded here so the stored tax is exact; the cart keeps showing
@@ -392,6 +428,7 @@ class _PosScreenState extends State<PosScreen>
           onQuery: (v) => setState(() => _query = v),
           onCategory: (v) => setState(() => _category = v),
           onAdd: _add,
+          onCustomize: (item) => _customize(item),
         );
         final cart = _CartPane(
           cart: _cart,
@@ -405,6 +442,7 @@ class _PosScreenState extends State<PosScreen>
           onAdd: _add,
           onDec: _dec,
           onNote: _editNote,
+          onCustomizeLine: (line) => _customize(line.item, line: line),
           onSend: () => _submitOrder(),
           onCollect: _collect,
           onQuickCash: () => _submitOrder(
@@ -502,6 +540,134 @@ class _PosScreenState extends State<PosScreen>
   }
 }
 
+/// Item customization: required single-choice groups, optional
+/// multi-choice groups with priced options, and directives. Returns the
+/// selection; required groups gate confirm.
+class _CustomizeSheet extends StatefulWidget {
+  const _CustomizeSheet({required this.item, this.initial = const []});
+
+  final MenuItemModel item;
+  final List<ModifierOption> initial;
+
+  @override
+  State<_CustomizeSheet> createState() => _CustomizeSheetState();
+}
+
+class _CustomizeSheetState extends State<_CustomizeSheet> {
+  late Set<String> _picked = widget.initial.map((o) => o.id).toSet();
+
+  List<ModifierOption> get _selected => [
+        for (final g in widget.item.modifierGroups)
+          for (final o in g.options)
+            if (_picked.contains(o.id)) o,
+      ];
+
+  bool get _valid {
+    for (final g in widget.item.modifierGroups) {
+      if (!g.required) continue;
+      if (!g.options.any((o) => _picked.contains(o.id))) return false;
+    }
+    return true;
+  }
+
+  double get _delta =>
+      _selected.fold(0.0, (sum, o) => sum + o.deltaPrice);
+
+  void _toggle(ModifierGroup group, ModifierOption option) {
+    setState(() {
+      if (group.multi) {
+        if (_picked.contains(option.id)) {
+          _picked.remove(option.id);
+        } else {
+          _picked.add(option.id);
+        }
+      } else {
+        _picked.removeWhere(
+            (id) => group.options.any((o) => o.id == id));
+        _picked.add(option.id);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DialogShell(
+      title: 'تخصيص ${widget.item.name}',
+      subtitle: _delta > 0
+          ? 'زيادة ${money(widget.item.price + _delta)}'
+          : money(widget.item.price),
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final group in widget.item.modifierGroups) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(group.name, style: AppText.bodyStrong),
+                ),
+                Tag(
+                  label: group.required ? 'إلزامي' : 'اختياري',
+                  tone: group.required
+                      ? StatusTone.warning
+                      : StatusTone.neutral,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            for (final option in group.options)
+              GestureDetector(
+                onTap: () => _toggle(group, option),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _picked.contains(option.id)
+                            ? (group.multi
+                                ? Icons.check_box
+                                : Icons.radio_button_checked)
+                            : (group.multi
+                                ? Icons.check_box_outline_blank
+                                : Icons.radio_button_unchecked),
+                        size: 20,
+                        color: _picked.contains(option.id)
+                            ? AppColors.brand
+                            : AppColors.fgGhost,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(option.name,
+                            style: AppText.tableCellPrimary),
+                      ),
+                      if (option.deltaPrice > 0)
+                        Text('+${money(option.deltaPrice)}',
+                            style: AppText.caption),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'أكّد التخصيص',
+          onPressed:
+              _valid ? () => Navigator.of(context).pop(_selected) : null,
+        ),
+      ],
+    );
+  }
+}
+
 class _MenuPane extends StatefulWidget {
   const _MenuPane({
     required this.categories,
@@ -511,6 +677,7 @@ class _MenuPane extends StatefulWidget {
     required this.onQuery,
     required this.onCategory,
     required this.onAdd,
+    required this.onCustomize,
     this.chipsVisible = true,
   });
 
@@ -521,6 +688,7 @@ class _MenuPane extends StatefulWidget {
   final ValueChanged<String> onQuery;
   final ValueChanged<String> onCategory;
   final ValueChanged<MenuItemModel> onAdd;
+  final ValueChanged<MenuItemModel> onCustomize;
 
   /// False on wide screens, where the category rail replaces the chips.
   final bool chipsVisible;
@@ -552,6 +720,7 @@ class _MenuPaneState extends State<_MenuPane> {
     final onQuery = widget.onQuery;
     final onCategory = widget.onCategory;
     final onAdd = widget.onAdd;
+    final onCustomize = widget.onCustomize;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -647,6 +816,9 @@ class _MenuPaneState extends State<_MenuPane> {
             itemBuilder: (context, i) => _ProductTile(
               item: items[i],
               onTap: () => onAdd(items[i]),
+              onCustomize: items[i].modifierGroups.isEmpty
+                  ? null
+                  : () => onCustomize(items[i]),
             ),
           ),
         ),
@@ -758,10 +930,14 @@ class _CategoryChip extends StatelessWidget {
 }
 
 class _ProductTile extends StatefulWidget {
-  const _ProductTile({required this.item, required this.onTap});
+  const _ProductTile(
+      {required this.item, required this.onTap, this.onCustomize});
 
   final MenuItemModel item;
   final VoidCallback onTap;
+
+  /// Null when the item has no modifier groups.
+  final VoidCallback? onCustomize;
 
   @override
   State<_ProductTile> createState() => _ProductTileState();
@@ -818,6 +994,15 @@ class _ProductTileState extends State<_ProductTile> {
                           color: AppColors.brand,
                         )),
                     const Spacer(),
+                    if (widget.onCustomize != null)
+                      GestureDetector(
+                        onTap: widget.onCustomize,
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.tune,
+                              size: 16, color: AppColors.brand),
+                        ),
+                      ),
                     Flexible(
                       child: Text(item.station,
                           overflow: TextOverflow.ellipsis,
@@ -912,6 +1097,7 @@ class _CartPane extends StatelessWidget {
     required this.onAdd,
     required this.onDec,
     required this.onNote,
+    required this.onCustomizeLine,
     required this.onSend,
     required this.onCollect,
     required this.onQuickCash,
@@ -930,6 +1116,7 @@ class _CartPane extends StatelessWidget {
   final ValueChanged<MenuItemModel> onAdd;
   final ValueChanged<CartLine> onDec;
   final ValueChanged<CartLine> onNote;
+  final ValueChanged<CartLine> onCustomizeLine;
   final VoidCallback onSend;
   final VoidCallback onCollect;
   final VoidCallback onQuickCash;
@@ -989,6 +1176,7 @@ class _CartPane extends StatelessWidget {
                       onAdd: () => onAdd(cart[i].item),
                       onDec: () => onDec(cart[i]),
                       onNote: () => onNote(cart[i]),
+                      onCustomizeLine: () => onCustomizeLine(cart[i]),
                     ),
                   ),
           ),
@@ -1074,12 +1262,14 @@ class _CartRow extends StatelessWidget {
       {required this.line,
       required this.onAdd,
       required this.onDec,
-      required this.onNote});
+      required this.onNote,
+      required this.onCustomizeLine});
 
   final CartLine line;
   final VoidCallback onAdd;
   final VoidCallback onDec;
   final VoidCallback onNote;
+  final VoidCallback onCustomizeLine;
 
   @override
   Widget build(BuildContext context) {
@@ -1119,6 +1309,20 @@ class _CartRow extends StatelessWidget {
                       Text('${money(line.item.price)} · ${line.item.station}',
                           overflow: TextOverflow.ellipsis,
                           style: AppText.caption),
+                      if (line.selected.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        GestureDetector(
+                          onTap: onCustomizeLine,
+                          child: Text(
+                              line.selected
+                                  .map((o) => o.name)
+                                  .join('، '),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption.copyWith(
+                                  color: AppColors.brand)),
+                        ),
+                      ],
                       if (line.note != null) ...[
                         const SizedBox(height: 2),
                         Text('ملاحظة: ${line.note!}',
