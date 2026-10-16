@@ -76,6 +76,16 @@ abstract class DeliveryRepository {
   /// Closes the return leg: the bag is back at the branch.
   Future<void> returnToBranch(String deliveryId);
 
+  /// Records a custody handover: a driver turned over [amount] to
+  /// [receiver] for [branchId]. Event only — per-job settlement keeps its
+  /// own lifecycle and server acknowledgement.
+  Future<void> recordBatchSettlement({
+    required String driver,
+    required String branchId,
+    required double amount,
+    required String receiver,
+  });
+
   /// Append-only log of money collected on deliveries.
   Future<List<CollectionModel>> listCollections();
 

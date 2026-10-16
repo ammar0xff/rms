@@ -267,6 +267,49 @@ class LocalDeliveryRepository implements DeliveryRepository {
   }
 
   @override
+  Future<void> recordBatchSettlement({
+    required String driver,
+    required String branchId,
+    required double amount,
+    required String receiver,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError.value(amount, 'amount', 'must be positive');
+    }
+    final now = _clock();
+    await _db.transaction((txn) async {
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: driver,
+          operationType: 'settleDriverBatch',
+          createdAt: now,
+          payload: {
+            'driver': driver,
+            'branchId': branchId,
+            'amount': amount,
+            'receiver': receiver,
+          },
+        ),
+      );
+      await _audit.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.settleDelivery,
+          entityType: 'delivery',
+          entityId: driver,
+          summary: 'توريد عهدة $driver · $amount إلى $receiver',
+          at: now,
+          amount: amount,
+          createdOffline: true,
+        ),
+      );
+    });
+    AppLogger.info('Batch settlement recorded for $driver.');
+  }
+
+  @override
   Future<void> failDelivery(
       String deliveryId, DeliveryFailureReason reason) async {
     final now = _clock();

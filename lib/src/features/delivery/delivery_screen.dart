@@ -412,6 +412,45 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
   }
 
+  /// Close-batch custody handover for one driver: branch, amount, and
+  /// receiver go into a batch settlement event.
+  Future<void> _settleBatch(DriverModel driver) async {
+    final services = AppScope.of(context);
+    final repo = services.deliveries;
+    final branches = services.branches;
+    if (repo == null) return;
+    final collected = _collections
+        .where((c) => c.driver == driver.name)
+        .fold(0.0, (sum, c) => sum + c.amount);
+    final branchNames = branches == null
+        ? const <String>['الرئيسي']
+        : (await branches.consolidate())
+            .branches
+            .map((b) => b.branch.name)
+            .toList();
+    if (!mounted) return;
+    final input = await showDialog<_BatchInput>(
+      context: context,
+      builder: (_) => _BatchSettleSheet(
+        driver: driver.name,
+        amount: collected,
+        branches: branchNames.isEmpty ? const ['الرئيسي'] : branchNames,
+      ),
+    );
+    if (input == null) return;
+    await repo.recordBatchSettlement(
+      driver: driver.name,
+      branchId: input.branch,
+      amount: input.amount,
+      receiver: input.receiver,
+    );
+    _refreshMonitor();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('العهدة اتورّدت تمام')),
+    );
+  }
+
   Future<void> _return(DeliveryModel delivery) async {
     final repo = AppScope.of(context).deliveries;
     if (repo == null) return;
@@ -758,12 +797,24 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           ),
           const SizedBox(height: 12),
           for (final driver in _drivers) ...[
-            _DriverRow(
-              driver: driver,
-              active: _open.where((d) => d.driver == driver.name).length,
-              collected: _collections
-                  .where((c) => c.driver == driver.name)
-                  .fold(0.0, (sum, c) => sum + c.amount),
+            Row(
+              children: [
+                Expanded(
+                  child: _DriverRow(
+                    driver: driver,
+                    active:
+                        _open.where((d) => d.driver == driver.name).length,
+                    collected: _collections
+                        .where((c) => c.driver == driver.name)
+                        .fold(0.0, (sum, c) => sum + c.amount),
+                  ),
+                ),
+                RmsButton(
+                  label: 'توريد',
+                  dense: true,
+                  onPressed: () => _settleBatch(driver),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
           ],
@@ -1158,6 +1209,111 @@ class _DriverJobCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _BatchInput {
+  _BatchInput(
+      {required this.branch, required this.amount, required this.receiver});
+
+  final String branch;
+  final double amount;
+  final String receiver;
+}
+
+class _BatchSettleSheet extends StatefulWidget {
+  const _BatchSettleSheet({
+    required this.driver,
+    required this.amount,
+    required this.branches,
+  });
+
+  final String driver;
+  final double amount;
+  final List<String> branches;
+
+  @override
+  State<_BatchSettleSheet> createState() => _BatchSettleSheetState();
+}
+
+class _BatchSettleSheetState extends State<_BatchSettleSheet> {
+  late String _branch = widget.branches.first;
+  late final _amount =
+      TextEditingController(text: widget.amount.toStringAsFixed(2));
+  final _receiver = TextEditingController();
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _receiver.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = double.tryParse(_amount.text.trim());
+    final valid = amount != null &&
+        amount > 0 &&
+        _receiver.text.trim().isNotEmpty;
+    return DialogShell(
+      title: 'توريد عهدة ${widget.driver}',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<String>(
+            value: _branch,
+            decoration: const InputDecoration(
+              labelText: 'الفرع المستلم',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (final b in widget.branches)
+                DropdownMenuItem(value: b, child: Text(b)),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _branch = v);
+            },
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _amount,
+            keyboardType: TextInputType.number,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'المبلغ المورّد',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _receiver,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'اسم المستلم',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'أكّد التوريد',
+          onPressed: valid
+              ? () => Navigator.of(context).pop(_BatchInput(
+                    branch: _branch,
+                    amount: amount!,
+                    receiver: _receiver.text.trim(),
+                  ))
+              : null,
+        ),
+      ],
     );
   }
 }
