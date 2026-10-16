@@ -10,6 +10,8 @@ class Order {
     required this.createdAt,
     this.orderType = OrderType.dineIn,
     this.taxAmount = 0.0,
+    this.discountAmount = 0.0,
+    this.serviceAmount = 0.0,
     this.serverId,
     this.canonicalOrderNumber,
     this.localRevision = 1,
@@ -32,6 +34,12 @@ class Order {
   /// cart used to charge tax while every record downstream ignored it, so a
   /// payment never matched its order.
   final double taxAmount;
+
+  /// Loyalty/VIP/goodwill reductions and dine-in service charges. Both
+  /// default to zero, so every existing total is unchanged until the POS
+  /// starts setting them.
+  final double discountAmount;
+  final double serviceAmount;
   String? serverId;
   String? canonicalOrderNumber;
   int localRevision;
@@ -47,7 +55,7 @@ class Order {
   double get subtotal =>
       items.fold(0, (sum, item) => sum + item.unitPrice * item.quantity);
 
-  double get total => subtotal + taxAmount;
+  double get total => subtotal - discountAmount + taxAmount + serviceAmount;
 
   Map<String, Object?> toRecord() => {
         'localId': localId,
@@ -57,6 +65,8 @@ class Order {
         'createdAt': createdAt.toIso8601String(),
         'orderType': orderType.name,
         'taxAmount': taxAmount,
+        'discountAmount': discountAmount,
+        'serviceAmount': serviceAmount,
         'serverId': serverId,
         'canonicalOrderNumber': canonicalOrderNumber,
         'localRevision': localRevision,
@@ -80,6 +90,8 @@ class Order {
           record['orderType'] as String? ?? OrderType.dineIn.name,
         ),
         taxAmount: (record['taxAmount'] as num?)?.toDouble() ?? 0.0,
+        discountAmount: (record['discountAmount'] as num?)?.toDouble() ?? 0.0,
+        serviceAmount: (record['serviceAmount'] as num?)?.toDouble() ?? 0.0,
         serverId: record['serverId'] as String?,
         canonicalOrderNumber: record['canonicalOrderNumber'] as String?,
         localRevision: record['localRevision'] as int? ?? 1,

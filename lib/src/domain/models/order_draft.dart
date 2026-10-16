@@ -9,10 +9,14 @@ class OrderDraft {
     this.createdOffline = false,
     this.orderType = OrderType.dineIn,
     this.taxAmount = 0.0,
+    this.discountAmount = 0.0,
+    this.serviceAmount = 0.0,
   });
 
   final List<OrderItem> items;
   final double taxAmount;
+  final double discountAmount;
+  final double serviceAmount;
   final bool createdOffline;
   final OrderType orderType;
 }
