@@ -5,6 +5,8 @@ import '../../core/di/app_services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/widgets/blocks.dart';
+import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
@@ -13,6 +15,8 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../domain/models/branch.dart';
+import '../../domain/models/inventory_item.dart';
+import '../../domain/models/stock_transfer.dart';
 import '../common/format.dart';
 
 class BranchesScreen extends StatefulWidget {
@@ -24,6 +28,7 @@ class BranchesScreen extends StatefulWidget {
 
 class _BranchesScreenState extends State<BranchesScreen> {
   ConsolidationSnapshot? _snapshot;
+  List<StockTransfer> _transfers = const [];
   bool _available = true;
   bool _loaded = false;
 
@@ -46,11 +51,67 @@ class _BranchesScreenState extends State<BranchesScreen> {
       return;
     }
     final snapshot = await repo.consolidate();
+    final transfersRepo = AppScope.of(context).transfers;
+    final transfers = transfersRepo == null
+        ? const <StockTransfer>[]
+        : await transfersRepo.listTransfers();
     if (!mounted) return;
     setState(() {
       _available = true;
       _snapshot = snapshot;
+      _transfers = transfers;
     });
+  }
+
+  Future<void> _receiveTransfer(StockTransfer transfer) async {
+    final repo = AppScope.of(context).transfers;
+    if (repo == null) return;
+    try {
+      await repo.receiveTransfer(transfer.id);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذّر الاستلام — جرّب تاني')),
+      );
+      return;
+    }
+    await _load();
+  }
+
+  Future<void> _requestTransfer() async {
+    final services = AppScope.of(context);
+    final transfers = services.transfers;
+    final inventory = services.inventory;
+    if (transfers == null || inventory == null) return;
+    final snapshot = _snapshot;
+    if (snapshot == null) return;
+    final items = await inventory.listItems();
+    if (!mounted) return;
+    final input = await showDialog<_TransferInput>(
+      context: context,
+      builder: (_) => _TransferDialog(
+        branches: snapshot.branches.map((b) => b.branch).toList(),
+        items: items,
+      ),
+    );
+    if (input == null) return;
+    await transfers.requestTransfer(
+      itemId: input.itemId,
+      itemName: input.itemName,
+      quantity: input.quantity,
+      unit: input.unit,
+      fromBranchId: input.fromBranch.id,
+      fromBranchName: input.fromBranch.name,
+      toBranchId: input.toBranch.id,
+      toBranchName: input.toBranch.name,
+      courier: input.courier,
+      note: input.note,
+    );
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('اتطلب الإمداد وهيستنى الطرف التاني')),
+    );
   }
 
   Future<void> _exportCsv() async {
@@ -142,6 +203,23 @@ class _BranchesScreenState extends State<BranchesScreen> {
         else ...[
           _kpiGrid(snapshot),
           _branchesCard(snapshot),
+          _TransferCard(
+            transfers: _transfers,
+            onRequest: _requestTransfer,
+            onReceive: _receiveTransfer,
+            onAdvance: (t) async {
+              final repo = AppScope.of(context).transfers;
+              if (repo == null) return;
+              await repo.advanceTransfer(t.id);
+              await _load();
+            },
+            onCancel: (t) async {
+              final repo = AppScope.of(context).transfers;
+              if (repo == null) return;
+              await repo.cancelTransfer(t.id);
+              await _load();
+            },
+          ),
           const SurfaceCard(
             level: SurfaceLevel.secondary,
             child: Row(
@@ -327,6 +405,294 @@ class _BranchesScreenState extends State<BranchesScreen> {
       ),
     );
   }
+
+/// Transfer tracker: open transfers with their next action, closed
+/// history below. Request sheet picks donor, receiver, item, and quantity.
+class _TransferCard extends StatelessWidget {
+  const _TransferCard({
+    required this.transfers,
+    required this.onRequest,
+    required this.onReceive,
+    required this.onAdvance,
+    required this.onCancel,
+  });
+
+  final List<StockTransfer> transfers;
+  final VoidCallback onRequest;
+  final ValueChanged<StockTransfer> onReceive;
+  final ValueChanged<StockTransfer> onAdvance;
+  final ValueChanged<StockTransfer> onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = transfers.where((t) => t.status.isOpen).toList();
+    final closed =
+        transfers.where((t) => !t.status.isOpen).take(5).toList();
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionHeader(
+            title: 'تحويلات المخزون',
+            subtitle: 'إمداد بين الفروع بتتبع واضح',
+            trailing: RmsButton(
+              label: 'طلب إمداد',
+              icon: Icons.add,
+              onPressed: onRequest,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (open.isEmpty)
+            const Text('مفيش تحويلات مفتوحة.',
+                style: AppText.caption)
+          else
+            for (final t in open) ...[
+              _TransferRow(
+                transfer: t,
+                onAdvance: () => onAdvance(t),
+                onReceive: () => onReceive(t),
+                onCancel: () => onCancel(t),
+              ),
+              const SizedBox(height: 10),
+            ],
+          if (closed.isNotEmpty) ...[
+            const Divider(height: 20),
+            for (final t in closed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${t.itemName} × ${t.quantity} · ${t.status.label}',
+                  style: AppText.caption,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TransferRow extends StatelessWidget {
+  const _TransferRow({
+    required this.transfer,
+    required this.onAdvance,
+    required this.onReceive,
+    required this.onCancel,
+  });
+
+  final StockTransfer transfer;
+  final VoidCallback onAdvance;
+  final VoidCallback onReceive;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = transfer;
+    final nextLabel = switch (t.status) {
+      TransferStatus.requested => 'اعتماد',
+      TransferStatus.approved => 'شحن',
+      _ => null,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FeedRow(
+          tone: StatusTone.info,
+          title: '${t.itemName} × ${t.quantity} ${t.unit}',
+          subtitle: '${t.fromBranchName} ← ${t.toBranchName}'
+              '${t.courier.isEmpty ? '' : ' · ${t.courier}'}',
+          trailing: Tag(label: t.status.label, tone: StatusTone.info),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (nextLabel != null)
+              RmsButton(label: nextLabel, onPressed: onAdvance),
+            if (t.status == TransferStatus.inTransit)
+              RmsButton(
+                label: 'أكّد الاستلام',
+                variant: BtnVariant.primary,
+                onPressed: onReceive,
+              ),
+            if (t.status.isOpen)
+              RmsButton(
+                label: 'إلغاء',
+                variant: BtnVariant.ghost,
+                onPressed: onCancel,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TransferInput {
+  _TransferInput({
+    required this.fromBranch,
+    required this.toBranch,
+    required this.itemId,
+    required this.itemName,
+    required this.quantity,
+    required this.unit,
+    required this.courier,
+    this.note,
+  });
+
+  final BranchModel fromBranch;
+  final BranchModel toBranch;
+  final String itemId;
+  final String itemName;
+  final double quantity;
+  final String unit;
+  final String courier;
+  final String? note;
+}
+
+class _TransferDialog extends StatefulWidget {
+  const _TransferDialog({required this.branches, required this.items});
+
+  final List<BranchModel> branches;
+  final List<InventoryItemModel> items;
+
+  @override
+  State<_TransferDialog> createState() => _TransferDialogState();
+}
+
+class _TransferDialogState extends State<_TransferDialog> {
+  late BranchModel _from = widget.branches.first;
+  late BranchModel _to = widget.branches.length > 1
+      ? widget.branches[1]
+      : widget.branches.first;
+  InventoryItemModel? _item;
+  final _qty = TextEditingController();
+  final _courier = TextEditingController();
+  final _note = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.items.isNotEmpty) _item = widget.items.first;
+  }
+
+  @override
+  void dispose() {
+    _qty.dispose();
+    _courier.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qty = double.tryParse(_qty.text.trim());
+    final valid = _item != null &&
+        qty != null &&
+        qty > 0 &&
+        _from.id != _to.id;
+    return DialogShell(
+      title: 'طلب إمداد بين الفروع',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _drop<BranchModel>(
+            label: 'من فرع',
+            value: _from,
+            options: widget.branches,
+            title: (b) => b.name,
+            onPick: (b) => setState(() => _from = b),
+          ),
+          const SizedBox(height: 10),
+          _drop<BranchModel>(
+            label: 'إلى فرع',
+            value: _to,
+            options: widget.branches,
+            title: (b) => b.name,
+            onPick: (b) => setState(() => _to = b),
+          ),
+          const SizedBox(height: 10),
+          _drop<InventoryItemModel>(
+            label: 'الصنف',
+            value: _item,
+            options: widget.items,
+            title: (i) => '${i.name} (${i.unit})',
+            onPick: (i) => setState(() => _item = i),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _qty,
+            keyboardType: TextInputType.number,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'الكمية',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _courier,
+            decoration: const InputDecoration(
+              labelText: 'المندوب (اختياري)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'ابعت الطلب',
+          onPressed: valid
+              ? () => Navigator.of(context).pop(
+                    _TransferInput(
+                      fromBranch: _from,
+                      toBranch: _to,
+                      itemId: _item!.id,
+                      itemName: _item!.name,
+                      quantity: qty!,
+                      unit: _item!.unit,
+                      courier: _courier.text.trim(),
+                      note: _note.text.trim().isEmpty
+                          ? null
+                          : _note.text.trim(),
+                    ),
+                  )
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _drop<T>({
+    required String label,
+    required T? value,
+    required List<T> options,
+    required String Function(T) title,
+    required ValueChanged<T> onPick,
+  }) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      items: [
+        for (final o in options)
+          DropdownMenuItem(value: o, child: Text(title(o))),
+      ],
+      onChanged: (v) {
+        if (v != null) onPick(v);
+      },
+    );
+  }
+}
 
   Widget _sourceTag(BranchBreakdown breakdown) {
     if (breakdown.live) {
