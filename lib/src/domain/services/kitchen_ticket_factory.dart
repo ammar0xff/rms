@@ -51,3 +51,4 @@ class KitchenTicketFactory {
     final note = item.note?.trim() ?? '';
     return note.isEmpty ? base : '$base (ملاحظة: $note)';
   }
+}
