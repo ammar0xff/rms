@@ -12,6 +12,8 @@ import '../../domain/assignment/delivery_assignment.dart';
 import '../../domain/models/approval_request.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/order.dart';
+import '../../domain/models/permissions.dart';
+import '../../data/services/permission_service.dart';
 import '../common/format.dart';
 
 /// Live order triage for managers: every open order on this device branch
@@ -133,6 +135,14 @@ class _TriageScreenState extends State<TriageScreen> {
   }
 
   Future<void> _discount(Order order) async {
+    if (!await userCan(
+        AppScope.of(context), Permissions.orderDiscount)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('صلاحية طلب الخصم مش متاحة لدورك')),
+      );
+      return;
+    }
     final approvals = AppScope.of(context).approvals;
     if (approvals == null) return;
     await approvals.requestDiscount(

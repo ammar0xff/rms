@@ -20,6 +20,8 @@ import '../../domain/models/approval_request.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/payment.dart';
+import '../../domain/models/permissions.dart';
+import '../../data/services/permission_service.dart';
 import '../common/format.dart';
 
 const double _openingFloat = 200;
@@ -150,6 +152,13 @@ class _AccountingScreenState extends State<AccountingScreen> {
   }
 
   Future<void> _requestVoid(Order order) async {
+    if (!await userCan(AppScope.of(context), Permissions.orderVoid)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('صلاحية طلب الإلغاء مش متاحة لدورك')),
+      );
+      return;
+    }
     final approvals = AppScope.of(context).approvals;
     if (approvals == null || order.voided) return;
     final reason = await showDialog<String>(

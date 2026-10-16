@@ -11,6 +11,8 @@ import '../../core/widgets/blocks.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../domain/models/menu_item.dart';
+import '../../domain/models/permissions.dart';
+import '../../data/services/permission_service.dart';
 import '../common/format.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -49,7 +51,21 @@ class _MenuScreenState extends State<MenuScreen> {
 
   /// Demo menu shown when the local store is unavailable.
 
+  Future<void> _deny(String what) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('صلاحية $what مش متاحة لدورك')),
+    );
+  }
+
+  Future<bool> _allowed() async =>
+      userCan(AppScope.of(context), Permissions.menuEdit);
+
   Future<void> _createItem() async {
+    if (!await _allowed()) {
+      await _deny('تعديل القائمة');
+      return;
+    }
     final menu = AppScope.of(context).menu;
     final messenger = ScaffoldMessenger.of(context);
     if (menu == null) {
@@ -72,6 +88,10 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   Future<void> _toggleAvailability(MenuItemModel item) async {
+    if (!await _allowed()) {
+      await _deny('تعديل القائمة');
+      return;
+    }
     final menu = AppScope.of(context).menu;
     if (menu == null) return;
     try {
