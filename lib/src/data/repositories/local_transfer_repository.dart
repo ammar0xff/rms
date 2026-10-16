@@ -190,6 +190,10 @@ class LocalTransferRepository implements TransferRepository {
   Future<StockTransfer> receiveTransfer(String id) async {
     final now = _clock();
     StockTransfer? done;
+    // True only when this call flips the status: the early return below
+    // exits the transaction closure, not this method, so the stock leg
+    // must not post on a repeat call.
+    var fresh = false;
     await _db.transaction((txn) async {
       final transfer = await _get(txn, id);
       if (transfer.status == TransferStatus.received) {
@@ -206,19 +210,21 @@ class LocalTransferRepository implements TransferRepository {
       done = await _save(txn, transfer, 'receiveTransfer',
           AuditAction.receiveTransfer,
           'استلام تحويل ${transfer.itemName} × ${transfer.quantity}', now);
+      fresh = true;
     });
     // The stock leg posts outside the transfer transaction through the
-    // inventory repo, which owns balance math. Receiving twice is safe:
-    // the status gate above runs first.
-    await _inventory.recordMovement(
-      itemId: done!.itemId,
-      delta: done!.quantity,
-      reason: StockMovementReason.transfer,
-      reference: 'تحويل ${done!.id}',
-      createdOffline: true,
-    );
+    // inventory repo, which owns balance math.
+    if (fresh) {
+      await _inventory.recordMovement(
+        itemId: done!.itemId,
+        delta: done!.quantity,
+        reason: StockMovementReason.transfer,
+        reference: 'تحويل ${done!.id}',
+        createdOffline: true,
+      );
+      AppLogger.info('Transfer $id received (+${done!.quantity}).');
+    }
     await _mirrorTransfer(done!);
-    AppLogger.info('Transfer $id received (+${done!.quantity}).');
     return done!;
   }
 
