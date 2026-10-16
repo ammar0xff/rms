@@ -44,6 +44,10 @@ class KitchenTicketFactory {
     ];
   }
 
-  static String _label(OrderItem item) =>
-      item.quantity > 1 ? '${item.name} × ${item.quantity}' : item.name;
-}
+  static String _label(OrderItem item) {
+    final base = item.quantity > 1
+        ? '${item.name} × ${item.quantity}'
+        : item.name;
+    final note = item.note?.trim() ?? '';
+    return note.isEmpty ? base : '$base (ملاحظة: $note)';
+  }

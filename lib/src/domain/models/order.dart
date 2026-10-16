@@ -109,6 +109,7 @@ class OrderItem {
     required this.unitPrice,
     required this.quantity,
     this.station = '',
+    this.note,
   });
 
   final String productId;
@@ -119,12 +120,16 @@ class OrderItem {
   /// The kitchen station that prepares this line, used to route tickets.
   final String station;
 
+  /// Free-text kitchen note (بدون بصل، محمص كويس). Prints on the ticket.
+  final String? note;
+
   Map<String, Object?> toRecord() => {
         'productId': productId,
         'name': name,
         'unitPrice': unitPrice,
         'quantity': quantity,
         if (station.isNotEmpty) 'station': station,
+        if (note != null && note!.isNotEmpty) 'note': note,
       };
 
   static OrderItem fromRecord(Map<String, Object?> record) => OrderItem(
@@ -133,5 +138,6 @@ class OrderItem {
         unitPrice: (record['unitPrice'] as num).toDouble(),
         quantity: record['quantity'] as int,
         station: record['station'] as String? ?? '',
+        note: record['note'] as String?,
       );
 }

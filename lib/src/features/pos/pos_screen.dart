@@ -8,6 +8,7 @@ import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
@@ -138,6 +139,74 @@ class _PosScreenState extends State<PosScreen>
     });
   }
 
+  /// Free-text kitchen note per line; prints on the ticket, syncs with the
+  /// order. Empty clears it.
+  Future<void> _editNote(CartLine line) async {
+    final controller = TextEditingController(text: line.note ?? '');
+    final note = await showDialog<String>(
+      context: context,
+      builder: (_) => DialogShell(
+        title: 'ملاحظة للشيف',
+        subtitle: line.item.name,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (const chip in ['بدون حار', 'محمص كويس', 'نصّين'])
+                  GestureDetector(
+                    onTap: () {
+                      final current = controller.text;
+                      controller.text = current.isEmpty
+                          ? chip
+                          : '$current، $chip';
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border:
+                            Border.all(color: AppColors.borderStrong),
+                        borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusSm),
+                      ),
+                      child: Text(chip, style: AppText.bodyStrong),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'اكتب تعليمات المطبخ…',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          RmsButton(
+            label: 'إلغاء',
+            variant: BtnVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          RmsButton(
+            label: 'احفظ الملاحظة',
+            onPressed: () =>
+                Navigator.of(context).pop(controller.text.trim()),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (note == null) return;
+    setState(() => line.note = note.isEmpty ? null : note);
+  }
+
   Future<void> _collect() async {
     if (_cart.isEmpty || _submitting) return;
     final input = await showDialog<_PaymentInput>(
@@ -178,6 +247,7 @@ class _PosScreenState extends State<PosScreen>
           unitPrice: line.item.price,
           quantity: line.quantity,
           station: line.item.station,
+          note: line.note?.trim().isEmpty ?? true ? null : line.note!.trim(),
         ),
     ];
     // Cents-rounded here so the stored tax is exact; the cart keeps showing
@@ -334,6 +404,7 @@ class _PosScreenState extends State<PosScreen>
           onType: (i) => setState(() => _orderType = i),
           onAdd: _add,
           onDec: _dec,
+          onNote: _editNote,
           onSend: () => _submitOrder(),
           onCollect: _collect,
           onQuickCash: () => _submitOrder(
@@ -840,6 +911,7 @@ class _CartPane extends StatelessWidget {
     required this.onType,
     required this.onAdd,
     required this.onDec,
+    required this.onNote,
     required this.onSend,
     required this.onCollect,
     required this.onQuickCash,
@@ -857,6 +929,7 @@ class _CartPane extends StatelessWidget {
   final ValueChanged<int> onType;
   final ValueChanged<MenuItemModel> onAdd;
   final ValueChanged<CartLine> onDec;
+  final ValueChanged<CartLine> onNote;
   final VoidCallback onSend;
   final VoidCallback onCollect;
   final VoidCallback onQuickCash;
@@ -915,6 +988,7 @@ class _CartPane extends StatelessWidget {
                       line: cart[i],
                       onAdd: () => onAdd(cart[i].item),
                       onDec: () => onDec(cart[i]),
+                      onNote: () => onNote(cart[i]),
                     ),
                   ),
           ),
@@ -996,11 +1070,16 @@ class _CartPane extends StatelessWidget {
 }
 
 class _CartRow extends StatelessWidget {
-  const _CartRow({required this.line, required this.onAdd, required this.onDec});
+  const _CartRow(
+      {required this.line,
+      required this.onAdd,
+      required this.onDec,
+      required this.onNote});
 
   final CartLine line;
   final VoidCallback onAdd;
   final VoidCallback onDec;
+  final VoidCallback onNote;
 
   @override
   Widget build(BuildContext context) {
@@ -1012,14 +1091,45 @@ class _CartRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(line.item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.tableCellPrimary),
-                const SizedBox(height: 2),
-                Text('${money(line.item.price)} · ${line.item.station}',
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.caption),
+                GestureDetector(
+                  onTap: onNote,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(line.item.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.tableCellPrimary),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.edit_note_outlined,
+                            size: 15,
+                            color: line.note == null
+                                ? AppColors.fgGhost
+                                : AppColors.brand,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text('${money(line.item.price)} · ${line.item.station}',
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption),
+                      if (line.note != null) ...[
+                        const SizedBox(height: 2),
+                        Text('ملاحظة: ${line.note!}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                                color: AppColors.brand)),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
