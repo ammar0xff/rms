@@ -26,6 +26,7 @@ import '../../features/shift/shift_screen.dart';
 import '../../features/system/system_screen.dart';
 import '../../features/sync/sync_center_screen.dart';
 import '../../features/tables/tables_screen.dart';
+import '../../features/triage/triage_screen.dart';
 import '../../features/delivery/trip_log_screen.dart';
 import '../../features/updates/update_controller.dart';
 import '../../domain/update/update_prompt_mode.dart';
@@ -73,6 +74,7 @@ final navGroups = <NavGroup>[
     NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
     NavEntry('triplog', 'سجل الرحلات', Icons.route_outlined, _triplog),
     NavEntry('tables', 'الصالة والطاولات', Icons.table_restaurant_outlined, _tables),
+    NavEntry('triage', 'الأوردرات النشطة', Icons.monitor_heart_outlined, _triage),
     NavEntry('database', 'قاعدة البيانات', Icons.storage_outlined, _database),
     NavEntry('conflicts', 'التعارضات', Icons.call_split_outlined, _conflicts),
     NavEntry('team', 'الفريق', Icons.group_outlined, _team),
@@ -107,7 +109,7 @@ class _RoleNav {
 }
 
 const _allIds = [
-  'dashboard', 'pos', 'delivery', 'tables', 'menu', 'inventory',
+  'dashboard', 'pos', 'delivery', 'tables', 'triage', 'menu', 'inventory',
   'purchasing', 'customers', 'accounting', 'reports', 'branches',
   'sync', 'conflicts', 'team', 'settings',
 ];
@@ -151,6 +153,7 @@ Widget _reports(BuildContext c) => const ReportsScreen();
 Widget _branches(BuildContext c) => const BranchesScreen();
 Widget _sync(BuildContext c) => const SyncCenterScreen();
 Widget _tables(BuildContext c) => const TablesScreen();
+Widget _triage(BuildContext c) => const TriageScreen();
 Widget _triplog(BuildContext c) => const TripLogScreen();
 Widget _database(BuildContext c) => const DatabaseScreen();
 Widget _conflicts(BuildContext c) => const ConflictsScreen();
@@ -426,6 +429,7 @@ String _tabLabel(String id) => switch (id) {
       'menu' => 'القائمة',
       'sync' => 'المزامنة',
       'tables' => 'الصالة',
+      'triage' => 'المتابعة',
       _ => _flatEntries
           .firstWhere((e) => e.id == id, orElse: () => _flatEntries.first)
           .label,
