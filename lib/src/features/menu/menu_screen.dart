@@ -76,12 +76,7 @@ class _MenuScreenState extends State<MenuScreen> {
     if (menu == null) return;
     try {
       await menu.upsertMenuItem(
-        MenuItemModel(
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          price: item.price,
-          station: item.station,
+        item.copyWith(
           available: !item.available,
           lastModifiedAt: DateTime.now(),
           syncStatus: 'pending',

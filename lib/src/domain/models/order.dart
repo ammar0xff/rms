@@ -110,6 +110,7 @@ class OrderItem {
     required this.quantity,
     this.station = '',
     this.note,
+    this.modifiers = const [],
   });
 
   final String productId;
@@ -123,6 +124,10 @@ class OrderItem {
   /// Free-text kitchen note (بدون بصل، محمص كويس). Prints on the ticket.
   final String? note;
 
+  /// Chosen modifier names (دبل، شيدر). Priced into unitPrice already;
+  /// carried for the ticket and the archive.
+  final List<String> modifiers;
+
   Map<String, Object?> toRecord() => {
         'productId': productId,
         'name': name,
@@ -130,6 +135,7 @@ class OrderItem {
         'quantity': quantity,
         if (station.isNotEmpty) 'station': station,
         if (note != null && note!.isNotEmpty) 'note': note,
+        if (modifiers.isNotEmpty) 'modifiers': modifiers,
       };
 
   static OrderItem fromRecord(Map<String, Object?> record) => OrderItem(
@@ -139,5 +145,8 @@ class OrderItem {
         quantity: record['quantity'] as int,
         station: record['station'] as String? ?? '',
         note: record['note'] as String?,
+        modifiers: ((record['modifiers'] as List?) ?? [])
+            .map((e) => e as String)
+            .toList(),
       );
 }
