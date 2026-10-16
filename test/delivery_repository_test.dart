@@ -264,6 +264,33 @@ void main() {
     );
   });
 
+  test('failing needs an en-route stop and records the reason', () async {
+    final delivery = await repo.createDelivery(
+      orderRef: 'O-failreason',
+      address: 'شارع الأرز',
+      amount: 10,
+    );
+    // Waiting stops cannot fail.
+    expect(
+      repo.failDelivery(
+          delivery.id, DeliveryFailureReason.noAnswer),
+      throwsStateError,
+    );
+    await repo.assignDriver(delivery.id, 'مروان ر.');
+    await repo.updateState(delivery.id, DeliveryState.onRoute);
+    await repo.failDelivery(
+        delivery.id, DeliveryFailureReason.wrongAddress);
+    final failed = (await repo.listDeliveries()).single;
+    expect(failed.state, DeliveryState.failed);
+    expect(failed.failedReason, DeliveryFailureReason.wrongAddress);
+    expect(failed.failedAt, isNotNull);
+    await repo.returnToBranch(delivery.id);
+    expect(
+      (await repo.listDeliveries()).single.state,
+      DeliveryState.returned,
+    );
+  });
+
   test('finalizeSettlement queues exactly one settle command', () async {
     final delivery = await delivered('O-8');
     await repo.recordCollection(deliveryId: delivery.id, amount: 10);

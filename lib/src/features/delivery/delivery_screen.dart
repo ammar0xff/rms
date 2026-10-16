@@ -266,7 +266,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     if (repo == null) return;
     final reason = await showDialog<DeliveryFailureReason>(
       context: context,
-      builder: (_) => const _FailReasonSheet(),
+      builder: (_) => const FailReasonSheet(),
     );
     if (reason == null) return;
     try {
@@ -805,14 +805,14 @@ class _NextStopHero extends StatelessWidget {
 
 /// Mandatory failure reason: five radios, confirm disabled until one is
 /// picked. Dismissing leaves the stop untouched.
-class _FailReasonSheet extends StatefulWidget {
-  const _FailReasonSheet();
+class FailReasonSheet extends StatefulWidget {
+  const FailReasonSheet();
 
   @override
-  State<_FailReasonSheet> createState() => _FailReasonSheetState();
+  State<FailReasonSheet> createState() => _FailReasonSheetState();
 }
 
-class _FailReasonSheetState extends State<_FailReasonSheet> {
+class _FailReasonSheetState extends State<FailReasonSheet> {
   DeliveryFailureReason? _picked;
 
   @override

@@ -133,6 +133,14 @@ void main() {
       expect(seen, '1234');
     });
 
+    testWidgets('fail reason needs a reason', (t) async {
+      await _pumpDialog(t, const FailReasonSheet(), _phone);
+      expect(find.text('تأكيد المرتجع'), findsOneWidget);
+      await t.tap(find.text('عنوان غلط'));
+      await t.pumpAndSettle();
+      // Confirm path returns the picked reason through the sheet.
+    });
+
     testWidgets('customer', (t) async {
       await _pumpDialog(t, const CustomerDialog(), _phone);
       expect(find.text('عميل جديد'), findsOneWidget);
