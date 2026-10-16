@@ -282,7 +282,6 @@ class _PosScreenState extends State<PosScreen>
           quantity: line.quantity,
           station: line.item.station,
           note: line.note?.trim().isEmpty ?? true ? null : line.note!.trim(),
-          unitPrice: line.unitPrice,
           modifiers: line.selected.map((o) => o.name).toList(),
         ),
     ];
