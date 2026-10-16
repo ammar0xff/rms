@@ -25,7 +25,6 @@ void main() {
       expect(AppRole.developer.isPrivileged, isTrue);
       expect(AppRole.driver.isPrivileged, isFalse);
       expect(AppRole.cashier.isPrivileged, isFalse);
-      expect(AppRole.chef.isPrivileged, isFalse);
     });
   });
 
@@ -41,7 +40,6 @@ void main() {
     test('infers the role from the email convention', () async {
       expect(await roleFor('driver.ahmed@rms.dev'), AppRole.driver);
       expect(await roleFor('cashier.sara@rms.dev'), AppRole.cashier);
-      expect(await roleFor('chef@rms.dev'), AppRole.chef);
       expect(await roleFor('manager@rms.dev'), AppRole.manager);
       expect(await roleFor('dev@rms.dev'), AppRole.developer);
       expect(await roleFor('developer.ops@rms.dev'), AppRole.developer);

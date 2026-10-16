@@ -1,4 +1,4 @@
-# Roles — one APK, five apps
+# Roles — one APK, four apps
 
 The signed-in account is the key to what is displayed. Same theme everywhere;
 different navigation, different landing screen, different reach.
@@ -9,7 +9,6 @@ different navigation, different landing screen, different reach.
 |---|---|---|---|
 | Driver | `driver.*@` | التوصيل + المزيد | deliveries, sync center, settings |
 | Cashier | `cashier.*@` (default) | الوردية + البيع + المزيد | shift board, POS, dashboard, menu, customers, sync, settings |
-| Chef | `chef.*@` | المطبخ + القائمة + المزيد | kitchen (+day strip), menu, dashboard, sync, settings |
 | Manager | anything else | full bar | everything, incl. team |
 | Developer | `dev.*@`, `developer.*@` | النظام + المزامنة + المزيد | system board, everything, incl. team + database tools |
 

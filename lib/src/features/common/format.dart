@@ -24,10 +24,3 @@ String money(double value, {String symbol = 'ج.م'}) {
       SyncState.conflict => ('تعارض', StatusTone.negative),
     };
 
-(String label, StatusTone tone) ticketStateView(TicketState state) =>
-    switch (state) {
-      TicketState.queued => ('مستني', StatusTone.info),
-      TicketState.preparing => ('بيتجهز', StatusTone.warning),
-      TicketState.ready => ('جاهز', StatusTone.positive),
-      TicketState.completed => ('خلصان', StatusTone.neutral),
-    };

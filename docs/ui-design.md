@@ -54,29 +54,7 @@ Session hero (open float, expected, counted, variance colored) · open/close
 actions · payments feed · approvals with wrap buttons (built). PC: hero +
 session form side by side; mobile stacked.
 
-## 2. Chef — المطبخ (dark glass, flame)
-
-Core loop: see ticket → cook → bump. Glanceable from 2 meters, greasy
-fingers: 48px+ targets, no hover-dependent UI.
-
-### 2.1 KDS home (built)
-Dark panel, day strip, three lanes, state edges, red-late frame, big bump
-buttons. PC: lanes share the panel (built). Add: lane auto-scroll to
-newest (AnimatedList insertion, no layout change), late-ticket pulse
-(subtle opacity loop, respects reduced motion via TickerMode only —
-  no setting yet, keep static red if motion is a concern; decided: static).
-
-### 2.2 Menu — القائمة (station-grouped cards, new)
-- Group headers per station (المشويات، الفرن…) with counts + نفد count.
-- Item card: name, price pill, station tag, big availability switch row
-  (متاح toggle, 48px). Search filters across groups; empty group hides.
-- PC: two-column card grid under each station header; mobile: single
-  column. Add/edit dialog (`DialogShell`): name, price, category dropdown,
-  station dropdown, availability switch. Delete asks متأكد؟.
-- Toggling availability writes through the same repo path as today
-  (sync-safe); optimistic with rollback snackbar on failure.
-
-## 3. Driver — الطريق (blue)
+## 2. Driver — الطريق (blue)
 
 Core loop: next stop → advance → collect → settle. One thumb, sunlight
 readable, glove-sized buttons (56px primary).
@@ -96,7 +74,7 @@ Amount field (autofocus, numeric), quick chips (المبلغ كامل, +بقشي
   no, keep: exact / round-up), method toggle (كاش/فيزا), سجّل button.
 Width 400, scrollable content; on 390px it fits by construction (pumped).
 
-## 4. Manager — القيادة (emerald)
+## 3. Manager — القيادة (emerald)
 
 Core loop: morning review → intraday glance → close. Numbers first,
 drill-down second.
@@ -136,7 +114,7 @@ Member rows (avatar initial, name, email, role dropdown) · invite CTA
 locked with أنت tag. PC: table; mobile: cards. Role changes confirm via
 snackbar with reason on failure (built).
 
-## 5. Dev — الغرفة (purple)
+## 4. Dev — الغرفة (purple)
 
 Core loop: health glance → diagnose → fix. Dense, mono accents, no
 hand-holding.
@@ -173,7 +151,7 @@ Already as specified: blocking mode is a centered 520px card over the app
 (full-bleed on phones, dialog-like on PC), optional mode is a real Dialog.
 No change needed.
 
-## 6. Shell (both widths)
+## 5. Shell (both widths)
 
 - Top bar on EVERY screen, both widths: screen title + sync chip.
   Nothing else — the search and notifications buttons were dead controls
@@ -187,7 +165,7 @@ No change needed.
 - Sign-in: centered 420px card both widths (built: أهلاً بيك), demo-mode
   hint, error inline. Splash: app mark + name (built).
 
-## 7. Element inventory (proof matrix)
+## 6. Element inventory (proof matrix)
 
 Dialogs/sheets (pump 390 + 1440): collection, customer add/edit, menu
 item add/edit, stock adjust/count, pay supplier, close session, confirm
@@ -199,14 +177,13 @@ Charts: MiniBars keep 160px height, x-labels every third (built); mix
 bars new. Tables: RmsTable everywhere (built). Tooltips: refresh/export
 icon buttons keep text tooltips.
 
-## 8. Build order
+## 7. Build order
 
 0. Desktop sweep green (pending CI on 7fc0b20).
 1. New blocks: DialogShell, ListToolbar, SegmentedControl, Collapsible,
    ChartCard(mix bars), TimelineList, Skeleton.
 2. Shell accents + sign-in card.
 3. Cashier: POS PC rails + mobile tender row + customers + session side.
-4. Chef: station menu.
 5. Driver: PC column cap + timeline + collection dialog.
 6. Manager: reports mix bars + branch detail + purchasing tabs/columns +
    inventory feed + team cards.

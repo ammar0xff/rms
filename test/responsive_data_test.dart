@@ -7,7 +7,6 @@ import 'package:rms/src/features/customers/customers_screen.dart';
 import 'package:rms/src/features/dashboard/dashboard_screen.dart';
 import 'package:rms/src/features/delivery/delivery_screen.dart';
 import 'package:rms/src/features/inventory/inventory_screen.dart';
-import 'package:rms/src/features/kitchen/kitchen_screen.dart';
 import 'package:rms/src/features/menu/menu_screen.dart';
 import 'package:rms/src/features/pos/pos_screen.dart';
 import 'package:rms/src/features/purchasing/purchasing_screen.dart';
@@ -35,14 +34,6 @@ void main() {
       // The cart holds the line and prices it; both must be on screen.
       expect(find.text(kLongName), findsWidgets);
       expect(find.textContaining('185.50'), findsWidgets);
-    });
-
-    testWidgets('kitchen lanes show tickets', (tester) async {
-      await pumpPhone(tester, const KitchenScreen());
-
-      expect(find.text('طلب-t1'), findsOneWidget);
-      expect(find.text('طلب-t2'), findsOneWidget);
-      expect(find.text('طلب-t3'), findsOneWidget);
     });
 
     testWidgets('delivery jobs, drivers, and collections', (tester) async {

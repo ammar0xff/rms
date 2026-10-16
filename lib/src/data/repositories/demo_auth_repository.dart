@@ -66,7 +66,6 @@ class DemoAuthRepository implements AuthRepository {
     for (final entry in const [
       ('driver', AppRole.driver),
       ('cashier', AppRole.cashier),
-      ('chef', AppRole.chef),
       ('manager', AppRole.manager),
       ('developer', AppRole.developer),
       ('dev', AppRole.developer),

@@ -14,7 +14,6 @@ import 'status.dart';
 /// wrap instead of overflowing.
 Color roleAccent(AppRole role) => switch (role) {
       AppRole.cashier => AppColors.cashierAccent,
-      AppRole.chef => AppColors.chefAccent,
       AppRole.driver => AppColors.driverAccent,
       AppRole.manager => AppColors.managerAccent,
       AppRole.developer => AppColors.developerAccent,

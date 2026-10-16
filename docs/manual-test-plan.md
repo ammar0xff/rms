@@ -9,9 +9,8 @@ Sign in as each account in turn. Shared-device sign-out (المزيد → اخر
 between each; confirm the previous operator's screens are gone.
 
 - [ ] **Driver** (`driver.*@`): bottom bar is التوصيل + المزيد only. No POS,
-  no kitchen, no dashboard anywhere — bar, grid, and (wide) sidebar.
-- [ ] **Cashier** (`cashier.*@`): lands on POS. No kitchen, no delivery.
-- [ ] **Chef** (`chef.*@`): lands on kitchen. No POS, no delivery.
+  no dashboard anywhere — bar, grid, and (wide) sidebar.
+- [ ] **Cashier** (`cashier.*@`): lands on POS. No delivery.
 - [ ] **Manager**: full bar, all 14 entries in المزيد.
 - [ ] **Developer**: system tabs; النظام > الفريق lists users; assign a role
   to another account (never your own — refused); sign in as that account and
@@ -77,19 +76,17 @@ Setup: install the release APK, sign in, take the app through each case.
 - [ ] **Taxed totals agree.** Order with tax: cart total == charged payment ==
   order record == delivery amount == printed receipt. Check all four surfaces.
 - [ ] **Double-tap submit.** Hammer إرسال للمطبخ twice. Exactly one order, one
-  kitchen dispatch, one delivery.
 - [ ] **Payable math.** Receive a purchase → supplier payable rises by exactly
   the total. Pay it in full → payable reads exactly 0.00 (no 0.0000004).
 - [ ] **Cash close.** Counted == expected → variance exactly 0.00, not فرق 0.01.
 
 ## 4. State machines
 
-- [ ] **Kitchen lanes.** queued → preparing → ready → completed advances;
   backward moves rejected with a snackbar; completed tickets never reappear;
   station filter resets to الكل when its station empties.
 - [ ] **Delivery runs.** assigned → onRoute → delivered; reopening a delivered
   run refused. Collect-twice confirms only the first.
-- [ ] **Tab switches keep the cart.** Build half a cart, visit kitchen/more,
+- [ ] **Tab switches keep the cart.** Build half a cart, visit more,
   come back: cart, search, category intact. Same for the menu/cart tabs.
 - [ ] **Sign-in restore.** Kill and relaunch while signed in (Firebase mode):
   no sign-in flash; straight to the shell.
@@ -101,7 +98,6 @@ Setup: install the release APK, sign in, take the app through each case.
 - [ ] **Diagnostics.** Settings → تشخيص النظام shows the live log tail after
   forcing an error (e.g. airplane-mode sync); backend state reads distinct
   from never-configured.
-- [ ] **Phone sweep.** 360px-wide pass over POS, dashboard, kitchen lanes,
   delivery, settings, sync center: no clipped text, no dead buttons, tables
   scroll sideways, dialogs fit with the keyboard up.
 

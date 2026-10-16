@@ -13,7 +13,6 @@ import 'package:rms/src/data/repositories/customer_repository.dart';
 import 'package:rms/src/data/repositories/demo_auth_repository.dart';
 import 'package:rms/src/data/repositories/delivery_repository.dart';
 import 'package:rms/src/data/repositories/inventory_repository.dart';
-import 'package:rms/src/data/repositories/kitchen_repository.dart';
 import 'package:rms/src/data/repositories/menu_repository.dart';
 import 'package:rms/src/data/repositories/order_repository.dart';
 import 'package:rms/src/data/repositories/payment_repository.dart';
@@ -27,7 +26,6 @@ import 'package:rms/src/domain/models/collection.dart';
 import 'package:rms/src/domain/models/customer.dart';
 import 'package:rms/src/domain/models/delivery.dart';
 import 'package:rms/src/domain/models/inventory_item.dart';
-import 'package:rms/src/domain/models/kitchen_ticket.dart';
 import 'package:rms/src/domain/models/menu_item.dart';
 import 'package:rms/src/domain/models/order.dart';
 import 'package:rms/src/domain/models/payment.dart';
@@ -117,37 +115,6 @@ class _MenuRepo implements MenuRepository {
     return items
         .where((m) =>
             (category == null || category == 'الكل' || m.category == category))
-        .toList();
-  }
-}
-
-class _KitchenRepo implements KitchenRepository {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-
-  KitchenTicketModel _ticket(String id, String station, TicketState state) =>
-      KitchenTicketModel(
-        id: id,
-        orderRef: 'طلب-$id',
-        station: station,
-        items: const [kLongName],
-        state: state,
-        createdAt: _now,
-      );
-
-  @override
-  Future<List<KitchenTicketModel>> listTickets(
-      {String? station, Set<TicketState>? states}) async {
-    final tickets = [
-      _ticket('t1', 'المشويات', TicketState.queued),
-      _ticket('t2', 'الفرن', TicketState.preparing),
-      _ticket('t3', 'المشويات', TicketState.ready),
-    ];
-    return tickets
-        .where((t) =>
-            (station == null || station == 'الكل' || t.station == station) &&
-            (states == null || states.contains(t.state)))
         .toList();
   }
 }
@@ -477,7 +444,6 @@ AppServices fakeServices({OutboxAccess? outbox}) => AppServices(
       firebaseReady: false,
       orders: _OrderRepo(),
       menu: _MenuRepo(),
-      kitchen: _KitchenRepo(),
       payments: _PaymentRepo(),
       deliveries: _DeliveryRepo(),
       outbox: outbox ?? FakeOutbox([]),

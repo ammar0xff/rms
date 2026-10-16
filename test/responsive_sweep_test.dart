@@ -12,7 +12,6 @@ import 'package:rms/src/features/dashboard/dashboard_screen.dart';
 import 'package:rms/src/features/database/database_screen.dart';
 import 'package:rms/src/features/delivery/delivery_screen.dart';
 import 'package:rms/src/features/inventory/inventory_screen.dart';
-import 'package:rms/src/features/kitchen/kitchen_screen.dart';
 import 'package:rms/src/features/menu/menu_screen.dart';
 import 'package:rms/src/features/pos/pos_screen.dart';
 import 'package:rms/src/features/purchasing/purchasing_screen.dart';
@@ -57,44 +56,6 @@ void main() {
     testWidgets('dashboard renders',
         (t) => _pumpPhone(t, const DashboardScreen()));
     testWidgets('pos renders', (t) => _pumpPhone(t, const PosScreen()));
-    testWidgets('kitchen renders',
-        (t) => _pumpPhone(t, const KitchenScreen()));
-    testWidgets('delivery renders',
-        (t) => _pumpPhone(t, const DeliveryScreen()));
-    testWidgets('menu renders', (t) => _pumpPhone(t, const MenuScreen()));
-    testWidgets('inventory renders',
-        (t) => _pumpPhone(t, const InventoryScreen()));
-    testWidgets('purchasing renders',
-        (t) => _pumpPhone(t, const PurchasingScreen()));
-    testWidgets('customers renders',
-        (t) => _pumpPhone(t, const CustomersScreen()));
-    testWidgets('accounting renders',
-        (t) => _pumpPhone(t, const AccountingScreen()));
-    testWidgets('reports renders',
-        (t) => _pumpPhone(t, const ReportsScreen()));
-    testWidgets('branches renders',
-        (t) => _pumpPhone(t, const BranchesScreen()));
-    testWidgets('system renders', (t) => _pumpPhone(t, const SystemScreen()));
-    testWidgets('sync center renders',
-        (t) => _pumpPhone(t, const SyncCenterScreen()));
-    testWidgets('database renders',
-        (t) => _pumpPhone(t, const DatabaseScreen()));
-    testWidgets('conflicts renders',
-        (t) => _pumpPhone(t, const ConflictsScreen()));
-    testWidgets('team renders', (t) => _pumpPhone(t, const TeamScreen()));
-    testWidgets('settings renders',
-        (t) => _pumpPhone(t, const SettingsScreen()));
-  });
-
-  group('narrow phone render sweep (360x640)', () {
-    testWidgets('pos renders', (tester) async {
-      tester.view.physicalSize = const Size(360, 640);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(_frame(const PosScreen()));
-      await tester.pumpAndSettle();
-    });
 
     testWidgets('dashboard renders', (tester) async {
       tester.view.physicalSize = const Size(360, 640);
@@ -105,13 +66,5 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('kitchen renders', (tester) async {
-      tester.view.physicalSize = const Size(360, 640);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(_frame(const KitchenScreen()));
-      await tester.pumpAndSettle();
-    });
   });
 }

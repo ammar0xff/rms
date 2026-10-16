@@ -15,9 +15,6 @@ enum AppRole {
   /// be determined.
   cashier('كاشير', 'الكاشير'),
 
-  /// Kitchen display and the menu it cooks from.
-  chef('شيف', 'المطبخ'),
-
   /// The whole operation except explicitly developer system screens.
   manager('مدير', 'لوحة التحكم'),
 

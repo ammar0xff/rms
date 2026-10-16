@@ -15,7 +15,6 @@ import '../../features/database/database_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/delivery/delivery_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
-import '../../features/kitchen/kitchen_screen.dart';
 import '../../features/team/team_screen.dart';
 import '../di/app_services.dart';
 import '../../features/menu/menu_screen.dart';
@@ -54,7 +53,6 @@ final navGroups = <NavGroup>[
     NavEntry('dashboard', 'لوحة التحكم', Icons.space_dashboard_outlined,
         _dashboard),
     NavEntry('pos', 'نقطة البيع', Icons.point_of_sale_outlined, _pos),
-    NavEntry('kitchen', 'المطبخ', Icons.soup_kitchen_outlined, _kitchen),
     NavEntry('delivery', 'التوصيل', Icons.moped_outlined, _delivery),
   ]),
   NavGroup('الإدارة', [
@@ -105,7 +103,7 @@ class _RoleNav {
 }
 
 const _allIds = [
-  'dashboard', 'pos', 'kitchen', 'delivery', 'menu', 'inventory',
+  'dashboard', 'pos', 'delivery', 'menu', 'inventory',
   'purchasing', 'customers', 'accounting', 'reports', 'branches',
   'sync', 'conflicts', 'team', 'settings',
 ];
@@ -125,13 +123,8 @@ _RoleNav _navFor(AppRole role) => switch (role) {
           ],
           home: 'shift',
         ),
-      AppRole.chef => const _RoleNav(
-          tabs: ['kitchen', 'menu'],
-          more: ['kitchen', 'menu', 'dashboard', 'sync', 'settings'],
-          home: 'kitchen',
-        ),
       AppRole.manager => const _RoleNav(
-          tabs: ['dashboard', 'pos', 'kitchen', 'delivery'],
+          tabs: ['dashboard', 'pos', 'delivery'],
           more: [..._allIds, 'system'],
           home: 'dashboard',
         ),
@@ -144,7 +137,6 @@ _RoleNav _navFor(AppRole role) => switch (role) {
 
 Widget _dashboard(BuildContext c) => const DashboardScreen();
 Widget _pos(BuildContext c) => const PosScreen();
-Widget _kitchen(BuildContext c) => const KitchenScreen();
 Widget _delivery(BuildContext c) => const DeliveryScreen();
 Widget _menu(BuildContext c) => const MenuScreen();
 Widget _inventory(BuildContext c) => const InventoryScreen();
@@ -401,7 +393,6 @@ String _tabLabel(String id) => switch (id) {
       'system' => 'النظام',
       'dashboard' => 'الرئيسية',
       'pos' => 'البيع',
-      'kitchen' => 'المطبخ',
       'delivery' => 'التوصيل',
       'menu' => 'القائمة',
       'sync' => 'المزامنة',

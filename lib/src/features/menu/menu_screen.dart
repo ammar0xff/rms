@@ -194,8 +194,8 @@ class _MenuScreenState extends State<MenuScreen> {
 
 /// Collects a new menu item. Returns null when dismissed.
 /// One station's items: header with counts, cards with big availability
-/// toggles. A chef thinks in stations, not in a five-column table — and a
-/// greasy thumb needs the whole row, not a 60px status cell.
+/// toggles. Stations, not a five-column table — and a greasy thumb
+/// needs the whole row, not a 60px status cell.
 class _StationGroup extends StatelessWidget {
   const _StationGroup({
     required this.station,

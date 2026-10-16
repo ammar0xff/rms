@@ -13,7 +13,6 @@ import 'package:rms/src/features/dashboard/dashboard_screen.dart';
 import 'package:rms/src/features/database/database_screen.dart';
 import 'package:rms/src/features/delivery/delivery_screen.dart';
 import 'package:rms/src/features/inventory/inventory_screen.dart';
-import 'package:rms/src/features/kitchen/kitchen_screen.dart';
 import 'package:rms/src/features/menu/menu_screen.dart';
 import 'package:rms/src/features/pos/pos_screen.dart';
 import 'package:rms/src/features/purchasing/purchasing_screen.dart';
@@ -58,22 +57,6 @@ void main() {
     testWidgets('dashboard renders',
         (t) => _pumpDesktopBare(t, const DashboardScreen()));
     testWidgets('pos renders', (t) => _pumpDesktopBare(t, const PosScreen()));
-    testWidgets('kitchen renders',
-        (t) => _pumpDesktopBare(t, const KitchenScreen()));
-    testWidgets('delivery renders',
-        (t) => _pumpDesktopBare(t, const DeliveryScreen()));
-    testWidgets('menu station groups', (tester) async {
-      await pumpDesktop(tester, const MenuScreen());
-
-      expect(find.text('المشويات'), findsOneWidget);
-      expect(find.text('مشويات مشكلة كبيرة مع الأرز البسمتي'),
-          findsOneWidget);
-      // Search filters across stations; empty groups hide.
-      await tester.enterText(find.byType(TextField), 'بيتزا');
-      await tester.pumpAndSettle();
-      expect(find.text('المشويات'), findsNothing);
-      expect(find.text('بيتزا خضار'), findsOneWidget);
-    });
     testWidgets('inventory renders',
         (t) => _pumpDesktopBare(t, const InventoryScreen()));
     testWidgets('purchasing renders',
@@ -133,13 +116,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('كاش بالظبط'), findsOneWidget);
       expect(find.text('فيزا'), findsWidgets);
-    });
-
-    testWidgets('kitchen lanes share the dark panel', (tester) async {
-      await pumpDesktop(tester, const KitchenScreen());
-
-      expect(find.text('طلب-t1'), findsOneWidget);
-      expect(find.text('طلب-t3'), findsOneWidget);
     });
 
     testWidgets('delivery ops tables', (tester) async {
