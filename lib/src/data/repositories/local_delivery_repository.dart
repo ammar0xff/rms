@@ -263,6 +263,51 @@ class LocalDeliveryRepository implements DeliveryRepository {
   }
 
   @override
+  Future<void> failDelivery(
+      String deliveryId, DeliveryFailureReason reason) async {
+    final now = _clock();
+    await _db.transaction((txn) async {
+      final record = LocalStores.deliveries.record(deliveryId);
+      final existing = await record.get(txn);
+      if (existing == null) return;
+      final delivery = DeliveryModel.fromRecord(existing);
+      if (delivery.state != DeliveryState.onRoute) {
+        throw StateError(
+          'only an en-route stop can fail (${delivery.state.name})',
+        );
+      }
+      delivery.state = DeliveryState.failed;
+      delivery.failedReason = reason;
+      delivery.failedAt = now;
+      delivery.localRevision += 1;
+      delivery.syncStatus = SyncStatus.pendingSync;
+      await record.put(txn, delivery.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: deliveryId,
+          operationType: 'failDelivery',
+          createdAt: now,
+          payload: {
+            'id': deliveryId,
+            'orderRef': delivery.orderRef,
+            'driver': delivery.driver,
+            'state': delivery.state.name,
+            'failedReason': reason.name,
+          },
+        ),
+      );
+    });
+    AppLogger.info('Delivery $deliveryId failed ($reason).');
+  }
+
+  @override
+  Future<void> returnToBranch(String deliveryId) async {
+    await updateState(deliveryId, DeliveryState.returned);
+    AppLogger.info('Delivery $deliveryId returned to branch.');
+  }
+
+  @override
   Future<void> updateState(String deliveryId, DeliveryState state) async {
     final now = _clock();
     await _db.transaction((txn) async {

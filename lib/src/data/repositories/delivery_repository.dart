@@ -67,6 +67,14 @@ abstract class DeliveryRepository {
 
   Future<void> updateState(String deliveryId, DeliveryState state);
 
+  /// Marks an en-route stop failed with a mandatory reason. The COD leaves
+  /// the queue with it — no collection is ever recorded for a failed stop.
+  Future<void> failDelivery(
+      String deliveryId, DeliveryFailureReason reason);
+
+  /// Closes the return leg: the bag is back at the branch.
+  Future<void> returnToBranch(String deliveryId);
+
   /// Append-only log of money collected on deliveries.
   Future<List<CollectionModel>> listCollections();
 
