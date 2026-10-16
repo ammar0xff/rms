@@ -10,11 +10,13 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
 import '../../domain/models/release_manifest.dart';
+import '../../domain/models/facility_settings.dart';
 import '../../domain/update/device_update_status.dart';
 import '../../domain/update/release_audit_event.dart';
 import '../../domain/models/app_role.dart';
@@ -150,6 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const _DiagnosticsCard(),
           ],
         ),
+        const _FacilityCard(),
       ],
     );
   }
@@ -669,6 +672,183 @@ class _FlagRow extends StatelessWidget {
 
 /// Live, device-local diagnostics: store availability, outbox depth and the
 /// print queue. Unlike the server-driven flags, everything here is real.
+/// Terminal identity, tax, and printer preferences. Local-only until a
+/// push-to-all exists; the printer rows are honest placeholders until the
+/// hardware is scoped.
+class _FacilityCard extends StatefulWidget {
+  const _FacilityCard();
+
+  @override
+  State<_FacilityCard> createState() => _FacilityCardState();
+}
+
+class _FacilityCardState extends State<_FacilityCard> {
+  FacilitySettings _settings = const FacilitySettings();
+  bool _loaded = false;
+  bool _saving = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loaded) return;
+    _loaded = true;
+    _load();
+  }
+
+  Future<void> _load() async {
+    final repo = AppScope.of(context).facility;
+    if (repo == null) return;
+    final settings = await repo.load();
+    if (!mounted) return;
+    setState(() => _settings = settings);
+  }
+
+  Future<void> _edit() async {
+    final repo = AppScope.of(context).facility;
+    if (repo == null || _saving) return;
+    final updated = await showDialog<FacilitySettings>(
+      context: context,
+      builder: (_) => FacilityDialog(initial: _settings),
+    );
+    if (updated == null) return;
+    setState(() => _saving = true);
+    try {
+      final saved = await repo.save(updated);
+      if (!mounted) return;
+      setState(() => _settings = saved);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اتحفظت بيانات الفرع على الجهاز')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final facility = AppScope.of(context).facility;
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SectionHeader(
+            title: 'بيانات الفرع والطابعة',
+            subtitle: 'محلية على الجهاز · بتظهر على الفواتير',
+            trailing: RmsButton(
+              label: 'عدّل',
+              icon: Icons.edit_outlined,
+              onPressed: facility == null || _saving ? null : _edit,
+            ),
+          ),
+          const SizedBox(height: 12),
+          KvPanel(pairs: [
+            (
+              'اسم الفاتورة',
+              _settings.receiptName.isEmpty ? '—' : _settings.receiptName
+            ),
+            (
+              'السجل التجاري',
+              _settings.commercialRegister.isEmpty
+                  ? '—'
+                  : _settings.commercialRegister
+            ),
+            (
+              'الرقم الضريبي',
+              _settings.taxId.isEmpty ? '—' : _settings.taxId
+            ),
+            (
+              'ضريبة / خدمة',
+              '${(_settings.vatRate * 100).round()}% / ${(_settings.serviceRate * 100).round()}%',
+            ),
+            ('ترميز الطابعة', _settings.printerCodepage),
+            ('العملة', _settings.currency),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+/// Facility editor: identity, tax, rates, printer. Public so the dialog
+/// sweep mounts it directly.
+class FacilityDialog extends StatefulWidget {
+  const FacilityDialog({required this.initial});
+
+  final FacilitySettings initial;
+
+  @override
+  State<FacilityDialog> createState() => _FacilityDialogState();
+}
+
+class _FacilityDialogState extends State<FacilityDialog> {
+  late final _name = TextEditingController(text: widget.initial.receiptName);
+  late final _tax = TextEditingController(text: widget.initial.taxId);
+  late final _cr =
+      TextEditingController(text: widget.initial.commercialRegister);
+  late final _footer =
+      TextEditingController(text: widget.initial.receiptFooter);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _tax.dispose();
+    _cr.dispose();
+    _footer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DialogShell(
+      title: 'بيانات الفرع والطابعة',
+      subtitle: 'بتظهر على الفواتير المطبوعة.',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _field(_name, 'اسم الفاتورة (سطر الترويسة)'),
+          const SizedBox(height: 10),
+          _field(_tax, 'الرقم الضريبي'),
+          const SizedBox(height: 10),
+          _field(_cr, 'السجل التجاري'),
+          const SizedBox(height: 10),
+          _field(_footer, 'سطر تذييل الفاتورة'),
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'احفظ',
+          onPressed: () => Navigator.of(context).pop(
+            widget.initial.copyWith(
+              receiptName: _name.text.trim(),
+              taxId: _tax.text.trim(),
+              commercialRegister: _cr.text.trim(),
+              receiptFooter: _footer.text.trim(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _field(TextEditingController controller, String label) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: AppText.caption,
+        isDense: true,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+}
+
 class _DiagnosticsCard extends StatelessWidget {
   const _DiagnosticsCard();
 
