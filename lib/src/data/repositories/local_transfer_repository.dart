@@ -98,7 +98,7 @@ class LocalTransferRepository implements TransferRepository {
     return transfer;
   }
 
-  Future<void> _mirror(StockTransfer transfer) => mirrorRecord(
+  Future<void> _mirrorTransfer(StockTransfer transfer) => mirrorRecord(
         _mirror,
         entityType: 'transfer',
         entityId: transfer.id,
@@ -140,7 +140,7 @@ class LocalTransferRepository implements TransferRepository {
       await _save(txn, transfer, 'requestTransfer',
           AuditAction.requestTransfer, 'طلب تحويل $itemName × $quantity من $fromBranchName', now);
     });
-    await _mirror(transfer);
+    await _mirrorTransfer(transfer);
     AppLogger.info('Transfer ${transfer.id} requested.');
     return transfer;
   }
@@ -164,7 +164,7 @@ class LocalTransferRepository implements TransferRepository {
       done = await _save(txn, transfer, 'advanceTransfer',
           AuditAction.requestTransfer, 'تحويل $id → ${following.label}', now);
     });
-    await _mirror(done!);
+    await _mirrorTransfer(done!);
     return done!;
   }
 
@@ -182,7 +182,7 @@ class LocalTransferRepository implements TransferRepository {
       done = await _save(txn, transfer, 'cancelTransfer',
           AuditAction.requestTransfer, 'إلغاء تحويل $id', now);
     });
-    await _mirror(done!);
+    await _mirrorTransfer(done!);
     return done!;
   }
 
@@ -217,7 +217,7 @@ class LocalTransferRepository implements TransferRepository {
       reference: 'تحويل ${done!.id}',
       createdOffline: true,
     );
-    await _mirror(done!);
+    await _mirrorTransfer(done!);
     AppLogger.info('Transfer $id received (+${done!.quantity}).');
     return done!;
   }
@@ -234,6 +234,6 @@ class LocalTransferRepository implements TransferRepository {
       transfer.syncStatus = SyncStatus.synced;
     }
     await record.put(_db.db, transfer.toRecord());
-    await _mirror(transfer);
+    await _mirrorTransfer(transfer);
   }
 }

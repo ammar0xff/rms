@@ -2,7 +2,6 @@ import 'package:sembast/sembast.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
-import '../../core/logging/app_logger.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/dining_table.dart';
 import '../local/audit_log.dart';

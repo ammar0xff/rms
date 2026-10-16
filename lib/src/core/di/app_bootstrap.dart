@@ -309,7 +309,8 @@ Future<AppServices> _resolveAuth(
     await Firebase.initializeApp(options: config.toOptions());
     AppLogger.info('Firebase initialized (env=${config.environment}).');
     final sync = _buildSync(outbox, orders, payments, deliveries, cashSessions,
-        approvals, menu, kitchen, inventory, suppliers, purchases, customers);
+        approvals, menu, kitchen, inventory, suppliers, purchases, customers,
+        tables, transfers);
     if (sync != null) unawaited(sync.start());
     try {
       SyncMonitor.instance.attach(sync: sync, outbox: outbox);
@@ -401,6 +402,8 @@ SyncService? _buildSync(
   LocalSupplierRepository? suppliers,
   LocalPurchaseRepository? purchases,
   LocalCustomerRepository? customers,
+  LocalTableRepository? tables,
+  LocalTransferRepository? transfers,
 ) {
   if (outbox == null || orders == null) return null;
   final engine = SyncEngine(
@@ -513,14 +516,14 @@ Future<void> _primeTables(LocalTableRepository? tables) async {
       for (var i = 1; i <= 12)
         DiningTable(
           id: 'T-H-$i',
-          code: 'T-${i.toString().padLeft(2, '0')}',
+          code: "T-${i.toString().padLeft(2, '0')}",
           zone: 'الصالة',
           capacity: 4,
         ),
       for (var i = 1; i <= 4)
         DiningTable(
           id: 'T-S-$i',
-          code: 'S-${i.toString().padLeft(2, '0')}',
+          code: "S-${i.toString().padLeft(2, '0')}",
           zone: 'تدخين',
           capacity: 4,
         ),
