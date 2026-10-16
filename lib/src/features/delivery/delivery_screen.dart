@@ -316,19 +316,20 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     final rest = heroJob == null
         ? visible
         : visible.where((d) => d.id != heroJob.id).toList();
-    final heroPosition =
-        hero == null ? '' : 'المحطة ${visible.indexOf(hero!) + 1} من ${visible.length}';
+    final heroPosition = heroJob == null
+        ? ''
+        : 'المحطة ${visible.indexOf(heroJob) + 1} من ${visible.length}';
     final accent = roleAccent(AppRole.driver);
     // A driver console stays narrow by design, even on a wide screen.
     return PageBody(
       maxWidth: 720,
       children: [
-        if (hero != null)
+        if (heroJob != null)
           _NextStopHero(
-            job: hero,
+            job: heroJob,
             position: heroPosition,
-            onAdvance: () => _advance(hero!),
-            onCollect: () => _collect(hero!),
+            onAdvance: () => _advance(heroJob),
+            onCollect: () => _collect(heroJob),
           ),
         GridRow(children: [
           KpiCard(
