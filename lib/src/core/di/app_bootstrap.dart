@@ -516,7 +516,7 @@ Future<void> _primeTables(LocalTableRepository? tables) async {
     for (var i = 1; i <= 12; i++) {
       floor.add(DiningTable(
         id: 'T-H-$i',
-        code: 'T-${i.toString().padLeft(2, '0')}',
+        code: "T-${i.toString().padLeft(2, '0')}",
         zone: 'الصالة',
         capacity: 4,
       ));
@@ -524,7 +524,7 @@ Future<void> _primeTables(LocalTableRepository? tables) async {
     for (var i = 1; i <= 4; i++) {
       floor.add(DiningTable(
         id: 'T-S-$i',
-        code: 'S-${i.toString().padLeft(2, '0')}',
+        code: "S-${i.toString().padLeft(2, '0')}",
         zone: 'تدخين',
         capacity: 4,
       ));
