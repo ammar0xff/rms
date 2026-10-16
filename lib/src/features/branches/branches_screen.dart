@@ -709,14 +709,21 @@ class _TransferDialogState extends State<_TransferDialog> {
           onPressed: valid
               ? () {
                   final item = _item;
-                  if (item == null) return;
+                  final amount =
+                      double.tryParse(_qty.text.trim());
+                  if (item == null ||
+                      amount == null ||
+                      amount <= 0 ||
+                      _from.id == _to.id) {
+                    return;
+                  }
                   Navigator.of(context).pop(
                     _TransferInput(
                       fromBranch: _from,
                       toBranch: _to,
                       itemId: item.id,
                       itemName: item.name,
-                      quantity: qty!,
+                      quantity: amount,
                       unit: item.unit,
                       courier: _courier.text.trim(),
                       note: _note.text.trim().isEmpty
