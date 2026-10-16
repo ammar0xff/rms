@@ -312,8 +312,10 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         break;
       }
     }
-    final rest =
-        hero == null ? visible : visible.where((d) => d.id != hero!.id).toList();
+    final heroJob = hero;
+    final rest = heroJob == null
+        ? visible
+        : visible.where((d) => d.id != heroJob.id).toList();
     final heroPosition =
         hero == null ? '' : 'المحطة ${visible.indexOf(hero!) + 1} من ${visible.length}';
     final accent = roleAccent(AppRole.driver);
