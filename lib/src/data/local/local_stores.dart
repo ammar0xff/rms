@@ -67,6 +67,14 @@ abstract final class LocalStores {
   static final StoreRef<String, Map<String, Object?>> branches =
       stringMapStoreFactory.store('branches');
 
+  /// Dine-in floor tables (operational state, outbox-synced).
+  static final StoreRef<String, Map<String, Object?>> tables =
+      stringMapStoreFactory.store('tables');
+
+  /// Inter-branch stock transfers with their lifecycle state.
+  static final StoreRef<String, Map<String, Object?>> transfers =
+      stringMapStoreFactory.store('transfers');
+
   /// Cached per-branch rollups used to consolidate while offline.
   static final StoreRef<String, Map<String, Object?>> branchAggregates =
       stringMapStoreFactory.store('branch_aggregates');

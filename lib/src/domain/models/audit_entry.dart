@@ -18,6 +18,10 @@ enum AuditAction {
   cancelPurchase('إلغاء أمر شراء'),
   paySupplier('تسديد لمورد'),
   createCustomer('إنشاء عميل'),
+  seatTable('تسكين طاولة'),
+  clearTable('تحرير طاولة'),
+  requestTransfer('طلب تحويل مخزون'),
+  receiveTransfer('استلام تحويل مخزون'),
   schemaMigration('ترحيل المخطط المحلي');
 
   const AuditAction(this.label);
