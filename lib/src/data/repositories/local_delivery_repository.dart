@@ -270,6 +270,8 @@ class LocalDeliveryRepository implements DeliveryRepository {
       final existing = await record.get(txn);
       if (existing == null) return;
       final delivery = DeliveryModel.fromRecord(existing);
+      // Same-state repeats are no-ops, not errors.
+      if (state == delivery.state) return;
       // Explicit transitions: the normal run ends at delivered; a stop
       // that cannot complete branches to failed and only ever returns.
       // Reopening a delivered run would un-collect settled money, so
