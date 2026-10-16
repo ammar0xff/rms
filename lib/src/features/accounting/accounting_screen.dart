@@ -593,13 +593,65 @@ class CloseSessionDialog extends StatefulWidget {
   State<CloseSessionDialog> createState() => _CountDialogState();
 }
 
+class _DenomButton extends StatelessWidget {
+  const _DenomButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.borderStrong),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Icon(icon, size: 16, color: AppColors.fgSecondary),
+      ),
+    );
+  }
+}
+
 class _CountDialogState extends State<CloseSessionDialog> {
   final TextEditingController _counted = TextEditingController();
+
+  /// Denomination counts; every stepper writes through the same field so
+  /// free typing and counting never disagree.
+  final Map<int, int> _denoms = {200: 0, 100: 0, 50: 0, 20: 0, 10: 0, 5: 0};
 
   @override
   void dispose() {
     _counted.dispose();
     super.dispose();
+  }
+
+  void _bump(int denom, int by) {
+    final current = double.tryParse(_counted.text.trim()) ?? 0;
+    final next = (current + denom * by).clamp(0, 99999999).toDouble();
+    setState(() {
+      _denoms[denom] = ((_denoms[denom] ?? 0) + by).clamp(0, 9999);
+      _counted.text = next.toStringAsFixed(2);
+    });
+  }
+
+  String _varianceLabel(double? counted) {
+    if (counted == null) return 'دخّل المعدود عشان تشوف الفرق';
+    final diff = counted - widget.expected;
+    if (diff == 0) return 'مطابقة تامة 100%';
+    if (diff < 0) return 'فيه عجز ${money(diff.abs())}';
+    return 'فيه زيادة ${money(diff)}';
+  }
+
+  Color _varianceTone(double? counted) {
+    if (counted == null) return AppColors.fgDim;
+    final diff = counted - widget.expected;
+    if (diff == 0) return AppColors.positive;
+    return diff < 0 ? AppColors.negative : AppColors.warning;
   }
 
   @override
@@ -609,29 +661,70 @@ class _CountDialogState extends State<CloseSessionDialog> {
       backgroundColor: AppColors.surface,
       title: const Text('عِدّ واقفل الجلسة'),
       content: SizedBox(
-        width: 320,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('الدرج المتوقع ${money(widget.expected)}',
-                style: AppText.caption),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _counted,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'الكاش المعدود',
-                prefixText: 'ج.م ',
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('الدرج المتوقع ${money(widget.expected)}',
+                  style: AppText.caption),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _counted,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'الكاش المعدود',
+                  prefixText: 'ج.م ',
+                ),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (text) {
+                  final parsed = double.tryParse(text.trim());
+                  if (parsed != null && parsed >= 0) {
+                    Navigator.pop(context, parsed);
+                  }
+                },
               ),
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (text) {
-                final parsed = double.tryParse(text.trim());
-                if (parsed != null && parsed >= 0) Navigator.pop(context, parsed);
-              },
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                _varianceLabel(value),
+                style: AppText.caption.copyWith(
+                    color: _varianceTone(value)),
+              ),
+              const SizedBox(height: 12),
+              const Text('عدّ بالفئات', style: AppText.bodyStrong),
+              const SizedBox(height: 4),
+              for (final denom in _denoms.keys)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 64,
+                        child: Text('$denom ج.م',
+                            style: AppText.tableCellPrimary),
+                      ),
+                      const Spacer(),
+                      _DenomButton(
+                          icon: Icons.remove,
+                          onTap: () => _bump(denom, -1)),
+                      SizedBox(
+                        width: 36,
+                        child: Text(
+                          '${_denoms[denom]}',
+                          textAlign: TextAlign.center,
+                          style: AppText.tableCellPrimary,
+                        ),
+                      ),
+                      _DenomButton(
+                          icon: Icons.add, onTap: () => _bump(denom, 1)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [
