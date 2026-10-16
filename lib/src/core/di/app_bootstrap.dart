@@ -512,29 +512,31 @@ Future<void> _primeTables(LocalTableRepository? tables) async {
   if (tables == null) return;
   try {
     if ((await tables.listTables()).isNotEmpty) return;
-    final floor = <DiningTable>[
-      for (var i = 1; i <= 12)
-        DiningTable(
-          id: 'T-H-$i',
-          code: "T-${i.toString().padLeft(2, '0')}",
-          zone: 'الصالة',
-          capacity: 4,
-        ),
-      for (var i = 1; i <= 4)
-        DiningTable(
-          id: 'T-S-$i',
-          code: "S-${i.toString().padLeft(2, '0')}",
-          zone: 'تدخين',
-          capacity: 4,
-        ),
-      for (var i = 1; i <= 2)
-        DiningTable(
-          id: 'T-V-$i',
-          code: 'V-0$i',
-          zone: 'VIP',
-          capacity: 6,
-        ),
-    ];
+    final floor = <DiningTable>[];
+    for (var i = 1; i <= 12; i++) {
+      floor.add(DiningTable(
+        id: 'T-H-$i',
+        code: 'T-${i.toString().padLeft(2, '0')}',
+        zone: 'الصالة',
+        capacity: 4,
+      ));
+    }
+    for (var i = 1; i <= 4; i++) {
+      floor.add(DiningTable(
+        id: 'T-S-$i',
+        code: 'S-${i.toString().padLeft(2, '0')}',
+        zone: 'تدخين',
+        capacity: 4,
+      ));
+    }
+    for (var i = 1; i <= 2; i++) {
+      floor.add(DiningTable(
+        id: 'T-V-$i',
+        code: 'V-0$i',
+        zone: 'VIP',
+        capacity: 6,
+      ));
+    }
     await tables.saveFloor(floor);
   } catch (_) {}
 }
