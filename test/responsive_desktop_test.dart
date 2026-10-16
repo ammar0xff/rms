@@ -57,6 +57,9 @@ void main() {
     testWidgets('dashboard renders',
         (t) => _pumpDesktopBare(t, const DashboardScreen()));
     testWidgets('pos renders', (t) => _pumpDesktopBare(t, const PosScreen()));
+    testWidgets('delivery renders',
+        (t) => _pumpDesktopBare(t, const DeliveryScreen()));
+    testWidgets('menu renders', (t) => _pumpDesktopBare(t, const MenuScreen()));
     testWidgets('inventory renders',
         (t) => _pumpDesktopBare(t, const InventoryScreen()));
     testWidgets('purchasing renders',
@@ -116,6 +119,19 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('كاش بالظبط'), findsOneWidget);
       expect(find.text('فيزا'), findsWidgets);
+    });
+
+    testWidgets('menu station groups', (tester) async {
+      await pumpDesktop(tester, const MenuScreen());
+
+      expect(find.text('المشويات'), findsOneWidget);
+      expect(find.text('مشويات مشكلة كبيرة مع الأرز البسمتي'),
+          findsOneWidget);
+      // Search filters across stations; empty groups hide.
+      await tester.enterText(find.byType(TextField), 'بيتزا');
+      await tester.pumpAndSettle();
+      expect(find.text('المشويات'), findsNothing);
+      expect(find.text('بيتزا خضار'), findsOneWidget);
     });
 
     testWidgets('delivery ops tables', (tester) async {

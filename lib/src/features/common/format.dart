@@ -1,6 +1,5 @@
 import '../../core/widgets/status.dart';
 import '../../data/local/outbox/outbox_status.dart';
-import '../../domain/models/kitchen_ticket.dart';
 import '../../data/mock/mock_data.dart' hide TicketState;
 
 String money(double value, {String symbol = 'ج.م'}) {
