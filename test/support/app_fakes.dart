@@ -314,15 +314,20 @@ class _ApprovalRepo implements ApprovalRepository {
       ];
 }
 
-Order _order(String ref, double total) => Order(
-      localId: 'l-$ref',
-      provisionalOrderNumber: ref,
-      items: [
-        OrderItem(productId: 'm1', name: kLongName, unitPrice: total, quantity: 1),
-      ],
-      createdOffline: false,
-      createdAt: _now,
-    );
+Order _order(String ref, double total) {
+  // Relative to today: the shift board filters to today's orders, and a
+  // fixed fixture date silently expires at midnight.
+  final at = DateTime.now().subtract(const Duration(hours: 2));
+  return Order(
+    localId: 'l-$ref',
+    provisionalOrderNumber: ref,
+    items: [
+      OrderItem(productId: 'm1', name: kLongName, unitPrice: total, quantity: 1),
+    ],
+    createdOffline: false,
+    createdAt: at,
+  );
+}
 
 class _OrderRepo implements OrderRepository {
   @override
