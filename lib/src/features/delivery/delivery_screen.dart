@@ -286,6 +286,50 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
   }
 
+  /// Read-only custody breakdown: what the driver owes the branch.
+  /// The handover itself is verified cashier-side (finalizeSettlement);
+  /// this sheet plus its manual code is what the driver shows at the till.
+  void _showCustody(List<DeliveryModel> visible) {
+    final ids = {for (final d in visible) d.id};
+    final mine = _collections.where((c) => ids.contains(c.deliveryId)).toList();
+    final cash = mine
+        .where((c) => c.method == PaymentMethod.cash)
+        .fold(0.0, (sum, c) => sum + c.amount);
+    final visa = mine
+        .where((c) => c.method != PaymentMethod.cash)
+        .fold(0.0, (sum, c) => sum + c.amount);
+    final code =
+        'TS-${mine.length}-${(cash + visa).toInt().toString().padLeft(4, '0')}';
+    showDialog<void>(
+      context: context,
+      builder: (_) => DialogShell(
+        title: 'عهدة الطيار',
+        subtitle: 'الكود اليدوي للتسليم عند الخزينة.',
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KeyValue(label: 'كاش مستحق التوريد', value: money(cash)),
+            KeyValue(
+                label: 'فيزا مدفوعة مقدما (لا تورد)', value: money(visa)),
+            KeyValue(label: 'الكود اليدوي', value: code),
+            const SizedBox(height: 8),
+            Text(
+              '${mine.length} تحصيل مسجل — التسوية النهائية عند الكاشير بعد التحقق.',
+              style: AppText.caption,
+            ),
+          ],
+        ),
+        actions: [
+          RmsButton(
+            label: 'اقفل',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _return(DeliveryModel delivery) async {
     final repo = AppScope.of(context).deliveries;
     if (repo == null) return;
@@ -392,6 +436,13 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               icon: Icons.pending_outlined,
               accent: accent),
         ]),
+        RmsButton(
+          label: 'عهدتي وتسليمها',
+          icon: Icons.wallet_outlined,
+          onPressed: visible.isEmpty && failedMine.isEmpty
+              ? null
+              : () => _showCustody(visible),
+        ),
         if (allVisible.isEmpty)
           const SurfaceCard(
             child: Row(
