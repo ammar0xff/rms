@@ -156,7 +156,7 @@ class _PosScreenState extends State<PosScreen>
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (const chip in ['بدون حار', 'محمص كويس', 'نصّين'])
+                for (final chip in ['بدون حار', 'محمص كويس', 'نصّين'])
                   GestureDetector(
                     onTap: () {
                       final current = controller.text;

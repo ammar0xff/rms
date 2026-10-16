@@ -28,6 +28,8 @@ StatusTone _stateTone(DeliveryState state) => switch (state) {
       DeliveryState.assigned => StatusTone.info,
       DeliveryState.onRoute => StatusTone.warning,
       DeliveryState.delivered => StatusTone.positive,
+      DeliveryState.failed => StatusTone.negative,
+      DeliveryState.returned => StatusTone.neutral,
     };
 
 class DeliveryScreen extends StatefulWidget {
@@ -533,6 +535,9 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           onPressed: () => _advance(d),
         ),
       DeliveryState.delivered => _settledAction(d),
+      // Failed stops leave the queue; the return leg is a Phase C flow.
+      DeliveryState.failed => const Tag(label: 'مرتجع', tone: StatusTone.negative),
+      DeliveryState.returned => const Tag(label: 'رجع الفرع', tone: StatusTone.neutral),
     };
   }
 
