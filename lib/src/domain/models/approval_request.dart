@@ -3,6 +3,8 @@ import 'payment.dart';
 
 enum ApprovalKind {
   refund('استرجاع'),
+  discount('خصم'),
+  pettyCash('نثريات'),
   adjustment('تسوية يدوية');
 
   const ApprovalKind(this.label);
@@ -39,6 +41,7 @@ class ApprovalRequest {
     this.status = ApprovalStatus.pending,
     this.decidedBy,
     this.decidedAt,
+    this.decidedNote,
     this.createdOffline = false,
     this.syncStatus = SyncStatus.pendingSync,
   });
@@ -57,6 +60,10 @@ class ApprovalRequest {
   ApprovalStatus status;
   String? decidedBy;
   DateTime? decidedAt;
+
+  /// Why it was rejected (or the approver's remark). Required on reject,
+  /// optional on approve.
+  String? decidedNote;
   final bool createdOffline;
   SyncStatus syncStatus;
 
@@ -75,6 +82,7 @@ class ApprovalRequest {
         'status': status.name,
         'decidedBy': decidedBy,
         'decidedAt': decidedAt?.toIso8601String(),
+        'decidedNote': decidedNote,
         'createdOffline': createdOffline,
         'syncStatus': syncStatus.name,
       };
@@ -95,6 +103,7 @@ class ApprovalRequest {
         decidedAt: record['decidedAt'] == null
             ? null
             : DateTime.parse(record['decidedAt'] as String),
+        decidedNote: record['decidedNote'] as String?,
         createdOffline: record['createdOffline'] as bool? ?? false,
         syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
       );

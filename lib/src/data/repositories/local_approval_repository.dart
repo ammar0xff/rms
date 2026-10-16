@@ -119,6 +119,7 @@ class LocalApprovalRepository implements ApprovalRepository {
     String id, {
     required bool approved,
     String decidedBy = 'manager',
+    String? note,
   }) async {
     final now = _clock();
     ApprovalRequest? decided;
@@ -137,6 +138,7 @@ class LocalApprovalRepository implements ApprovalRepository {
           approved ? ApprovalStatus.approved : ApprovalStatus.rejected;
       request.decidedBy = decidedBy;
       request.decidedAt = now;
+      request.decidedNote = note;
       request.syncStatus = SyncStatus.pendingSync;
       await record.put(txn, request.toRecord());
       await _outbox.append(
@@ -153,6 +155,7 @@ class LocalApprovalRepository implements ApprovalRepository {
             'amount': request.amount,
             'approved': approved,
             'decidedBy': decidedBy,
+            if (note != null && note.isNotEmpty) 'note': note,
           },
         ),
       );

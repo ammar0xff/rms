@@ -23,5 +23,6 @@ abstract class ApprovalRepository {
     String id, {
     required bool approved,
     String decidedBy = 'manager',
+    String? note,
   });
 }

@@ -5,6 +5,7 @@ import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
@@ -112,11 +113,30 @@ class _AccountingScreenState extends State<AccountingScreen> {
     await _load();
   }
 
-  Future<void> _decide(ApprovalRequest request, {required bool approved}) async {
+  Future<void> _decide(ApprovalRequest request,
+      {required bool approved, String? note}) async {
     final approvals = AppScope.of(context).approvals;
     if (approvals == null) return;
-    await approvals.decide(request.id, approved: approved);
+    await approvals.decide(request.id, approved: approved, note: note);
     await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(approved
+            ? 'اتعتمدت واتبلغ الكاشير'
+            : 'اترفضت واتسجّل السبب'),
+      ),
+    );
+  }
+
+  /// Reject always carries a reason: quick chips plus a free note.
+  Future<void> _reject(ApprovalRequest request) async {
+    final note = await showDialog<String>(
+      context: context,
+      builder: (_) => const _RejectReasonSheet(),
+    );
+    if (note == null || note.isEmpty) return;
+    await _decide(request, approved: false, note: note);
   }
 
   double get _cashTotal => _payments
@@ -287,7 +307,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
               request: requests[i],
               canApprove: online && services.approvals != null,
               onApprove: () => _decide(requests[i], approved: true),
-              onReject: () => _decide(requests[i], approved: false),
+              onReject: () => _reject(requests[i]),
             ),
             if (i != requests.length - 1 || actions.isNotEmpty)
               const SizedBox(height: 10),
@@ -356,6 +376,84 @@ class _AccountingScreenState extends State<AccountingScreen> {
     final h = value.hour.toString().padLeft(2, '0');
     final m = value.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+}
+
+/// Reject reason: three quick chips plus a free note. Empty confirms
+/// nothing — the dialog returns null and the request stays pending.
+class _RejectReasonSheet extends StatefulWidget {
+  const _RejectReasonSheet();
+
+  @override
+  State<_RejectReasonSheet> createState() => _RejectReasonSheetState();
+}
+
+class _RejectReasonSheetState extends State<_RejectReasonSheet> {
+  static const _chips = ['خطأ كاشير', 'شكوى طعام', 'تراجع العميل'];
+
+  String? _picked;
+  final _note = TextEditingController();
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  String get _result {
+    final custom = _note.text.trim();
+    if (_picked == null) return custom;
+    return custom.isEmpty ? _picked! : '${_picked!} · $custom';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DialogShell(
+      title: 'ارفض بسبب',
+      subtitle: 'السبب بيتسجّل مع الرفض وبيظهر للكاشير.',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final chip in _chips)
+                ChoiceChip(
+                  label: Text(chip),
+                  selected: _picked == chip,
+                  onSelected: (_) =>
+                      setState(() => _picked = _picked == chip ? null : chip),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _note,
+            decoration: const InputDecoration(
+              hintText: 'اكتب سبب الرفض…',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'تأكيد الرفض',
+          variant: BtnVariant.primary,
+          onPressed: _result.isEmpty
+              ? null
+              : () => Navigator.of(context).pop(_result),
+        ),
+      ],
+    );
   }
 }
 
