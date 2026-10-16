@@ -1447,6 +1447,47 @@ List<int> _quickBills(double total) {
   return out;
 }
 
+/// Rush-hour tender pad: digits plus backspace write straight into the
+/// tendered field, so gloves never hunt the system keyboard.
+class _TenderPad extends StatelessWidget {
+  const _TenderPad({required this.onKey});
+
+  final ValueChanged<String> onKey;
+
+  @override
+  Widget build(BuildContext context) {
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'];
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 6,
+        childAspectRatio: 2.2,
+      ),
+      itemCount: keys.length,
+      itemBuilder: (context, i) {
+        final key = keys[i];
+        return GestureDetector(
+          onTap: () => onKey(key),
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSunken,
+              border: Border.all(color: AppColors.borderStrong),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
+            child: key == 'back'
+                ? const Icon(Icons.backspace_outlined, size: 18)
+                : Text(key, style: AppText.h1.copyWith(fontSize: 18)),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _TenderChip extends StatelessWidget {
   const _TenderChip({required this.label, required this.onTap});
 
@@ -1574,6 +1615,23 @@ class _PaymentDialogState extends State<PosPaymentDialog> {
                       ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 8),
+              _TenderPad(
+                onKey: (key) => setState(() {
+                  if (key == 'back') {
+                    if (_tendered.text.isNotEmpty) {
+                      _tendered.text = _tendered.text
+                          .substring(0, _tendered.text.length - 1);
+                    }
+                  } else if (key == '.') {
+                    if (!_tendered.text.contains('.')) {
+                      _tendered.text += '.';
+                    }
+                  } else {
+                    _tendered.text += key;
+                  }
+                }),
               ),
               const SizedBox(height: 8),
               Row(
