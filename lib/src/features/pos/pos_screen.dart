@@ -1114,6 +1114,45 @@ class PosPaymentDialog extends StatefulWidget {
   State<PosPaymentDialog> createState() => _PaymentDialogState();
 }
 
+/// Next round bills above [total]: exact handled by بالضبط, so chips
+/// start at the first round figure that covers it (100/200/500 steps).
+List<int> _quickBills(double total) {
+  const steps = [100, 200, 500, 1000];
+  final out = <int>[];
+  for (final step in steps) {
+    final bill = ((total / step).ceil()) * step;
+    if (bill > total && !out.contains(bill)) out.add(bill);
+    if (out.length == 3) break;
+  }
+  return out;
+}
+
+class _TenderChip extends StatelessWidget {
+  const _TenderChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.borderStrong),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+          child: Text(label, style: AppText.bodyStrong),
+        ),
+      ),
+    );
+  }
+}
+
 class _PaymentDialogState extends State<PosPaymentDialog> {
   final _tendered = TextEditingController();
   PaymentMethod _method = PaymentMethod.cash;
@@ -1181,6 +1220,26 @@ class _PaymentDialogState extends State<PosPaymentDialog> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Rush-hour tender: exact or the next round bill up.
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _TenderChip(
+                      label: 'بالضبط',
+                      onTap: () => setState(() => _tendered.text =
+                          widget.total.toStringAsFixed(2)),
+                    ),
+                    for (final bill in _quickBills(widget.total))
+                      _TenderChip(
+                        label: '$bill',
+                        onTap: () => setState(
+                            () => _tendered.text = '$bill'),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
