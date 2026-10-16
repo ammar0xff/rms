@@ -7,6 +7,7 @@ import '../../core/state/sync_monitor.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
@@ -258,6 +259,41 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
   }
 
+  /// Marks an en-route stop failed with a mandatory reason, then tells
+  /// the dispatcher. The COD leaves the queue with the stop.
+  Future<void> _fail(DeliveryModel delivery) async {
+    final repo = AppScope.of(context).deliveries;
+    if (repo == null) return;
+    final reason = await showDialog<DeliveryFailureReason>(
+      context: context,
+      builder: (_) => const _FailReasonSheet(),
+    );
+    if (reason == null) return;
+    try {
+      await repo.failDelivery(delivery.id, reason);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذّر تسجيل المرتجع — جرّب تاني')),
+      );
+      return;
+    }
+    await _load();
+    _refreshMonitor();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('اتسجّل المرتجع وهنبلّغ الإدارة')),
+    );
+  }
+
+  Future<void> _return(DeliveryModel delivery) async {
+    final repo = AppScope.of(context).deliveries;
+    if (repo == null) return;
+    await repo.returnToBranch(delivery.id);
+    await _load();
+    _refreshMonitor();
+  }
+
   Future<void> _finalize(CollectionModel collection) async {
     final repo = AppScope.of(context).deliveries;
     final messenger = ScaffoldMessenger.of(context);
@@ -318,6 +354,12 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     final rest = heroJob == null
         ? visible
         : visible.where((d) => d.id != heroJob.id).toList();
+    final failedMine = _deliveries
+        .where((d) =>
+            d.state.isFailed &&
+            (identity.isEmpty || d.driver == identity))
+        .toList();
+    final allVisible = [...visible, ...failedMine];
     final heroPosition = heroJob == null
         ? ''
         : 'المحطة ${visible.indexOf(heroJob) + 1} من ${visible.length}';
@@ -336,7 +378,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         GridRow(children: [
           KpiCard(
               label: showMineOnly ? 'مهامي' : 'مفتوحة',
-              value: '${visible.length}',
+              value: '${allVisible.length}',
               icon: Icons.navigation_outlined,
               accent: accent),
           KpiCard(
@@ -350,7 +392,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               icon: Icons.pending_outlined,
               accent: accent),
         ]),
-        if (visible.isEmpty)
+        if (allVisible.isEmpty)
           const SurfaceCard(
             child: Row(
               children: [
@@ -377,6 +419,16 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             collection: _collectionFor(job.id),
             onAdvance: () => _advance(job),
             onCollect: () => _collect(job),
+            onFail: () => _fail(job),
+            onReturn: () => _return(job),
+          ),
+          for (final job in failedMine) _DriverJobCard(
+            job: job,
+            collection: _collectionFor(job.id),
+            onAdvance: () => _advance(job),
+            onCollect: () => _collect(job),
+            onFail: () => _fail(job),
+            onReturn: () => _return(job),
           ),
         ],
         _OfflineCollectionNotice(offlineTotal: _offlineCollections),
@@ -751,6 +803,71 @@ class _NextStopHero extends StatelessWidget {
   }
 }
 
+/// Mandatory failure reason: five radios, confirm disabled until one is
+/// picked. Dismissing leaves the stop untouched.
+class _FailReasonSheet extends StatefulWidget {
+  const _FailReasonSheet();
+
+  @override
+  State<_FailReasonSheet> createState() => _FailReasonSheetState();
+}
+
+class _FailReasonSheetState extends State<_FailReasonSheet> {
+  DeliveryFailureReason? _picked;
+
+  @override
+  Widget build(BuildContext context) {
+    return DialogShell(
+      title: 'التسليم ما نفعش؟',
+      subtitle: 'اختار السبب عشان نكمّل — المرتجع هيرجع الفرع.',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final reason in DeliveryFailureReason.values)
+            GestureDetector(
+              onTap: () => setState(() => _picked = reason),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Row(
+                  children: [
+                    Icon(
+                      _picked == reason
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: _picked == reason
+                          ? AppColors.brand
+                          : AppColors.fgGhost,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(reason.label,
+                          style: AppText.tableCellPrimary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'تأكيد المرتجع',
+          onPressed: _picked == null
+              ? null
+              : () => Navigator.of(context).pop(_picked),
+        ),
+      ],
+    );
+  }
+}
+
 /// One delivery job as a thumb-sized card: address, amount, state, and the
 /// next action as a full-width button. No tables, no panels, no horizontal
 /// scrolling — this is the mobile-first half of the delivery screen.
@@ -760,12 +877,16 @@ class _DriverJobCard extends StatelessWidget {
     required this.collection,
     required this.onAdvance,
     required this.onCollect,
+    required this.onFail,
+    required this.onReturn,
   });
 
   final DeliveryModel job;
   final CollectionModel? collection;
   final VoidCallback onAdvance;
   final VoidCallback onCollect;
+  final VoidCallback onFail;
+  final VoidCallback onReturn;
 
   /// The next state the driver can move to, or null when there is none
   /// (waiting for assignment, or already delivered).
@@ -853,6 +974,34 @@ class _DriverJobCard extends StatelessWidget {
               (job.state == DeliveryState.delivered && collection == null)) ...[
             const SizedBox(height: 8),
             _NavigateButton(address: job.address),
+          ],
+          if (job.state == DeliveryState.onRoute) ...[
+            const SizedBox(height: 4),
+            Center(
+              child: GestureDetector(
+                onTap: onFail,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('التسليم ما نفعش؟',
+                      style: AppText.caption),
+                ),
+              ),
+            ),
+          ],
+          if (job.state.isFailed) ...[
+            const SizedBox(height: 4),
+            Text(
+              'السبب: ${job.failedReason?.label ?? '—'} · مش هتتحاسب على تحصيل المرتجع',
+              style: AppText.caption,
+            ),
+            const SizedBox(height: 8),
+            RmsButton(
+              label: 'اتسلّم الفرع بالشنطة',
+              icon: Icons.storefront_outlined,
+              variant: BtnVariant.primary,
+              dense: false,
+              onPressed: onReturn,
+            ),
           ],
           if (advanceLabel == null &&
               job.state != DeliveryState.delivered)
