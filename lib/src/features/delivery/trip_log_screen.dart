@@ -5,7 +5,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/blocks.dart';
 import '../../core/widgets/page.dart';
-import '../../core/widgets/primitives.dart';
 import '../../core/widgets/role_ui.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
@@ -74,7 +73,7 @@ class _TripLogScreenState extends State<TripLogScreen> {
         break;
       case 2:
         list = _deliveries
-            .where((d) => d.isFailed || d.state == DeliveryState.returned)
+            .where((d) => d.state.isFailed || d.state == DeliveryState.returned)
             .toList();
         break;
       default:
@@ -92,7 +91,7 @@ class _TripLogScreenState extends State<TripLogScreen> {
   Widget build(BuildContext context) {
     final today = _deliveries.where((d) => _isToday(d.createdAt)).toList();
     final done = today.where((d) => d.state == DeliveryState.delivered).length;
-    final failed = today.where((d) => d.isFailed).length;
+    final failed = today.where((d) => d.state.isFailed).length;
     final cash = _collections
         .where((c) => _isToday(c.collectedAt))
         .fold(0.0, (sum, c) => sum + c.amount);

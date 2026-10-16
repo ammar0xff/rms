@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';

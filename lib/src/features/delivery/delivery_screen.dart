@@ -593,6 +593,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             onCollect: () => _collect(job),
             onFail: () => _fail(job),
             onReturn: () => _return(job),
+            onReceipt: () => _showReceipt(job),
           ),
           for (final job in failedMine) _DriverJobCard(
             job: job,
@@ -601,6 +602,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
             onCollect: () => _collect(job),
             onFail: () => _fail(job),
             onReturn: () => _return(job),
+            onReceipt: () => _showReceipt(job),
           ),
         ],
         _OfflineCollectionNotice(offlineTotal: _offlineCollections),
@@ -1063,6 +1065,7 @@ class _DriverJobCard extends StatelessWidget {
     required this.onCollect,
     required this.onFail,
     required this.onReturn,
+    required this.onReceipt,
   });
 
   final DeliveryModel job;
@@ -1071,6 +1074,7 @@ class _DriverJobCard extends StatelessWidget {
   final VoidCallback onCollect;
   final VoidCallback onFail;
   final VoidCallback onReturn;
+  final VoidCallback onReceipt;
 
   /// The next state the driver can move to, or null when there is none
   /// (waiting for assignment, or already delivered).
@@ -1166,7 +1170,7 @@ class _DriverJobCard extends StatelessWidget {
                   icon: Icons.receipt_long_outlined,
                   variant: BtnVariant.secondary,
                   dense: false,
-                  onPressed: () => _showReceipt(job),
+                  onPressed: onReceipt,
                 ),
               ],
             ),
