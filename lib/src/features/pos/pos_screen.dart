@@ -142,7 +142,8 @@ class _PosScreenState extends State<PosScreen>
     if (_cart.isEmpty || _submitting) return;
     final input = await showDialog<_PaymentInput>(
       context: context,
-      builder: (_) => PosPaymentDialog(total: _total),
+      builder: (_) => PosPaymentDialog(
+          total: _total, subtotal: _subtotal, tax: _tax),
     );
     if (input == null) return;
     await _submitOrder(payment: input);
@@ -1106,9 +1107,15 @@ class _OfflineBanner extends StatelessWidget {
 ///
 /// Returns a [_PaymentInput] when confirmed, or null when dismissed.
 class PosPaymentDialog extends StatefulWidget {
-  const PosPaymentDialog({required this.total});
+  const PosPaymentDialog({
+    required this.total,
+    required this.subtotal,
+    required this.tax,
+  });
 
   final double total;
+  final double subtotal;
+  final double tax;
 
   @override
   State<PosPaymentDialog> createState() => _PaymentDialogState();
@@ -1201,6 +1208,19 @@ class _PaymentDialogState extends State<PosPaymentDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+            KeyValue(label: 'المجموع الفرعي', value: money(widget.subtotal)),
+            KeyValue(label: 'الضريبة (8%)', value: money(widget.tax)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Expanded(
+                    child:
+                        Text('الإجمالي', style: AppText.bodyStrong)),
+                Text(money(widget.total),
+                    style: AppText.h1.copyWith(fontSize: 18)),
+              ],
+            ),
+            const SizedBox(height: 16),
             Segmented(
               options: _methods,
               index: PaymentMethod.values.indexOf(_method),

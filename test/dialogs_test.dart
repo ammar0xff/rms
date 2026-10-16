@@ -76,7 +76,7 @@ final _supplier = SupplierModel(
 void main() {
   group('dialogs at 390px', () {
     testWidgets('pos payment', (t) async {
-      await _pumpDialog(t, const PosPaymentDialog(total: 240.75), _phone);
+      await _pumpDialog(t, const PosPaymentDialog(total: 240.75, subtotal: 223.0, tax: 17.75), _phone);
       expect(find.text('أكّد التحصيل'), findsOneWidget);
     });
     testWidgets('collection', (t) async {
@@ -124,7 +124,7 @@ void main() {
 
   group('dialogs at 1440px', () {
     testWidgets('pos payment', (t) async {
-      await _pumpDialog(t, const PosPaymentDialog(total: 240.75), _desktop);
+      await _pumpDialog(t, const PosPaymentDialog(total: 240.75, subtotal: 223.0, tax: 17.75), _desktop);
       expect(find.text('أكّد التحصيل'), findsOneWidget);
     });
     testWidgets('collection', (t) async {
