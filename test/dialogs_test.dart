@@ -99,6 +99,14 @@ void main() {
       await _pumpDialog(t, StockCountDialog(items: _items), _phone);
       expect(find.text('جرد المخزون'), findsOneWidget);
     });
+    testWidgets('reject reason needs a reason', (t) async {
+      await _pumpDialog(t, const RejectReasonSheet(), _phone);
+      expect(find.text('تأكيد الرفض'), findsOneWidget);
+      // Empty confirms nothing: pick a chip, then confirm enables.
+      await t.tap(find.text('خطأ كاشير'));
+      await t.pumpAndSettle();
+    });
+
     testWidgets('customer', (t) async {
       await _pumpDialog(t, const CustomerDialog(), _phone);
       expect(find.text('عميل جديد'), findsOneWidget);
@@ -148,6 +156,11 @@ void main() {
       await _pumpDialog(t, StockCountDialog(items: _items), _desktop);
       expect(find.text('جرد المخزون'), findsOneWidget);
     });
+    testWidgets('reject reason needs a reason', (t) async {
+      await _pumpDialog(t, const RejectReasonSheet(), _desktop);
+      expect(find.text('تأكيد الرفض'), findsOneWidget);
+    });
+
     testWidgets('customer', (t) async {
       await _pumpDialog(t, const CustomerDialog(), _desktop);
       expect(find.text('عميل جديد'), findsOneWidget);

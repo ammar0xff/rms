@@ -133,7 +133,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
   Future<void> _reject(ApprovalRequest request) async {
     final note = await showDialog<String>(
       context: context,
-      builder: (_) => const _RejectReasonSheet(),
+      builder: (_) => const RejectReasonSheet(),
     );
     if (note == null || note.isEmpty) return;
     await _decide(request, approved: false, note: note);
@@ -381,14 +381,14 @@ class _AccountingScreenState extends State<AccountingScreen> {
 
 /// Reject reason: three quick chips plus a free note. Empty confirms
 /// nothing — the dialog returns null and the request stays pending.
-class _RejectReasonSheet extends StatefulWidget {
-  const _RejectReasonSheet();
+class RejectReasonSheet extends StatefulWidget {
+  const RejectReasonSheet();
 
   @override
-  State<_RejectReasonSheet> createState() => _RejectReasonSheetState();
+  State<RejectReasonSheet> createState() => _RejectReasonSheetState();
 }
 
-class _RejectReasonSheetState extends State<_RejectReasonSheet> {
+class _RejectReasonSheetState extends State<RejectReasonSheet> {
   static const _chips = ['خطأ كاشير', 'شكوى طعام', 'تراجع العميل'];
 
   String? _picked;
