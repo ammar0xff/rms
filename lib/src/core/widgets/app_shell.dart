@@ -26,6 +26,7 @@ import '../../features/shift/shift_screen.dart';
 import '../../features/system/system_screen.dart';
 import '../../features/sync/sync_center_screen.dart';
 import '../../features/tables/tables_screen.dart';
+import '../../features/delivery/trip_log_screen.dart';
 import '../../features/updates/update_controller.dart';
 import '../../domain/update/update_prompt_mode.dart';
 import '../../features/updates/update_prompt.dart';
@@ -70,6 +71,7 @@ final navGroups = <NavGroup>[
   NavGroup('النظام', [
     NavEntry('system', 'النظام', Icons.monitor_heart_outlined, _system),
     NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
+    NavEntry('triplog', 'سجل الرحلات', Icons.route_outlined, _triplog),
     NavEntry('tables', 'الصالة والطاولات', Icons.table_restaurant_outlined, _tables),
     NavEntry('database', 'قاعدة البيانات', Icons.storage_outlined, _database),
     NavEntry('conflicts', 'التعارضات', Icons.call_split_outlined, _conflicts),
@@ -114,7 +116,7 @@ _RoleNav _navFor(AppRole role) => switch (role) {
       // Mobile-first: deliveries, then everything else behind المزيد.
       AppRole.driver => const _RoleNav(
           tabs: ['delivery'],
-          more: ['delivery', 'sync', 'settings'],
+          more: ['delivery', 'triplog', 'sync', 'settings'],
           home: 'delivery',
         ),
       AppRole.cashier => const _RoleNav(
@@ -149,6 +151,7 @@ Widget _reports(BuildContext c) => const ReportsScreen();
 Widget _branches(BuildContext c) => const BranchesScreen();
 Widget _sync(BuildContext c) => const SyncCenterScreen();
 Widget _tables(BuildContext c) => const TablesScreen();
+Widget _triplog(BuildContext c) => const TripLogScreen();
 Widget _database(BuildContext c) => const DatabaseScreen();
 Widget _conflicts(BuildContext c) => const ConflictsScreen();
 Widget _team(BuildContext c) => const TeamScreen();
