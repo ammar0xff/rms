@@ -22,6 +22,7 @@ import '../../domain/models/app_role.dart';
 import '../../domain/navigation/delivery_navigation.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/models/payment.dart';
 import '../common/format.dart';
 
 StatusTone _stateTone(DeliveryState state) => switch (state) {

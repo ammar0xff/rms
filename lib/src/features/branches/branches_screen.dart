@@ -707,20 +707,24 @@ class _TransferDialogState extends State<_TransferDialog> {
         RmsButton(
           label: 'ابعت الطلب',
           onPressed: valid
-              ? () => Navigator.of(context).pop(
+              ? () {
+                  final item = _item;
+                  if (item == null) return;
+                  Navigator.of(context).pop(
                     _TransferInput(
                       fromBranch: _from,
                       toBranch: _to,
-                      itemId: _item!.id,
-                      itemName: _item!.name,
+                      itemId: item.id,
+                      itemName: item.name,
                       quantity: qty!,
-                      unit: _item!.unit,
+                      unit: item.unit,
                       courier: _courier.text.trim(),
                       note: _note.text.trim().isEmpty
                           ? null
                           : _note.text.trim(),
                     ),
-                  )
+                  );
+                }
               : null,
         ),
       ],
