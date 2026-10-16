@@ -1,5 +1,5 @@
 import '../local/outbox/outbox_entry.dart';
-import '../models/dining_table.dart';
+import '../../domain/models/dining_table.dart';
 
 /// Local-first dine-in floor state.
 abstract class TableRepository {

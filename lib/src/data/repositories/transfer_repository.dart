@@ -1,5 +1,5 @@
 import '../local/outbox/outbox_entry.dart';
-import '../models/stock_transfer.dart';
+import '../../domain/models/stock_transfer.dart';
 
 /// Local-first inter-branch stock transfers.
 abstract class TransferRepository {
