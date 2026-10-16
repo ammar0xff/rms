@@ -406,6 +406,55 @@ class _BranchesScreenState extends State<BranchesScreen> {
     );
   }
 
+
+  Widget _sourceTag(BranchBreakdown breakdown) {
+    if (breakdown.live) {
+      return const Tag(label: 'مباشر', tone: StatusTone.positive);
+    }
+    if (!breakdown.hasData) {
+      return const Tag(label: 'مفيش بيانات', tone: StatusTone.neutral);
+    }
+    if (breakdown.stale) {
+      return const Tag(label: 'متأخر', tone: StatusTone.warning);
+    }
+    return const Tag(label: 'مخزّن', tone: StatusTone.info);
+  }
+
+  static StatusTone _statusTone(BranchStatus status) => switch (status) {
+        BranchStatus.active => StatusTone.positive,
+        BranchStatus.paused => StatusTone.warning,
+        BranchStatus.closed => StatusTone.neutral,
+      };
+
+  static String _freshnessLabel(ConsolidationSnapshot snapshot) {
+    if (snapshot.staleCount > 0) {
+      return '${snapshot.staleCount} فرع متأخر';
+    }
+    if (snapshot.missingCount > 0) {
+      return '${snapshot.missingCount} فرع من غير بيانات';
+    }
+    return 'خلصان · ${snapshot.reportingCount} فرع';
+  }
+
+  static StatusTone _freshnessTone(ConsolidationSnapshot snapshot) {
+    if (snapshot.staleCount > 0) return StatusTone.warning;
+    if (snapshot.missingCount > 0) return StatusTone.neutral;
+    return StatusTone.positive;
+  }
+
+  static String _age(DateTime? at) {
+    if (at == null) return '—';
+    final age = DateTime.now().difference(at);
+    if (age.inSeconds < 60) return 'دلوقتي';
+    if (age.inMinutes < 60) return 'قبل ${age.inMinutes} دقيقة';
+    if (age.inHours < 24) return 'قبل ${age.inHours} ساعة';
+    return 'قبل ${age.inDays} يوم';
+  }
+
+  static String _qty(double value) =>
+      value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1);
+}
+
 /// Transfer tracker: open transfers with their next action, closed
 /// history below. Request sheet picks donor, receiver, item, and quantity.
 class _TransferCard extends StatelessWidget {
@@ -700,52 +749,4 @@ class _TransferDialogState extends State<_TransferDialog> {
       },
     );
   }
-}
-
-  Widget _sourceTag(BranchBreakdown breakdown) {
-    if (breakdown.live) {
-      return const Tag(label: 'مباشر', tone: StatusTone.positive);
-    }
-    if (!breakdown.hasData) {
-      return const Tag(label: 'مفيش بيانات', tone: StatusTone.neutral);
-    }
-    if (breakdown.stale) {
-      return const Tag(label: 'متأخر', tone: StatusTone.warning);
-    }
-    return const Tag(label: 'مخزّن', tone: StatusTone.info);
-  }
-
-  static StatusTone _statusTone(BranchStatus status) => switch (status) {
-        BranchStatus.active => StatusTone.positive,
-        BranchStatus.paused => StatusTone.warning,
-        BranchStatus.closed => StatusTone.neutral,
-      };
-
-  static String _freshnessLabel(ConsolidationSnapshot snapshot) {
-    if (snapshot.staleCount > 0) {
-      return '${snapshot.staleCount} فرع متأخر';
-    }
-    if (snapshot.missingCount > 0) {
-      return '${snapshot.missingCount} فرع من غير بيانات';
-    }
-    return 'خلصان · ${snapshot.reportingCount} فرع';
-  }
-
-  static StatusTone _freshnessTone(ConsolidationSnapshot snapshot) {
-    if (snapshot.staleCount > 0) return StatusTone.warning;
-    if (snapshot.missingCount > 0) return StatusTone.neutral;
-    return StatusTone.positive;
-  }
-
-  static String _age(DateTime? at) {
-    if (at == null) return '—';
-    final age = DateTime.now().difference(at);
-    if (age.inSeconds < 60) return 'دلوقتي';
-    if (age.inMinutes < 60) return 'قبل ${age.inMinutes} دقيقة';
-    if (age.inHours < 24) return 'قبل ${age.inHours} ساعة';
-    return 'قبل ${age.inDays} يوم';
-  }
-
-  static String _qty(double value) =>
-      value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1);
 }
