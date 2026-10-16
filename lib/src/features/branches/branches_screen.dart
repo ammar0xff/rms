@@ -639,6 +639,14 @@ class _TransferDialogState extends State<_TransferDialog> {
               border: OutlineInputBorder(),
             ),
           ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _note,
+            decoration: const InputDecoration(
+              labelText: 'ملاحظة (اختياري)',
+              border: OutlineInputBorder(),
+            ),
+          ),
         ],
       ),
       actions: [
