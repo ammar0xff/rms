@@ -36,6 +36,7 @@ class SystemScreen extends StatefulWidget {
 class _SystemScreenState extends State<SystemScreen> {
   bool _syncing = false;
   String? _nodeId;
+  Future<String?>? _nodeFuture;
 
   /// Stable per-device id for matching diagnostics to hardware. Created
   /// once, then read from the config store.
@@ -203,7 +204,7 @@ class _SystemScreenState extends State<SystemScreen> {
                   mono: true,
                 ),
                 FutureBuilder<String?>(
-                  future: _node(),
+                  future: _nodeFuture ??= _node(),
                   builder: (context, snapshot) => KeyValue(
                     label: 'الجهاز',
                     value: snapshot.data ?? '…',
