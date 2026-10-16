@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text.dart';
+import '../../core/state/sync_monitor.dart';
+import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
@@ -53,6 +55,92 @@ class UpdatePrompt extends StatelessWidget {
   }
 }
 
+/// The AC-35 guard, shown loud: install stays locked while local work
+/// is unuploaded, with the live pending count — the gate shows its work.
+class UpdateGuardBanner extends StatelessWidget {
+  const UpdateGuardBanner({super.key, required this.pending});
+
+  final int pending;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.08),
+        border: Border.all(
+            color: AppColors.warning.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('التثبيت مقفول لحد ما الطابور يفضى',
+              style: AppText.bodyStrong),
+          const SizedBox(height: 4),
+          const Text(
+            'ممنوع نثبّت أي تحديث وفيه شغل معلّق على الجهاز. سلامة شغل الفرع الأول.',
+            style: AppText.body,
+          ),
+          const SizedBox(height: 4),
+          Text('باقي $pending عملية ما اترفعتش',
+              style: AppText.caption),
+        ],
+      ),
+    );
+  }
+}
+
+/// The install pipeline as the operator sees it: verify, flush the outbox,
+/// install. Each step reads live state — no step ever claims more than its
+/// source knows (there is no backup step because there is no backup yet).
+class UpdateStageStepper extends StatelessWidget {
+  const UpdateStageStepper({super.key, required this.mode});
+
+  final UpdatePromptMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = SyncMonitor.instance.pending;
+    final verified = mode == UpdatePromptMode.working ||
+        mode == UpdatePromptMode.failed ||
+        mode == UpdatePromptMode.completed;
+    final flushed = pending == 0;
+    final installed = mode == UpdatePromptMode.completed;
+    return Collapsible(
+      title: 'خطوات التثبيت',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _step('تحقق من البصمة', verified),
+          _step(
+              flushed
+                  ? 'الطابور اتصفّى'
+                  : 'صفّي الطابور ($pending مستنية)',
+              flushed),
+          _step('ثبّت الإصدار', installed),
+        ],
+      ),
+    );
+  }
+
+  Widget _step(String label, bool done) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          StatusDot(
+              tone: done ? StatusTone.positive : StatusTone.warning),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(label, style: AppText.tableCellPrimary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Blocking presentation for a mandatory release, an update in flight, or a
 /// failed attempt.
 ///
@@ -73,6 +161,7 @@ class UpdateRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final release = state.release;
+    final blocked = state.check?.isBlockedByLocalWork ?? false;
     final tone = switch (state.mode) {
       UpdatePromptMode.failed => StatusTone.negative,
       UpdatePromptMode.completed => StatusTone.positive,
@@ -97,6 +186,11 @@ class UpdateRequiredScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (blocked) ...[
+                      UpdateGuardBanner(
+                          pending: SyncMonitor.instance.pending),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     Row(
                       children: [
                         Icon(_iconFor(state.mode), size: 18, color: color),
@@ -130,6 +224,8 @@ class UpdateRequiredScreen extends StatelessWidget {
                       _bodyFor(state),
                       style: AppText.caption,
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                    UpdateStageStepper(mode: state.mode),
                     if (state.detail.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.sm),
                       Container(
@@ -307,6 +403,11 @@ class _OptionalPrompt extends StatelessWidget {
             if (release != null) ...[
               KeyValue(label: 'الإصدار', value: release.version),
               const SizedBox(height: AppSpacing.sm),
+            ],
+            if (blocked) ...[
+              UpdateGuardBanner(
+                  pending: SyncMonitor.instance.pending),
+              const SizedBox(height: AppSpacing.md),
             ],
             Text(
               blocked
