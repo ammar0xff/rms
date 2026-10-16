@@ -105,19 +105,31 @@ class _TriageScreenState extends State<TriageScreen> {
       );
       return;
     }
-    final driver = DeliveryAssignmentPolicy.pickDriver(
-      deliveries: _deliveries,
-      drivers: _drivers,
-    );
-    if (driver == null || !mounted) {
+    if (_drivers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('مفيش سائقون متاحون')),
       );
       return;
     }
-    await repo.assignDriver(existing.id, driver,
-        baseDriver: existing.driver);
+    final picked = await showDialog<_AssignPick>(
+      context: context,
+      builder: (_) => _AssignSheet(
+        drivers: _drivers,
+        current: existing.driver,
+        suggested: DeliveryAssignmentPolicy.pickDriver(
+          deliveries: _deliveries,
+          drivers: _drivers,
+        ),
+      ),
+    );
+    if (picked == null) return;
+    await repo.assignDriver(existing.id, picked.driver,
+        baseDriver: existing.driver, reason: picked.reason);
     await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('اتسندت المهمة ${existing.id} إلى ${picked.driver}')),
+    );
   }
 
   Future<void> _discount(Order order) async {
@@ -176,6 +188,108 @@ class _TriageScreenState extends State<TriageScreen> {
               ],
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// Driver picker with reassignment reason. Returns the pick, or null.
+class _AssignPick {
+  _AssignPick({required this.driver, required this.reason});
+
+  final String driver;
+  final String reason;
+}
+
+class _AssignSheet extends StatefulWidget {
+  const _AssignSheet({
+    required this.drivers,
+    required this.current,
+    required this.suggested,
+  });
+
+  final List<DriverModel> drivers;
+  final String current;
+  final String? suggested;
+
+  @override
+  State<_AssignSheet> createState() => _AssignSheetState();
+}
+
+class _AssignSheetState extends State<_AssignSheet> {
+  String? _driver;
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DialogShell(
+      title: 'تعيين طيار',
+      subtitle: widget.suggested == null
+          ? null
+          : 'المقترح: ${widget.suggested} (الأخف حملا)',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final d in widget.drivers)
+            GestureDetector(
+              onTap: () => setState(() => _driver = d.name),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Row(
+                  children: [
+                    Icon(
+                      _driver == d.name
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: _driver == d.name
+                          ? AppColors.brand
+                          : AppColors.fgGhost,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(d.name,
+                          style: AppText.tableCellPrimary),
+                    ),
+                    if (d.name == widget.current)
+                      const Tag(label: 'الحالي', tone: StatusTone.neutral),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _reason,
+            decoration: const InputDecoration(
+              labelText: 'سبب التعيين (اختياري)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'أكّد التعيين',
+          onPressed: _driver == null
+              ? null
+              : () => Navigator.of(context).pop(_AssignPick(
+                    driver: _driver!,
+                    reason: _reason.text.trim(),
+                  )),
+        ),
       ],
     );
   }

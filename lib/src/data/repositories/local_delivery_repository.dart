@@ -129,6 +129,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
     String deliveryId,
     String driver, {
     String? baseDriver,
+    String? reason,
   }) async {
     final now = _clock();
     var outcome = AssignmentOutcome.assigned;
@@ -142,6 +143,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
         driver,
         now,
         baseDriver: baseDriver,
+        reason: reason,
       );
     });
     return outcome;
@@ -197,6 +199,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
     String driver,
     DateTime now, {
     String? baseDriver,
+    String? reason,
   }) async {
     final record = LocalStores.deliveries.record(delivery.id);
 
@@ -256,6 +259,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
           'orderRef': delivery.orderRef,
           'driver': driver,
           'state': delivery.state.name,
+          if (reason != null && reason.isNotEmpty) 'reason': reason,
         },
       ),
     );

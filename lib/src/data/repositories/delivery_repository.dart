@@ -50,6 +50,7 @@ abstract class DeliveryRepository {
     String deliveryId,
     String driver, {
     String? baseDriver,
+    String? reason,
   });
 
   /// Provisional, offline-safe auto-assignment of every waiting job.
