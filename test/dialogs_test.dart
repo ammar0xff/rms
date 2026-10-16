@@ -87,6 +87,10 @@ void main() {
     testWidgets('close session', (t) async {
       await _pumpDialog(t, const CloseSessionDialog(expected: 740.75), _phone);
       expect(find.text('عِدّ واقفل الجلسة'), findsOneWidget);
+      // Denomination stepper writes through the same field.
+      await t.tap(find.byIcon(Icons.add).first);
+      await t.pumpAndSettle();
+      expect(find.text('200.00'), findsOneWidget);
     });
     testWidgets('menu item', (t) async {
       await _pumpDialog(t, const MenuItemDialog(), _phone);
