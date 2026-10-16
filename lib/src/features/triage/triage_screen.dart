@@ -10,7 +10,6 @@ import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../domain/assignment/delivery_assignment.dart';
-import '../../domain/models/approval_request.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/permissions.dart';

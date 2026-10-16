@@ -1256,9 +1256,7 @@ class _BatchSettleSheetState extends State<_BatchSettleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = double.tryParse(_amount.text.trim());
-    final valid = amount != null &&
-        amount > 0 &&
+    final valid = (double.tryParse(_amount.text.trim()) ?? 0) > 0 &&
         _receiver.text.trim().isNotEmpty;
     return DialogShell(
       title: 'توريد عهدة ${widget.driver}',
@@ -1310,11 +1308,16 @@ class _BatchSettleSheetState extends State<_BatchSettleSheet> {
         RmsButton(
           label: 'أكّد التوريد',
           onPressed: valid
-              ? () => Navigator.of(context).pop(_BatchInput(
+              ? () {
+                  final amount =
+                      double.tryParse(_amount.text.trim());
+                  if (amount == null || amount <= 0) return;
+                  Navigator.of(context).pop(_BatchInput(
                     branch: _branch,
-                    amount: amount!,
+                    amount: amount,
                     receiver: _receiver.text.trim(),
-                  ))
+                  ));
+                }
               : null,
         ),
       ],
