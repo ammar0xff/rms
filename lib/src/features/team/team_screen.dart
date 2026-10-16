@@ -6,12 +6,15 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/blocks.dart';
 import '../../core/widgets/buttons.dart';
+import '../../core/widgets/blocks.dart';
+import '../../core/widgets/buttons.dart';
 import '../../core/widgets/page.dart';
 import '../../core/widgets/primitives.dart';
 import '../../data/services/pin_service.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../domain/models/app_role.dart';
+import '../../domain/models/permissions.dart';
 
 /// Who may use the app, and as what.
 ///
@@ -102,6 +105,36 @@ class _TeamScreenState extends State<TeamScreen> {
     );
   }
 
+  /// Edits one member's permission set. Explicit list replaces role
+  /// defaults; saving writes the list, never the role.
+  Future<void> _editPermissions(_Member member) async {
+    final updated = await showDialog<Set<String>>(
+      context: context,
+      builder: (_) => _PermissionsSheet(initial: member.permissions),
+    );
+    if (updated == null) return;
+    setState(() => _saving = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(member.uid)
+          .set({'permissions': updated.toList()}, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 15));
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الصلاحيات اتحفظت')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذّر حفظ الصلاحيات — جرّب تاني')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _setRole(_Member member, AppRole role) async {
     if (_saving || role == member.role) return;
     setState(() => _saving = true);
@@ -187,6 +220,10 @@ class _TeamScreenState extends State<TeamScreen> {
                     isSelf: _members[i].uid == me?.uid,
                     canEdit: canEdit && !_saving,
                     onRole: (role) => _setRole(_members[i], role),
+                    onPermissions:
+                        canEdit && _members[i].uid != me?.uid
+                            ? () => _editPermissions(_members[i])
+                            : null,
                   );
               // Phones get the single divided list; wide screens get a
               // two-column card grid of the same rows.
@@ -293,21 +330,25 @@ class _Member {
     required this.email,
     required this.displayName,
     required this.role,
+    required this.permissions,
   });
 
   final String uid;
   final String email;
   final String displayName;
   final AppRole role;
+  final Set<String> permissions;
 
   factory _Member.fromDoc(String uid, Map<String, dynamic> data) {
     final email = data['email'];
     final displayName = data['displayName'];
+    final role = AppRole.tryParse(data['role']) ?? AppRole.cashier;
     return _Member(
       uid: uid,
       email: email is String ? email : uid,
       displayName: displayName is String ? displayName : '',
-      role: AppRole.tryParse(data['role']) ?? AppRole.cashier,
+      role: role,
+      permissions: Permissions.parse(data['permissions'], role),
     );
   }
 }
@@ -318,12 +359,14 @@ class _MemberRow extends StatelessWidget {
     required this.isSelf,
     required this.canEdit,
     required this.onRole,
+    required this.onPermissions,
   });
 
   final _Member member;
   final bool isSelf;
   final bool canEdit;
   final ValueChanged<AppRole> onRole;
+  final VoidCallback? onPermissions;
 
   @override
   Widget build(BuildContext context) {
@@ -405,8 +448,80 @@ class _MemberRow extends StatelessWidget {
                   ? StatusTone.positive
                   : StatusTone.neutral,
             ),
+          if (onPermissions != null) ...[
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: onPermissions,
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.tune_outlined,
+                    size: 18, color: AppColors.fgMuted),
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Permission matrix: one switch per action, explicit list replaces role
+/// defaults on save (empty means nothing allowed).
+class _PermissionsSheet extends StatefulWidget {
+  const _PermissionsSheet({required this.initial});
+
+  final Set<String> initial;
+
+  @override
+  State<_PermissionsSheet> createState() => _PermissionsSheetState();
+}
+
+class _PermissionsSheetState extends State<_PermissionsSheet> {
+  late Set<String> _picked = Set.of(widget.initial);
+
+  @override
+  Widget build(BuildContext context) {
+    return DialogShell(
+      title: 'صلاحيات العضو',
+      subtitle: 'القائمة الصريحة بتحل محل صلاحيات الدور.',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final key in Permissions.all)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(Permissions.labels[key] ?? key,
+                        style: AppText.tableCellPrimary),
+                  ),
+                  Switch.adaptive(
+                    value: _picked.contains(key),
+                    onChanged: (v) => setState(() {
+                      if (v) {
+                        _picked.add(key);
+                      } else {
+                        _picked.remove(key);
+                      }
+                    }),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        RmsButton(
+          label: 'إلغاء',
+          variant: BtnVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        RmsButton(
+          label: 'احفظ الصلاحيات',
+          onPressed: () => Navigator.of(context).pop(_picked),
+        ),
+      ],
     );
   }
 }
