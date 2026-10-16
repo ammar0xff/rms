@@ -14,6 +14,16 @@ abstract class ApprovalRepository {
     bool createdOffline = false,
   });
 
+  /// Queues an invoice-void request. Nothing is voided until approved.
+  Future<ApprovalRequest> requestVoid({
+    required String orderLocalId,
+    required String orderRef,
+    required double amount,
+    required String reason,
+    String requestedBy = 'cashier',
+    bool createdOffline = false,
+  });
+
   Future<List<ApprovalRequest>> listRequests();
 
   /// Approves or rejects a pending request. Approving a refund posts the

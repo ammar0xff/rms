@@ -19,6 +19,7 @@ import '../../data/local/outbox/outbox_entry.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../domain/models/approval_request.dart';
 import '../../domain/models/cash_session.dart';
+import '../../domain/models/order.dart';
 import '../../domain/models/payment.dart';
 import '../common/format.dart';
 
@@ -34,6 +35,7 @@ class AccountingScreen extends StatefulWidget {
 class _AccountingScreenState extends State<AccountingScreen> {
   List<PaymentModel> _payments = const [];
   List<ApprovalRequest> _approvals = const [];
+  List<Order> _orders = const [];
   List<OutboxEntry> _actions = const [];
   CashSession? _session;
   CashSession? _lastClosed;
@@ -85,8 +87,12 @@ class _AccountingScreenState extends State<AccountingScreen> {
                 e.syncStatus == OutboxStatus.permanentlyRejected)
             .toList();
 
+    final ordersRepo = AppScope.of(context).orders;
+    final orders =
+        ordersRepo == null ? const <Order>[] : await ordersRepo.listOrders();
     if (!mounted) return;
     setState(() {
+      _orders = orders;
       _payments = loaded;
       _session = current;
       _lastClosed = lastClosed;
@@ -141,6 +147,50 @@ class _AccountingScreenState extends State<AccountingScreen> {
             ? 'اتعتمدت واتبلغ الكاشير'
             : 'اترفضت واتسجّل السبب'),
       ),
+    );
+  }
+
+  Future<void> _requestVoid(Order order) async {
+    final approvals = AppScope.of(context).approvals;
+    if (approvals == null || order.voided) return;
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => const RejectReasonSheet(
+        title: 'إلغاء الفاتورة',
+        subtitle: 'السبب بيتسجّل مع طلب الإلغاء وبيستنى المدير.',
+        confirmLabel: 'اطلب الإلغاء',
+      ),
+    );
+    if (reason == null || reason.isEmpty) return;
+    await approvals.requestVoid(
+      orderLocalId: order.localId,
+      orderRef: order.provisionalOrderNumber,
+      amount: order.total,
+      reason: reason,
+    );
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('اتطلب الإلغاء وهيستنى المدير')),
+    );
+  }
+
+  Future<void> _reprint(Order order) async {
+    final print = AppScope.of(context).print;
+    if (print == null || !mounted) return;
+    await print.printReceipt(
+      order.provisionalOrderNumber,
+      {
+        'total': order.total,
+        'items': [
+          for (final item in order.items)
+            {'name': item.name, 'qty': item.quantity, 'price': item.unitPrice},
+        ],
+      },
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('اتبعتت الفاتورة للطباعة تاني')),
     );
   }
 
@@ -200,15 +250,19 @@ class _AccountingScreenState extends State<AccountingScreen> {
             deltaTone: DeltaTone.negative,
           ),
         ]),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        ResponsiveRow(
+          breakpoint: 800,
           children: [
-            Expanded(child: _cashSessionCard()),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(child: _approvalsPanel()),
+            _cashSessionCard(),
+            _approvalsPanel(),
           ],
         ),
         _ledgerCard(),
+        _ArchiveCard(
+          orders: _orders,
+          onReceipt: _reprint,
+          onVoid: _requestVoid,
+        ),
       ],
     );
   }
@@ -394,10 +448,18 @@ class _AccountingScreenState extends State<AccountingScreen> {
   }
 }
 
-/// Reject reason: three quick chips plus a free note. Empty confirms
+/// Reject/void reason: three quick chips plus a free note. Empty confirms
 /// nothing — the dialog returns null and the request stays pending.
 class RejectReasonSheet extends StatefulWidget {
-  const RejectReasonSheet();
+  const RejectReasonSheet({
+    this.title = 'ارفض بسبب',
+    this.subtitle = 'السبب بيتسجّل مع الرفض وبيظهر للكاشير.',
+    this.confirmLabel = 'تأكيد الرفض',
+  });
+
+  final String title;
+  final String subtitle;
+  final String confirmLabel;
 
   @override
   State<RejectReasonSheet> createState() => _RejectReasonSheetState();
@@ -424,8 +486,8 @@ class _RejectReasonSheetState extends State<RejectReasonSheet> {
   @override
   Widget build(BuildContext context) {
     return DialogShell(
-      title: 'ارفض بسبب',
-      subtitle: 'السبب بيتسجّل مع الرفض وبيظهر للكاشير.',
+      title: widget.title,
+      subtitle: widget.subtitle,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -461,13 +523,196 @@ class _RejectReasonSheetState extends State<RejectReasonSheet> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         RmsButton(
-          label: 'تأكيد الرفض',
+          label: widget.confirmLabel,
           variant: BtnVariant.primary,
           onPressed: _result.isEmpty
               ? null
               : () => Navigator.of(context).pop(_result),
         ),
       ],
+    );
+  }
+}
+
+/// Invoice archive: search plus status chips over every order, with
+/// receipt view and approval-gated void per row. Voided rows stay visible
+/// with their reason — the audit trail lives here, not in a delete.
+class _ArchiveCard extends StatefulWidget {
+  const _ArchiveCard({
+    required this.orders,
+    required this.onReceipt,
+    required this.onVoid,
+  });
+
+  final List<Order> orders;
+  final ValueChanged<Order> onReceipt;
+  final ValueChanged<Order> onVoid;
+
+  @override
+  State<_ArchiveCard> createState() => _ArchiveCardState();
+}
+
+class _ArchiveCardState extends State<_ArchiveCard> {
+  String _query = '';
+  int _filter = 0;
+
+  List<Order> get _visible {
+    final q = _query.trim();
+    var list = widget.orders;
+    if (_filter == 1) {
+      list = list.where((o) => !o.voided).toList();
+    } else if (_filter == 2) {
+      list = list.where((o) => o.voided).toList();
+    }
+    if (q.isEmpty) return list;
+    return list
+        .where((o) =>
+            o.provisionalOrderNumber.contains(q) ||
+            o.items.any((i) => i.name.contains(q)))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: EdgeInsets.zero,
+      clip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 14, 20, 4),
+            child: SectionHeader(
+              title: 'سجل الفواتير',
+              subtitle: 'إعادة طباعة وإلغاء بموافقة',
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+            child: ListToolbar(
+              hint: 'دوّر برقم الفاتورة أو صنف…',
+              onQuery: (v) => setState(() => _query = v),
+              filters: const ['الكل', 'سليمة', 'ملغاة'],
+              selected: _filter,
+              onFilter: (i) => setState(() => _filter = i),
+            ),
+          ),
+          if (_visible.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Text('مفيش فواتير بالفلتر ده.',
+                  style: AppText.caption),
+            )
+          else
+            RmsTable(
+              columns: const [
+                RmsColumn('الفاتورة', flex: 3),
+                RmsColumn('الأصناف', flex: 2),
+                RmsColumn('الحالة', flex: 2),
+                RmsColumn('إجراء', width: 190, align: TextAlign.center),
+                RmsColumn('الإجمالي', flex: 2, align: TextAlign.right),
+              ],
+              rows: [
+                for (final order in _visible.take(30))
+                  [
+                    Text(order.provisionalOrderNumber,
+                        style: AppText.tableCellPrimary),
+                    Text('${order.items.length}',
+                        style: AppText.tableCell),
+                    order.voided
+                        ? const Tag(
+                            label: 'ملغاة', tone: StatusTone.neutral)
+                        : const Tag(
+                            label: 'سليمة', tone: StatusTone.positive),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        RmsButton(
+                          label: 'الفاتورة',
+                          variant: BtnVariant.secondary,
+                          dense: true,
+                          onPressed: () => _showReceipt(order),
+                        ),
+                        if (!order.voided)
+                          RmsButton(
+                            label: 'إلغاء',
+                            variant: BtnVariant.ghost,
+                            dense: true,
+                            onPressed: () => widget.onVoid(order),
+                          ),
+                      ],
+                    ),
+                    Text(money(order.total),
+                        textAlign: TextAlign.right,
+                        style: AppText.tableCellPrimary.copyWith(
+                            fontWeight: FontWeight.w600)),
+                  ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showReceipt(Order order) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => DialogShell(
+        title: 'فاتورة ${order.provisionalOrderNumber}',
+        subtitle: order.voided
+            ? 'ملغاة · ${order.voidReason ?? ''}'
+            : null,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final item in order.items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${item.name} × ${item.quantity}',
+                        style: AppText.tableCellPrimary,
+                      ),
+                    ),
+                    Text(money(item.unitPrice * item.quantity),
+                        style: AppText.tableCell),
+                  ],
+                ),
+              ),
+            const Divider(height: 16),
+            Row(
+              children: [
+                const Expanded(
+                    child: Text('الإجمالي',
+                        style: AppText.bodyStrong)),
+                Text(money(order.total),
+                    style:
+                        AppText.h1.copyWith(fontSize: 18)),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          RmsButton(
+            label: 'اقفل',
+            variant: BtnVariant.ghost,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          RmsButton(
+            label: 'اطبع تاني',
+            icon: Icons.print_outlined,
+            onPressed: () {
+              Navigator.of(context).pop();
+              widget.onReceipt(order);
+            },
+          ),
+        ],
+      ),
     );
   }
 }

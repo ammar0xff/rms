@@ -5,6 +5,7 @@ enum ApprovalKind {
   refund('استرجاع'),
   discount('خصم'),
   pettyCash('نثريات'),
+  voidOrder('إلغاء فاتورة'),
   adjustment('تسوية يدوية');
 
   const ApprovalKind(this.label);

@@ -106,6 +106,63 @@ class LocalApprovalRepository implements ApprovalRepository {
   }
 
   @override
+  Future<ApprovalRequest> requestVoid({
+    required String orderLocalId,
+    required String orderRef,
+    required double amount,
+    required String reason,
+    String requestedBy = 'cashier',
+    bool createdOffline = false,
+  }) async {
+    final id = _uuid.v4();
+    final now = _clock();
+    final request = ApprovalRequest(
+      id: id,
+      kind: ApprovalKind.voidOrder,
+      orderLocalId: orderLocalId,
+      orderRef: orderRef,
+      amount: amount,
+      reason: reason,
+      requestedAt: now,
+      requestedBy: requestedBy,
+      createdOffline: createdOffline,
+    );
+    await _db.transaction((txn) async {
+      await LocalStores.approvals.record(id).put(txn, request.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityType: 'approval',
+          entityId: id,
+          operationType: 'requestVoid',
+          createdAt: now,
+          payload: {
+            'id': id,
+            'kind': request.kind.name,
+            'orderRef': orderRef,
+            'amount': amount,
+          },
+        ),
+      );
+      await _audit.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.requestApproval,
+          entityType: 'approval',
+          entityId: id,
+          summary: 'طلب إلغاء فاتورة $orderRef · $reason',
+          at: now,
+          amount: amount,
+          createdOffline: createdOffline,
+        ),
+      );
+    });
+    AppLogger.info('Void request $id queued for approval.');
+    return request;
+  }
+
+  @override
   Future<List<ApprovalRequest>> listRequests() async {
     final snapshots = await LocalStores.approvals.find(_db.db);
     final requests =
@@ -163,6 +220,9 @@ class LocalApprovalRepository implements ApprovalRepository {
       if (approved && request.kind == ApprovalKind.refund) {
         await _postRefund(txn, request, now);
       }
+      if (approved && request.kind == ApprovalKind.voidOrder) {
+        await _voidOrder(txn, request);
+      }
 
       await _audit.append(
         txn,
@@ -180,6 +240,21 @@ class LocalApprovalRepository implements ApprovalRepository {
       decided = request;
     });
     return decided;
+  }
+
+  /// Marks the order voided in place: the row stays for the audit trail
+  /// but counts for nothing. Same transaction as the decision, so an
+  /// approval can never exist without its void.
+  Future<void> _voidOrder(Transaction txn, ApprovalRequest request) async {
+    final orders = LocalStores.orders;
+    for (final snapshot in await orders.find(txn)) {
+      final record = Map<String, Object?>.from(snapshot.value);
+      if (record['localId'] != request.orderLocalId) continue;
+      record['voided'] = true;
+      record['voidReason'] = request.reason;
+      await orders.record(snapshot.key).put(txn, record);
+      return;
+    }
   }
 
   /// Writes the correcting negative payment and its own outbox command.
