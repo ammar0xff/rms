@@ -79,6 +79,10 @@ void main() {
     testWidgets('pos payment', (t) async {
       await _pumpDialog(t, const PosPaymentDialog(total: 240.75, subtotal: 223.0, tax: 17.75), _phone);
       expect(find.text('أكّد التحصيل'), findsOneWidget);
+      expect(find.byIcon(Icons.backspace_outlined), findsOneWidget);
+      // Keypad writes the tendered field: clear it, type exact.
+      await t.tap(find.byIcon(Icons.backspace_outlined));
+      await t.pumpAndSettle();
     });
     testWidgets('collection', (t) async {
       await _pumpDialog(t, const CollectionDialog(total: 240.75), _phone);
