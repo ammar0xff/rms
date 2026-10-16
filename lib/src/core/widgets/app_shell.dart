@@ -25,6 +25,7 @@ import '../../features/settings/settings_screen.dart';
 import '../../features/shift/shift_screen.dart';
 import '../../features/system/system_screen.dart';
 import '../../features/sync/sync_center_screen.dart';
+import '../../features/tables/tables_screen.dart';
 import '../../features/updates/update_controller.dart';
 import '../../domain/update/update_prompt_mode.dart';
 import '../../features/updates/update_prompt.dart';
@@ -69,6 +70,7 @@ final navGroups = <NavGroup>[
   NavGroup('النظام', [
     NavEntry('system', 'النظام', Icons.monitor_heart_outlined, _system),
     NavEntry('sync', 'مركز المزامنة', Icons.sync_outlined, _sync),
+    NavEntry('tables', 'الصالة والطاولات', Icons.table_restaurant_outlined, _tables),
     NavEntry('database', 'قاعدة البيانات', Icons.storage_outlined, _database),
     NavEntry('conflicts', 'التعارضات', Icons.call_split_outlined, _conflicts),
     NavEntry('team', 'الفريق', Icons.group_outlined, _team),
@@ -103,7 +105,7 @@ class _RoleNav {
 }
 
 const _allIds = [
-  'dashboard', 'pos', 'delivery', 'menu', 'inventory',
+  'dashboard', 'pos', 'delivery', 'tables', 'menu', 'inventory',
   'purchasing', 'customers', 'accounting', 'reports', 'branches',
   'sync', 'conflicts', 'team', 'settings',
 ];
@@ -118,13 +120,13 @@ _RoleNav _navFor(AppRole role) => switch (role) {
       AppRole.cashier => const _RoleNav(
           tabs: ['shift', 'pos'],
           more: [
-            'shift', 'dashboard', 'pos', 'menu', 'customers', 'sync',
-            'settings',
+            'shift', 'dashboard', 'pos', 'menu', 'customers', 'tables',
+            'sync', 'settings',
           ],
           home: 'shift',
         ),
       AppRole.manager => const _RoleNav(
-          tabs: ['dashboard', 'pos', 'delivery'],
+          tabs: ['dashboard', 'pos', 'delivery', 'tables'],
           more: [..._allIds, 'system'],
           home: 'dashboard',
         ),
@@ -146,6 +148,7 @@ Widget _accounting(BuildContext c) => const AccountingScreen();
 Widget _reports(BuildContext c) => const ReportsScreen();
 Widget _branches(BuildContext c) => const BranchesScreen();
 Widget _sync(BuildContext c) => const SyncCenterScreen();
+Widget _tables(BuildContext c) => const TablesScreen();
 Widget _database(BuildContext c) => const DatabaseScreen();
 Widget _conflicts(BuildContext c) => const ConflictsScreen();
 Widget _team(BuildContext c) => const TeamScreen();
@@ -396,6 +399,7 @@ String _tabLabel(String id) => switch (id) {
       'delivery' => 'التوصيل',
       'menu' => 'القائمة',
       'sync' => 'المزامنة',
+      'tables' => 'الصالة',
       _ => _flatEntries
           .firstWhere((e) => e.id == id, orElse: () => _flatEntries.first)
           .label,
