@@ -22,6 +22,7 @@ import '../../domain/models/app_role.dart';
 import '../../domain/navigation/delivery_navigation.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/models/order.dart';
 import '../../domain/models/payment.dart';
 import '../common/format.dart';
 
@@ -284,6 +285,86 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('اتسجّل المرتجع وهنبلّغ الإدارة')),
+    );
+  }
+
+  /// Per-order receipt: lines, modifiers, totals, landmark and note.
+  /// Lines come from the matching order; without one it shows address and
+  /// amount only — never fake lines.
+  Future<void> _showReceipt(DeliveryModel job) async {
+    final orders = AppScope.of(context).orders;
+    Order? match;
+    if (orders != null) {
+      final all = await orders.listOrders();
+      for (final o in all) {
+        if (o.provisionalOrderNumber == job.orderRef ||
+            o.localId == job.orderRef) {
+          match = o;
+          break;
+        }
+      }
+    }
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => DialogShell(
+        title: 'بون ${job.orderRef}',
+        subtitle: job.address,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (match == null)
+              Text('تفاصيل الأصناف على الكاشير · الإجمالي ${money(job.amount)}',
+                  style: AppText.body)
+            else ...[
+              for (final item in match.items)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${item.name} × ${item.quantity}',
+                              style: AppText.tableCellPrimary,
+                            ),
+                          ),
+                          Text(money(item.unitPrice * item.quantity),
+                              style: AppText.tableCell),
+                        ],
+                      ),
+                      if (item.modifiers.isNotEmpty)
+                        Text(item.modifiers.join('، '),
+                            style: AppText.caption),
+                      if ((item.note ?? '').isNotEmpty)
+                        Text('ملاحظة: ${item.note}',
+                            style: AppText.caption),
+                    ],
+                  ),
+                ),
+              const Divider(height: 16),
+              Row(
+                children: [
+                  const Expanded(
+                      child: Text('الإجمالي',
+                          style: AppText.bodyStrong)),
+                  Text(money(match.total),
+                      style: AppText.h1.copyWith(fontSize: 18)),
+                ],
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          RmsButton(
+            label: 'اقفل',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1025,7 +1106,19 @@ class _DriverJobCard extends StatelessWidget {
           if (advanceLabel != null ||
               (job.state == DeliveryState.delivered && collection == null)) ...[
             const SizedBox(height: 8),
-            _NavigateButton(address: job.address),
+            Row(
+              children: [
+                Expanded(child: _NavigateButton(address: job.address)),
+                const SizedBox(width: 8),
+                RmsButton(
+                  label: 'البون',
+                  icon: Icons.receipt_long_outlined,
+                  variant: BtnVariant.secondary,
+                  dense: false,
+                  onPressed: () => _showReceipt(job),
+                ),
+              ],
+            ),
           ],
           if (job.state == DeliveryState.onRoute) ...[
             const SizedBox(height: 4),
