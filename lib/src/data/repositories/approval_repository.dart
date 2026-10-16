@@ -14,6 +14,17 @@ abstract class ApprovalRepository {
     bool createdOffline = false,
   });
 
+  /// Queues a goodwill-discount request. Approval records the decision
+  /// only — no money posts (the manager applies it at the till).
+  Future<ApprovalRequest> requestDiscount({
+    required String orderLocalId,
+    required String orderRef,
+    required double amount,
+    required String reason,
+    String requestedBy = 'cashier',
+    bool createdOffline = false,
+  });
+
   /// Queues an invoice-void request. Nothing is voided until approved.
   Future<ApprovalRequest> requestVoid({
     required String orderLocalId,

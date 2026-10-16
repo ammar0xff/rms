@@ -106,6 +106,63 @@ class LocalApprovalRepository implements ApprovalRepository {
   }
 
   @override
+  Future<ApprovalRequest> requestDiscount({
+    required String orderLocalId,
+    required String orderRef,
+    required double amount,
+    required String reason,
+    String requestedBy = 'cashier',
+    bool createdOffline = false,
+  }) async {
+    final id = _uuid.v4();
+    final now = _clock();
+    final request = ApprovalRequest(
+      id: id,
+      kind: ApprovalKind.discount,
+      orderLocalId: orderLocalId,
+      orderRef: orderRef,
+      amount: amount,
+      reason: reason,
+      requestedAt: now,
+      requestedBy: requestedBy,
+      createdOffline: createdOffline,
+    );
+    await _db.transaction((txn) async {
+      await LocalStores.approvals.record(id).put(txn, request.toRecord());
+      await _outbox.append(
+        txn,
+        _entry(
+          entityType: 'approval',
+          entityId: id,
+          operationType: 'requestDiscount',
+          createdAt: now,
+          payload: {
+            'id': id,
+            'kind': request.kind.name,
+            'orderRef': orderRef,
+            'amount': amount,
+          },
+        ),
+      );
+      await _audit.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.requestApproval,
+          entityType: 'approval',
+          entityId: id,
+          summary: 'طلب خصم ترضية $orderRef · $reason',
+          at: now,
+          amount: amount,
+          createdOffline: createdOffline,
+        ),
+      );
+    });
+    AppLogger.info('Discount request $id queued for approval.');
+    return request;
+  }
+
+  @override
   Future<ApprovalRequest> requestVoid({
     required String orderLocalId,
     required String orderRef,
