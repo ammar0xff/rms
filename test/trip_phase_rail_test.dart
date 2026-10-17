@@ -62,8 +62,13 @@ void main() {
 
     testWidgets('a failed stop renders nothing', (tester) async {
       await pump(tester, DeliveryState.failed);
-      expect(find.byType(TripPhaseRail), findsNothing);
+      // The rail widget is still in the tree — it is the *content* that goes
+      // away, because a failed stop has no phase to show.
       expect(find.text('حالة المشوار'), findsNothing);
+      expect(find.text('مرحلة 1 من 4'), findsNothing);
+      for (final phase in TripPhase.values) {
+        expect(find.text(phase.label), findsNothing);
+      }
     });
 
     testWidgets('the rail fits a narrow screen without overflowing',
