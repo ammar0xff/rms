@@ -157,7 +157,7 @@ class _BodyRowState extends State<_BodyRow> {
           duration: const Duration(milliseconds: 90),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: _hover ? Colors.white.withValues(alpha: 0.012) : null,
+            color: _hover ? AppColors.hover : null,
             border: widget.last
                 ? null
                 : const Border(

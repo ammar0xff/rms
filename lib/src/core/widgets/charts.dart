@@ -2,11 +2,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 class Sparkline extends StatelessWidget {
   const Sparkline({
     super.key,
     required this.values,
-    this.color = const Color(0xFFB4B4BA),
+    this.color = AppColors.fgMuted,
     this.width = 120,
     this.height = 44,
     this.filled = true,
@@ -95,11 +97,11 @@ class MiniBars extends StatelessWidget {
   const MiniBars({
     super.key,
     required this.values,
-    this.color = const Color(0xFFB4B4BA),
+    this.color = AppColors.fgMuted,
     this.height = 120,
     this.highlightIndex,
     this.gridFractions = const [0.25, 0.5],
-    this.gridColor = const Color(0x0F000000),
+    this.gridColor = const Color(0x1AFFFFFF),
   });
 
   final List<double> values;

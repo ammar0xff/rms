@@ -1043,7 +1043,7 @@ class _CartBar extends StatelessWidget {
         border: const Border(top: BorderSide(color: AppColors.borderStrong)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
+            color: Colors.black.withValues(alpha: 0.55),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),

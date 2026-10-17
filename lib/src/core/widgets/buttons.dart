@@ -24,12 +24,19 @@ class RmsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The design's own recipe: solid `bg-primary text-on-primary` for the
+    // main action, `bg-surface-container-high text-on-surface` for the quiet
+    // one, and an outlined ghost with no fill.
     final (bg, border, fg) = switch (variant) {
-      BtnVariant.primary => (AppColors.fg, Colors.transparent, AppColors.base),
-      BtnVariant.secondary => (
+      BtnVariant.primary => (
+          AppColors.brand,
           Colors.transparent,
-          AppColors.control,
-          AppColors.fgSecondary,
+          AppColors.onBrand,
+        ),
+      BtnVariant.secondary => (
+          AppColors.surfaceHigh,
+          Colors.transparent,
+          AppColors.fg,
         ),
       BtnVariant.ghost => (
           Colors.transparent,
@@ -47,7 +54,7 @@ class RmsButton extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           hoverColor: variant == BtnVariant.primary
-              ? Colors.transparent
+              ? AppColors.brandHover
               : AppColors.hover,
           child: Container(
             // 40/48px: the minimum comfortable touch targets. dense is for
@@ -71,10 +78,9 @@ class RmsButton extends StatelessWidget {
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.caption.copyWith(
+                    style: AppText.bodyStrong.copyWith(
                       color: fg,
                       fontSize: 13,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

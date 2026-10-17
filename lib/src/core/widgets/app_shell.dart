@@ -575,7 +575,7 @@ class _Sidebar extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFFFFFBF2),
+                      color: AppColors.onBrand,
                     ),
                   ),
                 ),
@@ -659,7 +659,7 @@ decoration: BoxDecoration(
               color: active
                   ? widget.accent.withValues(alpha: 0.10)
                   : _hover
-                      ? Colors.black.withValues(alpha: 0.03)
+                      ? AppColors.hover
                       : null,
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
