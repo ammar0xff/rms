@@ -15,7 +15,8 @@ import 'package:rms/src/features/updates/update_controller.dart';
 import 'package:rms/src/features/updates/update_prompt.dart';
 import 'package:sembast/sembast_memory.dart';
 
-final _sha = List.filled(64, 'c').join();
+const _sha =
+    'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
 
 /// Counts how often the manifest cache is read, so a poll can be asserted
 /// rather than inferred from whatever the UI happens to render.
