@@ -66,100 +66,98 @@ class PieScaffold extends StatelessWidget {
       child: Scaffold(
         backgroundColor: PieColors.canvas,
         floatingActionButton: floatingActionButton,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
-              color: PieColors.canvas,
-              border: Border(bottom: BorderSide(color: PieColors.border, width: 1)),
-            ),
-            child: Row(
-              children: [
-                // Role Identity Badge & System Title
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: PieColors.surfaceFor(role),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: PieColors.borderFor(role), width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: roleAccent,
-                          shape: BoxShape.circle,
-                        ),
+        appBar: AppBar(
+          backgroundColor: PieColors.canvas,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          toolbarHeight: 56,
+          automaticallyImplyLeading: false,
+          titleSpacing: 16,
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(1),
+            child: Divider(color: PieColors.border, height: 1, thickness: 1),
+          ),
+          title: Row(
+            children: [
+              // Role Identity Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: PieColors.surfaceFor(role),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: PieColors.borderFor(role), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: roleAccent,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        role.label,
-                        style: PieTypography.label.copyWith(
-                          color: roleAccent,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      role.label,
+                      style: PieTypography.label.copyWith(
+                        color: roleAccent,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              if (title != null)
+                Text(
+                  title!,
+                  style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w600),
+                )
+              else
+                Text(
+                  'فطيرة للتشغيل',
+                  style: PieTypography.subheading.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: PieColors.ink,
                   ),
                 ),
-                const SizedBox(width: 12),
-                if (title != null)
-                  Text(
-                    title!,
-                    style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w600),
-                  )
-                else
-                  Text(
-                    'PIE Operations',
-                    style: PieTypography.subheading.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: PieColors.ink,
-                    ),
+              const Spacer(),
+              // Honest Sync Chip
+              ListenableBuilder(
+                listenable: monitor,
+                builder: (context, _) {
+                  final isOffline = !monitor.online && services.sync?.isOnline != true;
+                  return PieBadge.syncStatus(
+                    isSynced: monitor.pending == 0 && monitor.conflicts == 0 && !isOffline,
+                    isPending: monitor.pending > 0,
+                    isConflict: monitor.conflicts > 0,
+                    isOffline: isOffline,
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              // Role Switcher Button (demo)
+              if (onRoleSwitch != null)
+                PopupMenuButton<AppRole>(
+                  tooltip: 'تبديل الدور الوظيفي',
+                  icon: const Icon(Icons.swap_horiz_rounded, color: PieColors.inkSecondary),
+                  color: PieColors.surfaceOverlay,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: PieColors.border),
                   ),
-                const Spacer(),
-                // Honest Sync Chip
-                ListenableBuilder(
-                  listenable: monitor,
-                  builder: (context, _) {
-                    final isOffline = !monitor.online && services.sync?.isOnline != true;
-                    return PieBadge.syncStatus(
-                      isSynced: monitor.pending == 0 && monitor.conflicts == 0 && !isOffline,
-                      isPending: monitor.pending > 0,
-                      isConflict: monitor.conflicts > 0,
-                      isOffline: isOffline,
-                    );
-                  },
+                  onSelected: onRoleSwitch,
+                  itemBuilder: (context) => [
+                    _buildRoleMenuItem(AppRole.cashier, role),
+                    _buildRoleMenuItem(AppRole.driver, role),
+                    _buildRoleMenuItem(AppRole.manager, role),
+                    _buildRoleMenuItem(AppRole.developer, role),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                // Role Switcher Button — demo only. In a real session the
-                // role is the server's to decide, so the control is absent
-                // rather than disabled.
-                if (onRoleSwitch != null)
-                  PopupMenuButton<AppRole>(
-                    tooltip: 'تبديل الدور الوظيفي',
-                    icon: const Icon(Icons.swap_horiz_rounded,
-                        color: PieColors.inkSecondary),
-                    color: PieColors.surfaceOverlay,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: PieColors.border),
-                    ),
-                    onSelected: onRoleSwitch,
-                    itemBuilder: (context) => [
-                      _buildRoleMenuItem(AppRole.cashier, role),
-                      _buildRoleMenuItem(AppRole.driver, role),
-                      _buildRoleMenuItem(AppRole.manager, role),
-                      _buildRoleMenuItem(AppRole.developer, role),
-                    ],
-                  ),
-                if (actions != null) ...actions!,
-              ],
-            ),
+              if (actions != null) ...actions!,
+            ],
           ),
         ),
         body: isDesktop ? _buildDesktopLayout(roleAccent) : body,
@@ -273,7 +271,7 @@ class PieScaffold extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 60,
+          height: 64,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (index) {
@@ -283,26 +281,37 @@ class PieScaffold extends StatelessWidget {
               return Expanded(
                 child: InkWell(
                   onTap: () => onDestinationSelected(index),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isSelected ? item.selectedIcon : item.icon,
-                        size: 22,
-                        color: isSelected ? roleAccent : PieColors.inkMuted,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: PieTypography.caption.copyWith(
-                          color: isSelected ? roleAccent : PieColors.inkMuted,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          fontSize: 10,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isSelected ? roleAccent.withValues(alpha: 0.15) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isSelected ? item.selectedIcon : item.icon,
+                            size: 20,
+                            color: isSelected ? roleAccent : PieColors.inkMuted,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          item.label,
+                          style: PieTypography.caption.copyWith(
+                            color: isSelected ? roleAccent : PieColors.inkMuted,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 10.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

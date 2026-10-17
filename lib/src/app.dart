@@ -4,6 +4,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/app_services.dart';
 import 'core/theme/pie_colors.dart';
 import 'core/theme/pie_theme.dart';
+import 'core/theme/pie_typography.dart';
+import 'core/widgets/pie_button.dart';
 import 'core/widgets/pie_scaffold.dart';
 import 'domain/models/app_role.dart';
 import 'domain/models/app_user.dart';
@@ -161,7 +163,7 @@ class _RoleShellState extends State<_RoleShell> {
         IconButton(
           tooltip: 'تسجيل الخروج',
           icon: const Icon(Icons.logout_rounded, color: PieColors.inkSecondary),
-          onPressed: () => services.auth.signOut(),
+          onPressed: () => _confirmSignOut(context, services),
         ),
         const SizedBox(width: 8),
       ],
@@ -170,6 +172,80 @@ class _RoleShellState extends State<_RoleShell> {
         children: screens,
       ),
     );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, AppServices services) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: PieColors.surfaceOverlay,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: PieColors.border),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.logout_rounded, color: PieColors.stateError, size: 22),
+              const SizedBox(width: 10),
+              Text('تسجيل الخروج', style: PieTypography.heading),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'هل أنت متأكد من تسجيل خروج ${(widget.user.displayName != null && widget.user.displayName!.isNotEmpty) ? widget.user.displayName! : widget.user.email}؟',
+                style: PieTypography.body,
+              ),
+              if (widget.activeRole == AppRole.cashier) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: PieColors.cashierSurface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: PieColors.cashierAccent),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: PieColors.cashierAccent, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'تأكد من تسوية الخزينة وإغلاق الوردية قبل الخروج إذا انتهت فترة عملك.',
+                          style: PieTypography.caption.copyWith(color: PieColors.ink),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(false),
+              child: Text(
+                'إلغاء',
+                style: PieTypography.body.copyWith(color: PieColors.inkSecondary),
+              ),
+            ),
+            PieButton.destructive(
+              onPressed: () => Navigator.of(dialogCtx).pop(true),
+              label: 'تأكيد الخروج',
+              height: 40,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      await services.auth.signOut();
+    }
   }
 
   (List<PieNavItem>, List<Widget>) _buildDestinations(AppRole role) {
