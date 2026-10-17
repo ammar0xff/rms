@@ -318,8 +318,13 @@ class _ApprovalRepo implements ApprovalRepository {
 
 Order _order(String ref, double total) {
   // Relative to today: the shift board filters to today's orders, and a
-  // fixed fixture date silently expires at midnight.
-  final at = DateTime.now().subtract(const Duration(hours: 2));
+  // fixed fixture date silently expires at midnight. The offset is clamped
+  // to the start of the day, so running inside the first two hours still
+  // lands today instead of rolling back to yesterday.
+  final now = DateTime.now();
+  final startOfToday = DateTime(now.year, now.month, now.day);
+  final back = now.subtract(const Duration(hours: 2));
+  final at = back.isBefore(startOfToday) ? now : back;
   return Order(
     localId: 'l-$ref',
     provisionalOrderNumber: ref,
