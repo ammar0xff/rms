@@ -337,7 +337,7 @@ class _AppShellState extends State<AppShell> {
   /// the display name's first two words; absent a name, no avatar is drawn
   /// rather than a placeholder letter.
   String? get _initials {
-    final name = _user?.displayName.trim();
+    final name = _user?.displayName?.trim();
     if (name == null || name.isEmpty) return null;
     final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return null;
