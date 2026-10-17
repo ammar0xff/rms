@@ -28,9 +28,6 @@ import '../../features/sync/sync_center_screen.dart';
 import '../../features/tables/tables_screen.dart';
 import '../../features/triage/triage_screen.dart';
 import '../../features/delivery/trip_log_screen.dart';
-import '../../features/updates/update_controller.dart';
-import '../../domain/update/update_prompt_mode.dart';
-import '../../features/updates/update_prompt.dart';
 import 'buttons.dart';
 import 'role_ui.dart';
 import 'status.dart';
@@ -205,30 +202,6 @@ class _AppShellState extends State<AppShell> {
   AppUser? _user;
   AppRole? _role;
 
-  UpdateController? _updates;
-  bool _dismissedOptional = false;
-
-  /// A persisted snooze survives restarts: dismissing the optional prompt
-  /// shelves it for the rest of the shift (8h), not just the session.
-  Future<void> _snoozeOptional() async {
-    final store = AppScope.of(context).updateStatus;
-    if (store != null) {
-      await store.setSnoozedUntil(
-        DateTime.now().add(const Duration(hours: 8)),
-      );
-    }
-    if (!mounted) return;
-    setState(() => _dismissedOptional = true);
-  }
-
-  Future<void> _restoreSnooze() async {
-    final store = AppScope.of(context).updateStatus;
-    final until = await store?.snoozedUntil();
-    if (!mounted) return;
-    if (until != null && until.isAfter(DateTime.now())) {
-      setState(() => _dismissedOptional = true);
-    }
-  }
 
   /// Bottom-bar index: the role's tabs, or المزيد for everything else —
   /// including the menu grid itself.
@@ -269,20 +242,11 @@ class _AppShellState extends State<AppShell> {
     super.didChangeDependencies();
     _authSub ??=
         AppScope.of(context).auth.authStateChanges().listen(_onUser);
-    if (_updates != null) return;
-    final runtime = AppScope.of(context).updateRuntime;
-    if (runtime == null) return;
-    final controller = UpdateController(runtime: runtime);
-    _updates = controller;
-    _restoreSnooze();
-    // A check after the first frame, so startup is never blocked on the network.
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.refresh());
   }
 
   @override
   void dispose() {
     _authSub?.cancel();
-    _updates?.dispose();
     super.dispose();
   }
 
@@ -304,7 +268,6 @@ class _AppShellState extends State<AppShell> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
-        final updates = _updates;
         final nav = _navFor(role);
         // Guard against a selection the role cannot see (e.g. right after the
         // account changed and before the home reset lands).
@@ -396,21 +359,8 @@ class _AppShellState extends State<AppShell> {
                           label: 'المزيد',
                         ),
                       ],
-                    ),
+                  ),
             ),
-            // A mandatory update, an update in flight, or a finished attempt is
-            // laid over the whole app: there is nothing useful to do until it
-            // is resolved. Deferring an optional release lasts for the rest of
-            // this session — but only for the dismissible prompt. A deferral
-            // must never suppress a mandatory release, an in-flight update, or
-            // a failure the operator has to see.
-            if (updates != null &&
-                !(_dismissedOptional &&
-                    updates.state.mode == UpdatePromptMode.dismissible))
-              UpdatePrompt(
-                controller: updates,
-                onDismissed: _snoozeOptional,
-              ),
           ],
         );
       },

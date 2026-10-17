@@ -14,6 +14,7 @@ import '../../core/widgets/blocks.dart';
 import '../../core/widgets/primitives.dart';
 import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
+import '../../core/widgets/update_scope.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
 import '../../domain/models/release_manifest.dart';
 import '../../domain/models/facility_settings.dart';
@@ -291,6 +292,7 @@ class _UpdateCard extends StatelessWidget {
     final release = current?.release;
     final (headline, body, tone, icon) = _presentUpdate(current, readiness);
     final color = toneColor(tone);
+    final controller = UpdateScope.of(context);
     final needsAck =
         readiness?.status == UpdateReadinessStatus.needsAcknowledgement;
     return SurfaceCard(
@@ -385,6 +387,20 @@ class _UpdateCard extends StatelessWidget {
                 ],
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          // A poll can also be missed entirely — offline at startup, a rate
+          // limited fetch, a release published while the app sat in the
+          // background. Asking by hand must never be the only way to find out.
+          RmsButton(
+            label: controller?.isChecking == true
+                ? 'بيراجع…'
+                : 'دور على تحديث',
+            icon: Icons.refresh,
+            variant: BtnVariant.secondary,
+            onPressed: controller == null
+                ? null
+                : () => controller.refresh(),
           ),
         ],
       ),
