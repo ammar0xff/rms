@@ -71,12 +71,12 @@ void main() {
     });
 
     test('role accents only borrow hues the design already defines', () {
-      const allowed = {
+      final allowed = <Color>[
         AppColors.brand,
         AppColors.tertiary,
         AppColors.secondary,
         AppColors.tertiaryFixedDim,
-      };
+      ];
       expect(allowed, contains(AppColors.cashierAccent));
       expect(allowed, contains(AppColors.driverAccent));
       expect(allowed, contains(AppColors.managerAccent));
