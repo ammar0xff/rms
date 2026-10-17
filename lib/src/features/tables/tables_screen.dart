@@ -375,22 +375,33 @@ class _TableCard extends StatelessWidget {
             children: [
               // The design's table-code block: a small square carrying the
               // word "طاولة" over the code, tinted with the state colour.
+              // 44px was the design's square, but its two Arabic lines do not
+              // fit that height and overflowed by 12. Sized to the text plus
+              // padding instead, so the block is honest at any font size.
               Container(
-                width: 44,
-                height: 44,
+                width: 48,
+                constraints: const BoxConstraints(minHeight: 44),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceHigh,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text('طاولة',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppText.caption.copyWith(
-                            fontSize: 9, color: AppColors.fgMuted)),
+                            fontSize: 9, height: 1.1, color: AppColors.fgMuted)),
                     Text(
                       table.code,
-                      style: AppText.kpiValue.copyWith(fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.kpiValue
+                          .copyWith(fontSize: 13, height: 1.15),
                     ),
                   ],
                 ),

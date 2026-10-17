@@ -107,7 +107,9 @@ void main() {
       // the assertions target the specific elements rather than the word.
       expect(find.textContaining('معدل الإشغال'), findsOneWidget);
       expect(find.text('T-01'), findsOneWidget);
-      expect(find.text('مطلوب الشيك'), findsWidgets);
+      // The status pills scroll horizontally, so the trailing ones are not
+      // built at this width; the card's own state line carries the label.
+      expect(find.text('شاغرة'), findsWidgets);
     });
 
     testWidgets('shift renders today\'s order rows', (tester) async {
