@@ -45,3 +45,8 @@ firebase_options.dart
 *.jks
 key.properties
 local.properties
+docs/*.swp
+
+# Product requirement docs are the user's, not the repo's. They stay on disk
+# and are never committed.
+docs/Restaurant_Management_System_PRD_*
