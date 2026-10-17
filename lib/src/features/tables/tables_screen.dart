@@ -134,7 +134,11 @@ class _TablesScreenState extends State<TablesScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: c.maxWidth >= 700 ? 3 : 2,
-                  mainAxisExtent: 148,
+                  // Tall enough for the design's card: header block, the
+                  // running-bill strip and the action button stacked. It was
+                  // 148 for the old status-only card and overflowed by 35px
+                  // once the bill strip landed.
+                  mainAxisExtent: 208,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
