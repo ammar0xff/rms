@@ -78,30 +78,38 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    /// The bar is a hand-built row (see _RoleBottomBar), so its item count is
+    /// the number of labelled columns rather than a Material widget's items.
+    int barItems(WidgetTester tester) => find
+        .descendant(
+          of: find.byKey(const ValueKey('role-bottom-bar')),
+          matching: find.byWidgetPredicate(
+            (w) => w.key is ValueKey<String> &&
+                (w.key! as ValueKey<String>).value.startsWith('bar-item-'),
+          ),
+        )
+        .evaluate()
+        .length;
+
     testWidgets('a driver gets delivery and more, nothing else', (tester) async {
       await signInAs(tester, 'driver.ahmed@rms.dev');
 
       // Bottom bar: the delivery tab plus المزيد. No POS, no kitchen.
       expect(
         find.descendant(
-          of: find.byType(BottomNavigationBar),
+          of: find.byKey(const ValueKey('role-bottom-bar')),
           matching: find.text('التوصيل'),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byType(BottomNavigationBar),
+          of: find.byKey(const ValueKey('role-bottom-bar')),
           matching: find.text('المزيد'),
         ),
         findsOneWidget,
       );
-      expect(find.byType(BottomNavigationBar), findsOneWidget);
-      expect(
-        tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
-            .items,
-        hasLength(2),
-      );
+      expect(barItems(tester), 2);
     });
 
     testWidgets('a cashier lands on the shift board', (tester) async {
@@ -110,32 +118,20 @@ void main() {
       // Shift-first: the board is on screen, and the bar carries shift,
       // sale and more — not kitchen or delivery.
       expect(find.text('شيفت النهاردة'), findsOneWidget);
-      expect(
-        tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
-            .items,
-        hasLength(3),
-      );
+      expect(barItems(tester), 3);
     });
 
     testWidgets('a developer lands on the system board', (tester) async {
       await signInAs(tester, 'dev@rms.dev');
 
       expect(find.text('حالة النظام'), findsOneWidget);
-      expect(
-        tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
-            .items,
-        hasLength(3),
-      );
+      expect(barItems(tester), 3);
     });
 
     testWidgets('a manager keeps the full bar', (tester) async {
       await signInAs(tester, 'ammar@rms.dev');
 
-      expect(
-        tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
-            .items,
-        hasLength(5),
-      );
+      expect(barItems(tester), 5);
     });
 
     testWidgets('a driver gets a driver-built home, not the ops tables',

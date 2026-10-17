@@ -33,6 +33,133 @@ import 'role_ui.dart';
 import 'status.dart';
 import 'sync_chip.dart';
 
+/// The phone navigation bar, built to the design's measurements rather than
+/// Material's: `h-16 justify-around px-1`, each item a `min-w-[52px] h-12`
+/// column holding a 20px glyph over a 10px label, with a 32x4px accent pill
+/// sitting 4px above the active column and glowing.
+class _RoleBottomBar extends StatelessWidget {
+  const _RoleBottomBar({
+    required this.tabs,
+    required this.currentIndex,
+    required this.accent,
+    required this.iconFor,
+    required this.labelFor,
+    required this.onTap,
+  });
+
+  final List<String> tabs;
+  final int currentIndex;
+  final Color accent;
+  final IconData Function(String id) iconFor;
+  final String Function(String id) labelFor;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [...tabs, 'more'];
+    return Container(
+      key: const ValueKey('role-bottom-bar'),
+      height: AppSpacing.topBarHeight,
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceLow,
+        border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          for (var i = 0; i < items.length; i++)
+            Expanded(
+              child: _BarColumn(
+                key: ValueKey('bar-item-$i'),
+                selected: i == currentIndex,
+                accent: accent,
+                onTap: () => onTap(i),
+                icon: i == tabs.length
+                    ? (currentIndex == i ? Icons.apps : Icons.apps_outlined)
+                    : iconFor(items[i]),
+                label: i == tabs.length ? 'المزيد' : labelFor(items[i]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BarColumn extends StatelessWidget {
+  const _BarColumn({
+    super.key,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+    required this.icon,
+    required this.label,
+  });
+
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? accent : AppColors.fgMuted;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
+        children: [
+          // The design floats this pill above the bar's own top edge.
+          if (selected)
+            Positioned(
+              top: -4,
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.8),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: selected ? 21 : 20, color: color),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppText.label.copyWith(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class NavEntry {
   const NavEntry(this.id, this.label, this.icon, this.builder);
   final String id;
@@ -338,28 +465,19 @@ class _AppShellState extends State<AppShell> {
               ),
               bottomNavigationBar: wide
                   ? null
-                  : BottomNavigationBar(
+                  // The design's bar is a hand-built row, not Material's: a
+                  // 64px strip of columns, each a 20px glyph over a 10px
+                  // label, with a glowing accent pill riding above the active
+                  // one. Material's BottomNavigationBar cannot draw that
+                  // indicator, so the row is built directly.
+                  : _RoleBottomBar(
+                      tabs: nav.tabs,
                       currentIndex: _barIndex(nav.tabs),
+                      accent: roleAccent(role),
+                      iconFor: (id) => _entryFor(id).icon,
+                      labelFor: _tabLabel,
                       onTap: (index) => _onBarTap(nav.tabs, index),
-                      type: BottomNavigationBarType.fixed,
-                      backgroundColor: AppColors.surface,
-                      selectedItemColor: roleAccent(role),
-                      unselectedItemColor: AppColors.fgMuted,
-                      selectedLabelStyle: AppText.label,
-                      unselectedLabelStyle: AppText.label,
-                      items: [
-                        for (final id in nav.tabs)
-                          BottomNavigationBarItem(
-                            icon: Icon(_entryFor(id).icon),
-                            label: _tabLabel(id),
-                          ),
-                        const BottomNavigationBarItem(
-                          icon: Icon(Icons.apps_outlined),
-                          activeIcon: Icon(Icons.apps),
-                          label: 'المزيد',
-                        ),
-                      ],
-                  ),
+                    ),
             ),
           ],
         );
