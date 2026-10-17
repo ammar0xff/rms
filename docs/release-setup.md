@@ -64,9 +64,24 @@ The SHA-256 fingerprint of the certificate is the value worth recording. Pin it
 here so "which key signed this build?" stays answerable offline, long after the
 console is gone:
 
+**Release key** (`rms-release`, generated 2026-10-17):
+
+```
+sha256 Fingerprint=A4:BC:D5:A5:79:44:3A:06:CE:61:A3:9B:4E:E2:E1:2D:03:6C:2B:B8:8A:7C:3E:82:08:EF:3C:66:0B:68:9E:ED
+```
+
+**Debug key** — what v0.21.0 through v0.26.0 were signed with, because no
+release key was configured yet. Any APK carrying this fingerprint is a
+pre-release build and must not ship to customers:
+
 ```
 sha256 Fingerprint=03:B0:F1:8C:3F:6C:27:1C:38:ED:EB:7D:BE:2E:6F:5A:59:C4:89:07:DD:EC:17:50:B8:43:16:28:FA:9B:EF:9C
 ```
+
+If a published artifact ever reports the debug fingerprint, the release
+secrets went missing at build time — the workflow prints "No signing key
+configured" and carries on rather than failing the build. Check the run log
+before trusting any artifact.
 
 To confirm the password genuinely works for signing — rather than that keytool
 merely parses the file — sign and verify a throwaway archive:
