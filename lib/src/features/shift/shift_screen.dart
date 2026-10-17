@@ -11,11 +11,13 @@ import '../../core/widgets/status.dart';
 import '../../core/widgets/surface_card.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../domain/models/app_role.dart';
+import '../../domain/models/cash_session.dart';
 import '../../domain/models/order.dart';
 import '../accounting/accounting_screen.dart';
 import '../common/format.dart';
 import '../customers/customers_screen.dart';
 import '../pos/pos_screen.dart';
+import 'shift_blocks.dart';
 
 /// The cashier's home: how is my shift going, and sell the next order.
 ///
@@ -70,6 +72,7 @@ class ShiftStats {
 class _ShiftScreenState extends State<ShiftScreen> {
   ShiftStats _stats =
       const ShiftStats(sales: 0, orders: 0, unsynced: 0, recent: []);
+  CashSession? _session;
   bool _hasStore = false;
   bool _loaded = false;
 
@@ -82,12 +85,18 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   Future<void> _load() async {
-    final orders = AppScope.of(context).orders;
+    final services = AppScope.of(context);
+    final orders = services.orders;
     if (orders == null) return;
     final list = await orders.listOrders();
+    // The session is optional: a branch can sell without a cash drawer
+    // session open, and the strip then says so rather than inventing figures.
+    final sessions = services.cashSessions;
+    final open = sessions == null ? null : await sessions.currentSession();
     if (!mounted) return;
     setState(() {
       _hasStore = true;
+      _session = open;
       _stats = ShiftStats.of(list, DateTime.now());
     });
   }
@@ -108,6 +117,8 @@ class _ShiftScreenState extends State<ShiftScreen> {
       onRefresh: _load,
       child: PageBody(
         children: [
+          ShiftStatusStrip(session: _session),
+          const SizedBox(height: 12),
           RoleHero(
             role: AppRole.cashier,
             icon: Icons.schedule,
