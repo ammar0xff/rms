@@ -216,7 +216,7 @@ apksigner verify --print-certs app-release.apk   # from Android SDK build-tools
 ```
 Signer #1 certificate DN: CN=RMS Release, OU=Engineering, O=RMS, C=US
 Signer #1 certificate SHA-256 digest:
-  a4bcd5a579443a06ce61a39b4ee21e12d036c2bb88a7c3e8208ef3c660b689eed
+  a4bcd5a579443a06ce61a39b4ee2e12d036c2bb88a7c3e8208ef3c660b689eed
 ```
 
 A debug-signed APK instead reports `CN=Android Debug`. Compare case-insensitively
