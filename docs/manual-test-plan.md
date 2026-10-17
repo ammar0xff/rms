@@ -1,9 +1,13 @@
 # Manual test plan — hardware only
 
-Automated tests (507) cover units and fakes. These need a real device because
+Automated tests (663) cover units and fakes. These need a real device because
 they cross process, network, timing, or human boundaries CI cannot reach.
 
-## 0. Roles — one APK, five apps (do first)
+Targets the v0.24.0 release (buildNumber 20). Run sections in order — 0 and 0b
+prove the shape, 0c proves the new work, 1 proves the update path, 5 proves
+display.
+
+## 0. Roles — one APK, four apps (do first)
 
 Sign in as each account in turn. Shared-device sign-out (المزيد → اخرج)
 between each; confirm the previous operator's screens are gone.
@@ -11,7 +15,8 @@ between each; confirm the previous operator's screens are gone.
 - [ ] **Driver** (`driver.*@`): bottom bar is التوصيل + المزيد only. No POS,
   no dashboard anywhere — bar, grid, and (wide) sidebar.
 - [ ] **Cashier** (`cashier.*@`): lands on POS. No delivery.
-- [ ] **Manager**: full bar, all 14 entries in المزيد.
+- [ ] **Manager**: full bar (لوحة + الصالة 4 tabs), all 17 entries in المزيد
+  (16 shared + النظام).
 - [ ] **Developer**: system tabs; النظام > الفريق lists users; assign a role
   to another account (never your own — refused); sign in as that account and
   confirm its app changed.
@@ -33,6 +38,56 @@ between each; confirm the previous operator's screens are gone.
   prune deletes only synced outbox rows (pending count untouched).
 - [ ] **Mirror convergence.** After a full drain, every touched entity has a
   same-id document in its mirror collection carrying server identity.
+
+## 0c. New in v0.24.0
+
+Each case names the screen. On a PC the sidebar appears instead of the bottom
+bar; run each at both widths once.
+
+- [ ] **Tables (manager).** الصالة lists the seeded 18 tables with zone chips.
+  A vacant table offers تسكين → the sheet seats it (متسكين). مطلوب الشيك moves
+  it to مطلوب الشيك; تحرير بعد الدفع frees it and writes an audit row.
+- [ ] **Trips (driver).** سجل الرحلات shows today's KPIs. Flip to المرتجعات —
+  a delivered stop disappears, a failed one stays. Search by order number
+  narrows the list.
+- [ ] **Receipt (driver).** البون on a job card lists the real lines from the
+  matching order with modifiers and notes; the total matches what was
+  collected. For a delivery with no order on the device, it shows the address
+  and amount only — no invented lines.
+- [ ] **Custody (driver).** عهدتي وتسليمها shows collected cash minus per-stop
+  receipts, with a manual handover code. خلّص التسوية settles it; توريد on the
+  driver row opens the batch sheet (فرع + مبلغ + مستلم) and the outbox gains
+  `settleDriverBatch`.
+- [ ] **Assignment (manager).** In المتابعة, تعيين طيار lists drivers with the
+  suggested one marked; reassigning an assigned stop requires a reason (the
+  outbox payload carries `reason`). Assigning a stale stop shows a conflict and
+  lands in التعارضات, never silently overwriting.
+- [ ] **Approvals (manager).** A cashier's خصم/مصروف/إلغاء request lands in
+  الطلبات with no money moved. Reject demands a reason. Approve with a PIN set
+  → wrong PIN refuses, right PIN decides. Voiding an invoice keeps the row
+  (audit) and drops it from today's totals.
+- [ ] **Count sheet (manager).** In المحاسبة → جلسة النقدية, عِدّ واقفل الجلسة
+  opens the denomination steppers (200/100/50/20/10/5). Stepping a value moves
+  the counted field and the variance label together (مطابقة تامة / فيه عجز /
+  فيه زيادة); typing a number directly still works. Closing posts the counted
+  cash and the session flips to مقفولة with the difference shown.
+- [ ] **Transfers (manager).** Under شبكة الفروع → تحويلات المخزون, طلب إمداد
+  creates a pending row. Walk اعتماد → شحن, then استلام on the destination
+  branch: stock posts exactly once (press twice — no double receipt). Cancel
+  stays available until the transfer is received, then the row is closed.
+- [ ] **Tender (cashier).** الكيباد types straight into المبلغ المدفوع; back
+  space deletes; بالظبط and the round-bill chips fill it. Try a second decimal
+  point — rejected.
+- [ ] **Modifiers (cashier).** An item with an الإضافات group opens the choice
+  sheet; the cart line carries the chosen names; the ticket prints them.
+- [ ] **Permissions (manager).** النظام > الفريق → the tune icon on a member
+  opens the matrix; unchecking تعديل القائمة takes effect for that cashier
+  immediately (snackbar denial, no edit). Unchecking everything for the
+  cashier leaves them able to take orders.
+- [ ] **Snooze (anyone).** Dismiss an optional update prompt, then kill and
+  reopen the app: the prompt stays hidden. It returns after 8 hours, not at the
+  next start. Dismissing never touches a mandatory one. With unsynced work the
+  guard banner still blocks any install.
 
 ## 1. Update flow end-to-end (Phase 4)
 
