@@ -36,6 +36,15 @@ abstract final class AppColors {
   /// The design's remaining secondary surface: sub-cards and drawers.
   static const surfaceDrawer = Color(0xFF0E0E10);
 
+  // Material's level names, kept because screens already read them. Each is
+  // an alias onto the level it corresponds to, so a screen can ask for
+  // "Level 2" either way.
+  static const surfaceLowest = base;
+  static const surfaceLow = surfaceSunken;
+  static const surfaceCard = surface;
+  static const surfaceHigh = surfaceSecondary;
+  static const surfaceHighest = surfaceBright;
+
   /// Level 3 again, named for its role as a hover/pressed state.
   static const hover = Color(0xFF16161A);
 

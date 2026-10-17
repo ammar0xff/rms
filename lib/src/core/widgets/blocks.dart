@@ -381,3 +381,21 @@ class MixBars extends StatelessWidget {
     );
   }
 }
+
+/// Isolates a numeral from the surrounding Arabic run.
+///
+/// The design requires it: "Monospace numbers remain strictly left-to-right
+/// (`direction: ltr; unicode-bidi: isolate`) within RTL layouts to prevent
+/// broken formatting in negative currency deltas or time formats (`MM:SS`)."
+/// Flutter's [TextStyle] has no direction parameter, so the bidi isolate is
+/// built out of a [Directionality] instead.
+class LtrIsolate extends StatelessWidget {
+  const LtrIsolate({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(textDirection: TextDirection.ltr, child: child);
+  }
+}

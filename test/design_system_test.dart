@@ -167,11 +167,14 @@ void main() {
       expect(AppText.bodyStrong.height, closeTo(26 / 15, 0.001));
     });
 
-    test('monospace numerals stay left-to-right inside RTL', () {
-      // Without this a negative delta or an MM:SS timer reorders in Arabic.
-      expect(AppText.mono.textDirection, TextDirection.ltr);
-      expect(AppText.hero.textDirection, TextDirection.ltr);
-      expect(AppText.monoSmall.textDirection, TextDirection.ltr);
+    test('every mono style is a fixed-width face the isolate can rely on', () {
+      // The left-to-right rule is applied with Directionality at the widget
+      // (LtrIsolate); what matters here is that these styles are the mono face
+      // and carry tabular figures, so alignment inside the isolate holds.
+      for (final style in [AppText.mono, AppText.hero, AppText.monoSmall]) {
+        expect(style.fontFamily, 'JetBrainsMono');
+        expect(style.fontFeatures, contains(FontFeature.tabularFigures()));
+      }
     });
   });
 

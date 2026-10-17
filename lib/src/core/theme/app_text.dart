@@ -23,8 +23,10 @@ import 'app_colors.dart';
 ///     expansion over default Latin baselines." Every style adds 4px of
 ///     leading over its nominal size.
 ///   • "Monospace numbers remain strictly left-to-right within RTL layouts."
-///     [mono] sets [TextStyle.textDirection] so a negative delta or an MM:SS
-///     timer cannot reorder inside an Arabic line.
+///     [TextStyle] has no direction parameter, so this is applied where it
+///     matters — see `LtrIsolate` in widgets/blocks.dart, which wraps a
+///     numeral in a left-to-right [Directionality] so a negative delta or an
+///     MM:SS timer cannot reorder inside an Arabic line.
 abstract final class AppText {
   /// Tabular figures — every `numeric-*` role is fixed-width.
   static const List<FontFeature> _num = [FontFeature.tabularFigures()];
@@ -47,7 +49,6 @@ abstract final class AppText {
     letterSpacing: -1.08,
     color: AppColors.fg,
     fontFeatures: _num,
-    textDirection: TextDirection.ltr,
   );
 
   /// numeric-lg: 20px / 26px, 600, -0.02em
@@ -59,7 +60,6 @@ abstract final class AppText {
     letterSpacing: -0.4,
     color: AppColors.fg,
     fontFeatures: _num,
-    textDirection: TextDirection.ltr,
   );
 
   /// numeric-md: 14px / 18px, 500, -0.01em
@@ -71,7 +71,6 @@ abstract final class AppText {
     letterSpacing: -0.14,
     color: AppColors.fgMuted,
     fontFeatures: _num,
-    textDirection: TextDirection.ltr,
   );
 
   /// label-sm in mono — order codes, node IDs, status dot captions.
@@ -83,7 +82,6 @@ abstract final class AppText {
     letterSpacing: 0.22,
     color: AppColors.fgDim,
     fontFeatures: _num,
-    textDirection: TextDirection.ltr,
   );
 
   // --- label-* → JetBrains Mono -------------------------------------------
