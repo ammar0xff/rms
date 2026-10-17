@@ -248,7 +248,9 @@ class _StationGroup extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: c.maxWidth >= 700 ? 2 : 1,
-              mainAxisExtent: 152,
+              // The design's Arabic leading rule adds 4px to every line, so
+              // the row grew past the 152px it was tuned at.
+              mainAxisExtent: 172,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
