@@ -17,6 +17,7 @@ import '../../core/widgets/sync_chip.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/mock/mock_data.dart';
 import '../../domain/models/app_role.dart';
+import 'channel_breakdown.dart';
 import '../../domain/models/branch.dart';
 import '../../domain/models/inventory_item.dart';
 import '../../domain/models/order.dart';
@@ -145,6 +146,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             accent: AppColors.managerAccent,
           ),
         ]),
+        ChannelBreakdown(sales: metrics.channelSales),
+        const SizedBox(height: 12),
         _SalesCard(
           data: useMock ? MockData.hourlySales : metrics.hourlySales,
           subtitle: useMock ? 'النهاردة · آخر تحديث 12:45' : 'النهاردة · على الجهاز',

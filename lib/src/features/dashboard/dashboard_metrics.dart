@@ -1,5 +1,6 @@
 import '../../data/local/outbox/outbox_status.dart';
 import '../../domain/models/order.dart';
+import '../../domain/models/order_type.dart';
 
 /// Presentation-agnostic KPIs derived from the local order store.
 ///
@@ -14,6 +15,7 @@ class DashboardMetrics {
     required this.unsyncedOrders,
     required this.hourlySales,
     required this.peakIndex,
+    required this.channelSales,
   });
 
   /// First hour covered by the sales-by-hour chart (10:00 local).
@@ -29,6 +31,11 @@ class DashboardMetrics {
   final int unsyncedOrders;
 
   /// Sales total per hour, indexed from [firstHour].
+  /// Takings per service channel for today, keyed by [OrderType]. The design's
+  /// "توزيع قنوات البيع" section reads off exactly this, so it is derived here
+  /// rather than re-walked in the widget.
+  final Map<OrderType, double> channelSales;
+
   final List<double> hourlySales;
 
   /// Index into [hourlySales] with the highest total (0 when all are zero).
@@ -41,6 +48,7 @@ class DashboardMetrics {
     var count = 0;
     var offline = 0;
     var unsynced = 0;
+    final channels = {for (final t in OrderType.values) t: 0.0};
 
     for (final order in orders) {
       if (!_isSameDay(order.createdAt, at)) continue;
@@ -49,6 +57,8 @@ class DashboardMetrics {
       total += order.total;
       if (order.createdOffline) offline++;
       if (order.syncStatus != SyncStatus.synced) unsynced++;
+      channels[order.orderType] =
+          (channels[order.orderType] ?? 0) + order.total;
       final hour = order.createdAt.hour;
       if (hour >= firstHour && hour < firstHour + bucketCount) {
         hourly[hour - firstHour] += order.total;
@@ -68,6 +78,7 @@ class DashboardMetrics {
       unsyncedOrders: unsynced,
       hourlySales: hourly,
       peakIndex: peak,
+      channelSales: channels,
     );
   }
 
