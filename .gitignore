@@ -5,8 +5,11 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 
-# Node / Astro. The web/ tree is worked on locally but never committed whole:
-# its node_modules is ~235MB across ~12.5k files, which the remote rejects.
+# Node / Astro. The Astro UI lives in web-astro/ and is worked on locally but
+# never committed whole: its node_modules is ~235MB across ~12.5k files, which
+# the remote rejects. Note that `web/` is NOT ignored — that path belongs to
+# Flutter, which the Pages workflow generates via `flutter create . --platforms
+# web` on every run.
 node_modules/
 .astro/
 dist/
