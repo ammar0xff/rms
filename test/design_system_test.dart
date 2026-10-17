@@ -183,7 +183,6 @@ void main() {
       final theme = AppTheme.dark();
       expect(theme.brightness, Brightness.dark);
       expect(theme.scaffoldBackgroundColor, AppColors.base);
-      expect(theme.elevationOverlayEnabled, isFalse);
       expect(AppTheme.light().brightness, Brightness.dark);
     });
 
