@@ -216,7 +216,7 @@ apksigner verify --print-certs app-release.apk   # from Android SDK build-tools
 ```
 Signer #1 certificate DN: CN=RMS Release, OU=Engineering, O=RMS, C=US
 Signer #1 certificate SHA-256 digest:
-  03b0f18c3f6c271c38edeb7dbe2e6f5a59c48907ddec1750b8431628fa9bef9c
+  a4bcd5a579443a06ce61a39b4ee21e12d036c2bb88a7c3e8208ef3c660b689eed
 ```
 
 A debug-signed APK instead reports `CN=Android Debug`. Compare case-insensitively
@@ -227,9 +227,31 @@ is a fallback, but it only reads v1 (JAR) signatures. A build signed with v2/v3
 alone carries no `META-INF/*.SF`, so the command prints nothing and its silence
 does not mean the APK is unsigned — prefer `apksigner`.
 
+### Getting apksigner
+
+`apksigner` ships in the Android SDK's build-tools, not in the Flutter SDK:
+
+```bash
+mkdir -p ~/tools && cd ~/tools
+curl -sS -L -o bt.zip \
+  https://dl.google.com/android/repository/build-tools_r34-linux.zip
+unzip -q -o bt.zip
+~/tools/android-14/apksigner verify --print-certs app-release.apk
+```
+
+Keep it outside `/tmp` — that directory gets cleared, and the tool is needed for
+every release from here on.
+
 When neither is available, the signer can be read straight out of the APK
 Signing Block: it sits immediately before the central directory, is terminated
 by the magic `APK Sig Block 42`, and holds one entry per scheme
+
+> The size field at the head of the block **excludes itself**, so the block
+> begins eight bytes earlier than `magic_offset - size` suggests. Read the
+> trailing size at `magic_offset - 8`, then scan backwards for the *other*
+> occurrence of that same value — that pair of equal values brackets the block.
+> Getting this wrong yields a block whose first pair looks like Play metadata
+> instead of a signature, which reads as "unsigned" when the APK is fine.
 (`0x7109871a` for v2, `0xf05368c0` for v3). The v2 entry's signed-data record
 carries the certificate as a length-prefixed DER sequence. Note that
 `AndroidManifest.xml` is deflated inside the APK, so searching the raw file for
