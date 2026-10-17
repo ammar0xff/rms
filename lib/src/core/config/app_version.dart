@@ -14,7 +14,7 @@ abstract final class AppVersion {
 
   /// The build number compiled into the binary. Overridden at runtime by
   /// [apply].
-  static const int compiledBuild = 21;
+  static const int compiledBuild = 24;
 
   /// The running version, e.g. `0.10.0`.
   ///
