@@ -132,7 +132,7 @@ abstract final class AppText {
   static const bodyStrong = TextStyle(
     fontFamily: _sans,
     fontSize: 15,
-    height: 1.6,
+    height: 26 / 15,
     fontWeight: FontWeight.w500,
     color: AppColors.fgSecondary,
     fontFeatures: _num,
@@ -142,7 +142,7 @@ abstract final class AppText {
   static const sectionHeading = TextStyle(
     fontFamily: _sans,
     fontSize: 15,
-    height: 1.6,
+    height: 26 / 15,
     fontWeight: FontWeight.w400,
     color: AppColors.fgSecondary,
     fontFeatures: _num,
@@ -152,7 +152,7 @@ abstract final class AppText {
   static const body = TextStyle(
     fontFamily: _sans,
     fontSize: 13,
-    height: 1.6,
+    height: 22 / 13,
     fontWeight: FontWeight.w400,
     color: AppColors.fgSecondary,
     fontFeatures: _num,
@@ -162,7 +162,7 @@ abstract final class AppText {
   static const tableCellPrimary = TextStyle(
     fontFamily: _sans,
     fontSize: 13,
-    height: 1.6,
+    height: 22 / 13,
     fontWeight: FontWeight.w500,
     color: AppColors.fgSecondary,
     fontFeatures: _num,
@@ -172,7 +172,7 @@ abstract final class AppText {
   static const tableCell = TextStyle(
     fontFamily: _sans,
     fontSize: 13,
-    height: 1.6,
+    height: 22 / 13,
     fontWeight: FontWeight.w400,
     color: AppColors.fgMuted,
     fontFeatures: _num,
@@ -182,7 +182,7 @@ abstract final class AppText {
   static const caption = TextStyle(
     fontFamily: _sans,
     fontSize: 12,
-    height: 1.5,
+    height: 20 / 12,
     fontWeight: FontWeight.w400,
     color: AppColors.fgDim,
     fontFeatures: _num,
@@ -202,7 +202,7 @@ abstract final class AppText {
   static const navItem = TextStyle(
     fontFamily: _sans,
     fontSize: 15,
-    height: 1.6,
+    height: 26 / 15,
     fontWeight: FontWeight.w500,
     color: AppColors.fgSecondary,
     fontFeatures: _num,

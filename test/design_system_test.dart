@@ -161,10 +161,12 @@ void main() {
     });
 
     test('arabic leading carries the design\'s 4px expansion', () {
-      // body-md is 13/18 nominally; the expansion makes the ratio 22/13.
-      expect(AppText.body.height, closeTo(22 / 13, 0.001));
-      // body-lg is 15/22; expanded to 26/15.
-      expect(AppText.bodyStrong.height, closeTo(26 / 15, 0.001));
+      // "Line heights for Arabic content must incorporate a 4px vertical
+      //  expansion over default Latin baselines." body-md is nominally 18,
+      // so the ratio is 22/13; body-lg is 22, so 26/15; body-sm is 16, 20/12.
+      expect(AppText.body.height, closeTo(22 / 13, 0.0001));
+      expect(AppText.bodyStrong.height, closeTo(26 / 15, 0.0001));
+      expect(AppText.caption.height, closeTo(20 / 12, 0.0001));
     });
 
     test('every mono style is a fixed-width face the isolate can rely on', () {
