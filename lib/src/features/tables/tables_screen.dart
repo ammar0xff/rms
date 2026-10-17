@@ -138,7 +138,7 @@ class _TablesScreenState extends State<TablesScreen> {
                   // running-bill strip and the action button stacked. It was
                   // 148 for the old status-only card and overflowed by 35px
                   // once the bill strip landed.
-                  mainAxisExtent: 208,
+                  mainAxisExtent: 220,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
@@ -430,9 +430,10 @@ class _TableCard extends StatelessWidget {
                       style: AppText.caption,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (table.zone.isNotEmpty)
+                    if (!occupied && table.zone.isNotEmpty)
                       Text(table.zone,
-                          style: AppText.caption, overflow: TextOverflow.ellipsis),
+                          style: AppText.caption,
+                          overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
