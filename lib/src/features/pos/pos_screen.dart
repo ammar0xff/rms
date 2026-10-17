@@ -455,6 +455,16 @@ class _PosScreenState extends State<PosScreen>
           canPay: canPay,
         );
 
+        // The design's service-mode strip: storefront / table / takeout /
+        // delivery, sitting above the menu where the cashier sets how this
+        // order is served before building it. It used to live only inside the
+        // cart, which meant a new sale had no visible mode at all until the
+        // first item was added.
+        final modes = _ModeStrip(
+          selected: _orderType,
+          onSelect: (i) => setState(() => _orderType = i),
+        );
+
         if (narrow) {
           // Phones get tabs, not two stacked panes: squeezing the cart into a
           // fixed 42% slot overflowed its footer on every real screen height.
@@ -483,6 +493,7 @@ class _PosScreenState extends State<PosScreen>
                   ],
                 ),
               ),
+              modes,
               Expanded(
                 child: TabBarView(
                   controller: _tabs,
@@ -519,22 +530,111 @@ class _PosScreenState extends State<PosScreen>
         }
         // The counter layout: category rail, product grid, docked cart.
         // Phones keep chips plus tabs instead (see the narrow branch).
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        return Column(
           children: [
-            _CategoryRail(
-              categories: _categories,
-              counts: _categoryCounts,
-              selected: _category,
-              onCategory: (v) => setState(() => _category = v),
+            modes,
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _CategoryRail(
+                    categories: _categories,
+                    counts: _categoryCounts,
+                    selected: _category,
+                    onCategory: (v) => setState(() => _category = v),
+                  ),
+                  Container(width: 1, color: AppColors.borderStrong),
+                  Expanded(child: menu),
+                  Container(width: 1, color: AppColors.borderStrong),
+                  SizedBox(width: 360, child: cart),
+                ],
+              ),
             ),
-            Container(width: 1, color: AppColors.borderStrong),
-            Expanded(child: menu),
-            Container(width: 1, color: AppColors.borderStrong),
-            SizedBox(width: 360, child: cart),
           ],
         );
       },
+    );
+  }
+}
+
+/// The service-mode strip the design places under the header: a horizontally
+/// scrollable row of pills, each an icon over its label, with the active one
+/// filled in the POS amber and the rest on a sunken surface.
+///
+/// It reads [OrderType] through its index so the selection stays the single
+/// source of truth the cart already used — the strip and the cart control are
+/// two views of one value, never two values.
+class _ModeStrip extends StatelessWidget {
+  const _ModeStrip({required this.selected, required this.onSelect});
+
+  final int selected;
+  final ValueChanged<int> onSelect;
+
+  static const _icons = [
+    Icons.storefront_outlined,
+    Icons.table_restaurant_outlined,
+    Icons.takeout_dining_outlined,
+    Icons.moped_outlined,
+  ];
+
+  /// dineIn is split into "hall" and "a specific table", which is what the
+  /// design's four pills show. Both write back to the same OrderType because
+  /// that is all the model records; the table number is chosen at send time.
+  static const _labels = ['صالة', 'طاولة', 'تيك أواي', 'دليفري'];
+
+  static const _types = [
+    OrderType.dineIn,
+    OrderType.dineIn,
+    OrderType.takeaway,
+    OrderType.delivery,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 72,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: 10),
+        itemCount: _labels.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final active = _types[i] == OrderType.values[selected];
+          final fg = active ? AppColors.onBrand : AppColors.fgMuted;
+          return GestureDetector(
+            onTap: () => onSelect(OrderType.values.indexOf(_types[i])),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: active ? AppColors.brand : AppColors.surfaceSunken,
+                border: Border.all(
+                  color: active ? AppColors.brand : AppColors.borderSubtle,
+                ),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_icons[i], size: 18, color: fg),
+                  const SizedBox(width: 8),
+                  Text(
+                    _labels[i],
+                    style: AppText.label.copyWith(
+                      color: fg,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
