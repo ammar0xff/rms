@@ -174,7 +174,7 @@ void main() {
     testWidgets('tables floor with zones', (tester) async {
       await pumpDesktop(tester, const TablesScreen());
 
-      expect(find.text('الصالة'), findsOneWidget);
+      expect(find.textContaining('معدل الإشغال'), findsOneWidget);
       expect(find.text('T-01'), findsOneWidget);
     });
 

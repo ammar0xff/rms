@@ -103,9 +103,11 @@ void main() {
     testWidgets('tables floor with occupied card', (tester) async {
       await pumpPhone(tester, const TablesScreen());
 
-      expect(find.text('الصالة'), findsOneWidget);
+      // The zone name now lives in the occupancy bar and on each card, so
+      // the assertions target the specific elements rather than the word.
+      expect(find.textContaining('معدل الإشغال'), findsOneWidget);
       expect(find.text('T-01'), findsOneWidget);
-      expect(find.text('مطلوب الشيك'), findsOneWidget);
+      expect(find.text('مطلوب الشيك'), findsWidgets);
     });
 
     testWidgets('shift renders today\'s order rows', (tester) async {
