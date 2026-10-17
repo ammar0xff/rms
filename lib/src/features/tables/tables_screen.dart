@@ -87,6 +87,12 @@ class _TablesScreenState extends State<TablesScreen> {
     await _load();
   }
 
+  /// The tables of one zone that survive the status filter. A zone with
+  /// nothing left in it renders as no band at all, rather than an empty one.
+  List<DiningTable> _visibleIn(String zone) => _tables
+      .where((t) => t.zone == zone && (_filter == null || t.status == _filter))
+      .toList();
+
   @override
   Widget build(BuildContext context) {
     final zones = <String>[];
@@ -151,13 +157,6 @@ class _TablesScreenState extends State<TablesScreen> {
     );
   }
 }
-
-  /// The tables of one zone that survive the status filter. A zone with
-  /// nothing left in it is skipped by the caller rather than rendered as an
-  /// empty band.
-  List<DiningTable> _visibleIn(String zone) => _tables
-      .where((t) => t.zone == zone && (_filter == null || t.status == _filter))
-      .toList();
 
 /// The design's occupancy strip: the hall name over its table count, with a
 /// real occupancy percentage on the right. The percentage is derived from the
@@ -487,9 +486,8 @@ class _TableCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (table.currentOrderRef.isNotEmpty)
-                    Text(table.currentOrderRef,
-                        style: AppText.monoSmall),
+                  if ((table.currentOrderRef ?? '').isNotEmpty)
+                    Text(table.currentOrderRef!, style: AppText.monoSmall),
                 ],
               ),
             ),
