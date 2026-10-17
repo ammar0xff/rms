@@ -6,6 +6,7 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/status.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/order.dart';
+import '../../domain/models/order_type.dart';
 import '../common/format.dart';
 
 /// The design's shift header: the open/closed state, when the shift started
