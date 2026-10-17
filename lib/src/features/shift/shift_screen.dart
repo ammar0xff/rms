@@ -1,30 +1,25 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-
 import '../../core/di/app_services.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text.dart';
-import '../../core/widgets/buttons.dart';
-import '../../core/widgets/page.dart';
-import '../../core/widgets/primitives.dart';
-import '../../core/widgets/role_ui.dart';
-import '../../core/widgets/status.dart';
-import '../../core/widgets/surface_card.dart';
-import '../../data/local/outbox/outbox_status.dart';
-import '../../domain/models/app_role.dart';
+import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_typography.dart';
+import '../../core/widgets/pie_badge.dart';
+import '../../core/widgets/pie_button.dart';
+import '../../core/widgets/pie_card.dart';
+import '../../core/widgets/pie_empty_state.dart';
+import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/order.dart';
-import '../accounting/accounting_screen.dart';
-import '../common/format.dart';
-import '../customers/customers_screen.dart';
-import '../pos/pos_screen.dart';
-import 'shift_blocks.dart';
+import '../../domain/models/order_type.dart';
+import '../accounting/z_report_screen.dart';
 
-/// The cashier's home: how is my shift going, and sell the next order.
+/// Screen 5: Shift Board (الوردية ولوحة المبيعات اللحظية)
 ///
-/// Today only — sales in the hero, orders and ticket below, the live queue
-/// under that. Selling is one tap away: the hero button and the quick tiles
-/// open focused full-screen flows (POS, customers, cash session) and back
-/// returns here. Cashier home; other roles never route here.
+/// Functional contract:
+/// - Shift state (open / closed) & live elapsed duration
+/// - Drawer float vs opening float
+/// - Live ticket rail filterable by channel (hall / takeaway / delivery)
+/// - Fast path to Cash Count and Z-Close
 class ShiftScreen extends StatefulWidget {
   const ShiftScreen({super.key});
 
@@ -32,187 +27,323 @@ class ShiftScreen extends StatefulWidget {
   State<ShiftScreen> createState() => _ShiftScreenState();
 }
 
-/// Shift figures computed from today's orders. Pure so the math is unit
-/// tested without a widget tree or a database.
-class ShiftStats {
-  const ShiftStats({
-    required this.sales,
-    required this.orders,
-    required this.unsynced,
-    required this.recent,
-  });
-
-  final double sales;
-  final int orders;
-  final double unsynced;
-  final List<Order> recent;
-
-  double get averageTicket => orders == 0 ? 0 : sales / orders;
-
-  static ShiftStats of(List<Order> orders, DateTime now) {
-    final today = orders.where((o) {
-      if (o.voided) return false;
-      final created = o.createdAt;
-      return created.year == now.year &&
-          created.month == now.month &&
-          created.day == now.day;
-    }).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return ShiftStats(
-      sales: today.fold(0.0, (sum, o) => sum + o.total),
-      orders: today.length,
-      unsynced: today
-          .where((o) => o.syncStatus != SyncStatus.synced)
-          .fold(0.0, (sum, o) => sum + o.total),
-      recent: today.take(5).toList(),
-    );
-  }
-}
-
 class _ShiftScreenState extends State<ShiftScreen> {
-  ShiftStats _stats =
-      const ShiftStats(sales: 0, orders: 0, unsynced: 0, recent: []);
+  OrderType? _selectedChannelFilter;
+  Timer? _ticker;
   CashSession? _session;
-  bool _hasStore = false;
-  bool _loaded = false;
+  double _expectedCash = 0;
+  List<Order> _orders = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Live elapsed timer ticker (1 second)
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_loaded) return;
-    _loaded = true;
-    _load();
+    _loadData();
   }
 
-  Future<void> _load() async {
+  Future<void> _loadData() async {
     final services = AppScope.of(context);
-    final orders = services.orders;
-    if (orders == null) return;
-    final list = await orders.listOrders();
-    // The session is optional: a branch can sell without a cash drawer
-    // session open, and the strip then says so rather than inventing figures.
-    final sessions = services.cashSessions;
-    final open = sessions == null ? null : await sessions.currentSession();
-    if (!mounted) return;
-    setState(() {
-      _hasStore = true;
-      _session = open;
-      _stats = ShiftStats.of(list, DateTime.now());
-    });
+    final cashSessionsRepo = services.cashSessions;
+    final ordersRepo = services.orders;
+
+    final session = await cashSessionsRepo?.currentSession();
+    double expected = session?.openingFloat ?? 500.0;
+    if (session != null && cashSessionsRepo != null) {
+      try {
+        expected = await cashSessionsRepo.expectedCash(session);
+      } catch (_) {
+        expected = session.expectedCash ?? session.openingFloat;
+      }
+    }
+    final orders = await ordersRepo?.listOrders() ?? [];
+
+    if (mounted) {
+      setState(() {
+        _session = session;
+        _expectedCash = expected;
+        _orders = orders;
+        _isLoading = false;
+      });
+    }
   }
 
-  String _time(DateTime at) =>
-      '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
 
-  void _open(Widget screen) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => screen),
-    );
+  String _formatElapsed(DateTime openedAt) {
+    final diff = DateTime.now().difference(openedAt);
+    final hours = diff.inHours.toString().padLeft(2, '0');
+    final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
   }
 
   @override
   Widget build(BuildContext context) {
-    final accent = roleAccent(AppRole.cashier);
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: PageBody(
-        children: [
-          ShiftStatusStrip(session: _session),
-          const SizedBox(height: 12),
-          RoleHero(
-            role: AppRole.cashier,
-            icon: Icons.schedule,
-            kicker: 'شيفت النهاردة',
-            title: !_hasStore
-                ? 'مفيش مخزن متاح'
-                : (_stats.orders == 0 ? 'شيفت جديد' : 'شيفت شغال'),
-            subtitle: _stats.unsynced > 0
-                ? '${money(_stats.unsynced)} لسه ما اتزامنش'
-                : 'كل المبيعات على الجهاز',
-            value: money(_stats.sales),
-            valueLabel: 'ج.م مبيعات النهاردة',
-            action: RmsButton(
-              label: 'بيع جديد',
-              icon: Icons.point_of_sale,
-              variant: BtnVariant.primary,
-              onPressed: () => _open(const PosScreen()),
-            ),
-          ),
-          GridRow(
-            children: [
-              KpiCard(
-                label: 'الأوردرات',
-                value: '${_stats.orders}',
-                icon: Icons.receipt_long_outlined,
-                accent: accent,
-              ),
-              KpiCard(
-                label: 'متوسط الفاتورة',
-                value: money(_stats.averageTicket),
-                icon: Icons.payments_outlined,
-                accent: accent,
-              ),
-            ],
-          ),
-          GridRow(
-            children: [
-              QuickActionTile(
-                icon: Icons.group_outlined,
-                label: 'العملاء',
-                accent: accent,
-                onTap: () => _open(const CustomersScreen()),
-              ),
-              QuickActionTile(
-                icon: Icons.account_balance_wallet_outlined,
-                label: 'الجلسة والقفل',
-                accent: accent,
-                onTap: () => _open(const AccountingScreen()),
-              ),
-            ],
-          ),
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    final filtered = _selectedChannelFilter == null
+        ? _orders
+        : _orders.where((o) => o.orderType == _selectedChannelFilter).toList();
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Shift State Hero Card
+            _buildShiftHeaderCard(_session, _expectedCash),
+            const SizedBox(height: 20),
+
+            // Live Ticket Rail Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SectionHeader(title: 'أحدث الطلبات'),
-                const SizedBox(height: 12),
-                if (!_hasStore)
-                  const Text(
-                    'مفيش مخزن متاح لعرض الأوردرات.',
-                    style: AppText.caption,
-                  )
-                else if (_stats.recent.isEmpty)
-                  const Text(
-                    'لسه مفيش أوردرات النهاردة. البيع من تبويب البيع.',
-                    style: AppText.caption,
-                  )
-                else
-                  for (final o in _stats.recent) ...[
-                    FeedRow(
-                      tone: o.syncStatus == SyncStatus.synced
-                          ? StatusTone.positive
-                          : StatusTone.warning,
-                      title: o.provisionalOrderNumber,
-                      subtitle:
-                          '${_time(o.createdAt)} · ${o.items.length} صنف',
-                      trailing: Text(
-                        money(o.total),
-                        style: AppText.tableCellPrimary.copyWith(
+                Text(
+                  'تذاكر الأوردرات اللحظية',
+                  style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
+                ),
+                // Channel Filter Chips
+                Row(
+                  children: [
+                    _buildChannelFilterChip(null, 'الكل'),
+                    const SizedBox(width: 6),
+                    _buildChannelFilterChip(OrderType.dineIn, 'صالة'),
+                    const SizedBox(width: 6),
+                    _buildChannelFilterChip(OrderType.takeaway, 'تيك أواي'),
+                    const SizedBox(width: 6),
+                    _buildChannelFilterChip(OrderType.delivery, 'دليفري'),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Live Ticket Rail
+            if (_isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(color: PieColors.cashierAccent),
+                ),
+              )
+            else if (filtered.isEmpty)
+              const PieCard(
+                padding: EdgeInsets.all(32),
+                child: PieEmptyState(
+                  title: 'مفيش أوردرات في الشيفت ده لسه',
+                  description: 'كل أوردر يتعمل من شاشة الكاشير هيظهر هنا مباشرة مع حالته.',
+                  icon: Icons.receipt_long_outlined,
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final order = filtered[index];
+                  return _buildTicketCard(order);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShiftHeaderCard(CashSession? session, double expectedCashAmount) {
+    final isOpen = session?.isOpen ?? false;
+    final openedAt = session?.openedAt ?? DateTime.now();
+    final openingFloat = session?.openingFloat ?? 500.0;
+    final expectedCash = session != null ? expectedCashAmount : openingFloat;
+
+    return PieCard(
+      padding: const EdgeInsets.all(20),
+      surfaceColor: PieColors.surface2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: isOpen ? const Color(0xFF4ADE80) : PieColors.stateError,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isOpen ? 'الوردية مفتوحة ومباشرة' : 'الوردية مقفولة',
+                    style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              if (isOpen)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: PieColors.well,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: PieColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, size: 14, color: PieColors.cashierAccent),
+                      const SizedBox(width: 6),
+                      PieNumeral.time(
+                        _formatElapsed(openedAt),
+                        style: PieTypography.monoBody.copyWith(
+                          color: PieColors.cashierAccent,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                    if (o != _stats.recent.last) ...[
-                      const SizedBox(height: 10),
-                      const Divider(
-                        height: 1,
-                        color: AppColors.borderSubtle,
-                      ),
-                      const SizedBox(height: 10),
                     ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: PieColors.border, height: 1),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('عهدة الافتتاح (Float)', style: PieTypography.caption),
+                    const SizedBox(height: 4),
+                    PieNumeral.money(
+                      openingFloat,
+                      style: PieTypography.monoHeading.copyWith(fontWeight: FontWeight.w700),
+                    ),
                   ],
-              ],
-            ),
+                ),
+              ),
+              Container(width: 1, height: 40, color: PieColors.border),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('الرصيد المحسوب بالدرج', style: PieTypography.caption),
+                    const SizedBox(height: 4),
+                    PieNumeral.money(
+                      expectedCash,
+                      style: PieTypography.monoHeading.copyWith(
+                        color: PieColors.cashierAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          PieButton.primary(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const ZReportScreen(),
+                ),
+              );
+            },
+            label: 'جرد الكاش وتقفيل الوردية (Z-Report)',
+            icon: Icons.point_of_sale_rounded,
+            accentColor: PieColors.cashierAccent,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChannelFilterChip(OrderType? type, String label) {
+    final isSelected = _selectedChannelFilter == type;
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      backgroundColor: PieColors.surface1,
+      selectedColor: PieColors.cashierSurface,
+      side: BorderSide(
+        color: isSelected ? PieColors.cashierAccent : PieColors.border,
+      ),
+      labelStyle: PieTypography.caption.copyWith(
+        color: isSelected ? PieColors.cashierAccent : PieColors.inkSecondary,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+      ),
+      onSelected: (_) => setState(() => _selectedChannelFilter = type),
+    );
+  }
+
+  Widget _buildTicketCard(Order order) {
+    return PieCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'أوردر #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
+                    style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 10),
+                  PieBadge.channel(order.orderType),
+                ],
+              ),
+              PieBadge.syncStatus(
+                isSynced: order.syncStatus.name == 'synced',
+                isPending: order.syncStatus.name == 'pendingSync' || order.syncStatus.name == 'localOnly',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            order.items.map((i) => '${i.quantity}x ${i.name}').join(', '),
+            style: PieTypography.body.copyWith(color: PieColors.inkSecondary),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${order.createdAt.hour.toString().padLeft(2, '0')}:${order.createdAt.minute.toString().padLeft(2, '0')}',
+                style: PieTypography.monoCaption,
+              ),
+              PieNumeral.money(
+                order.total,
+                style: PieTypography.monoBody.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: PieColors.cashierAccent,
+                ),
+              ),
+            ],
           ),
         ],
       ),

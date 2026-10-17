@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-
 import '../../core/di/app_services.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_text.dart';
-import '../../core/widgets/blocks.dart';
-import '../../core/widgets/buttons.dart';
-import '../../core/widgets/page.dart';
-import '../../core/widgets/surface_card.dart';
+import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_typography.dart';
+import '../../core/widgets/pie_badge.dart';
+import '../../core/widgets/pie_button.dart';
+import '../../core/widgets/pie_card.dart';
+import '../../core/widgets/pie_empty_state.dart';
+import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/dining_table.dart';
-import '../common/format.dart';
 
-/// Dine-in floor: seat parties, call the bill, free tables.
+/// Screen 4: Tables Floor (إدارة الصالة والطاولات)
 ///
-/// Status-first cards grouped by zone; the running tab lives on the order,
-/// so the model keeps no duplicated totals — only who sits where and whether
-/// they asked for the check.
+/// Functional contract:
+/// - Occupancy summary bar
+/// - Status filter pills with counts
+/// - Table cards with code, zone, capacity, state, party, steward, elapsed, running bill
+/// - Explicit per-state actions
 class TablesScreen extends StatefulWidget {
   const TablesScreen({super.key});
 
@@ -24,623 +24,414 @@ class TablesScreen extends StatefulWidget {
 }
 
 class _TablesScreenState extends State<TablesScreen> {
-  List<DiningTable> _tables = const [];
-  bool _loaded = false;
-
-  /// Null means every table. Otherwise the one status the pills are filtering
-  /// to, so the counts on each pill and the grid below can never disagree.
-  TableStatus? _filter;
+  TableStatus? _selectedStatusFilter;
+  String _selectedZone = 'الكل';
+  List<DiningTable> _tables = [];
+  bool _isLoading = true;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_loaded) return;
-    _loaded = true;
-    _load();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTables());
   }
 
-  Future<void> _load() async {
+  Future<void> _loadTables() async {
     final repo = AppScope.of(context).tables;
-    if (repo == null) return;
-    final tables = await repo.listTables();
-    if (!mounted) return;
-    setState(() => _tables = tables);
-  }
-
-  Future<void> _seat(DiningTable table) async {
-    final repo = AppScope.of(context).tables;
-    if (repo == null) return;
-    final input = await showDialog<_SeatInput>(
-      context: context,
-      builder: (_) => _SeatSheet(table: table),
-    );
-    if (input == null) return;
-    try {
-      await repo.seatTable(
-        tableId: table.id,
-        partySize: input.partySize,
-        steward: input.steward,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذّر التسكين — جرّب تاني')),
-      );
+    if (repo == null) {
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
-    await _load();
+    final list = await repo.listTables();
+    if (mounted) {
+      setState(() {
+        _tables = list;
+        _isLoading = false;
+      });
+    }
   }
-
-  Future<void> _bill(DiningTable table) async {
-    final repo = AppScope.of(context).tables;
-    if (repo == null) return;
-    await repo.requestBill(table.id);
-    await _load();
-  }
-
-  Future<void> _clear(DiningTable table) async {
-    final repo = AppScope.of(context).tables;
-    if (repo == null) return;
-    await repo.clearTable(table.id);
-    await _load();
-  }
-
-  /// The tables of one zone that survive the status filter. A zone with
-  /// nothing left in it renders as no band at all, rather than an empty one.
-  List<DiningTable> _visibleIn(String zone) => _tables
-      .where((t) => t.zone == zone && (_filter == null || t.status == _filter))
-      .toList();
 
   @override
   Widget build(BuildContext context) {
-    final zones = <String>[];
-    for (final t in _tables) {
-      if (!zones.contains(t.zone)) zones.add(t.zone);
+    final services = AppScope.of(context);
+    final tablesRepo = services.tables;
+
+    if (tablesRepo == null) {
+      return const PieEmptyState(
+        title: 'قاعدة بيانات الطاولات غير متاحة',
+        description: 'اتأكد من تهيئة قاعدة البيانات المحلية على الجهاز.',
+        icon: Icons.error_outline_rounded,
+      );
     }
-    final occupied = _tables
-        .where((t) => t.status != TableStatus.vacant)
-        .length;
-    return PageBody(
-      children: [
-        _OccupancyBar(
-          zone: zones.isEmpty ? 'الصالة' : zones.first,
-          total: _tables.length,
-          occupied: occupied,
-        ),
-        const SizedBox(height: 12),
-        if (_tables.isNotEmpty)
-          _StatusChips(
-            counts: {
-              for (final t in TableStatus.values)
-                t: _tables.where((x) => x.status == t).length,
-            },
-            selected: _filter,
-            onSelect: (t) => setState(() => _filter = t),
-          ),
-        if (zones.isEmpty)
-          const SurfaceCard(
-            child: Text(
-              'عرّف الطاولات من إعدادات الفروع عشان الخريطة تشتغل.',
-              style: AppText.caption,
-            ),
-          )
-        else
-          for (final zone in zones) ...[
-            Text(zone, style: AppText.h2),
-            const SizedBox(height: 8),
-            LayoutBuilder(
-              builder: (context, c) => GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: c.maxWidth >= 700 ? 3 : 2,
-                  // Tall enough for the design's card: header block, the
-                  // running-bill strip and the action button stacked. It was
-                  // 148 for the old status-only card and overflowed by 35px
-                  // once the bill strip landed.
-                  mainAxisExtent: 220,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                itemCount: _visibleIn(zone).length,
-                itemBuilder: (context, i) {
-                  final table = _visibleIn(zone)[i];
-                  return _TableCard(
-                    table: table,
-                    onSeat: () => _seat(table),
-                    onBill: () => _bill(table),
-                    onClear: () => _clear(table),
-                  );
-                },
+
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: PieColors.cashierAccent),
+      );
+    }
+
+    final allTables = _tables;
+        final zones = ['الكل', ...{for (final t in allTables) t.zone}];
+
+        final vacantCount = allTables.where((t) => t.status == TableStatus.vacant).length;
+        final occupiedCount = allTables.where((t) => t.status == TableStatus.occupied).length;
+        final billRequestedCount =
+            allTables.where((t) => t.status == TableStatus.billRequested).length;
+
+        var displayedTables = allTables;
+        if (_selectedStatusFilter != null) {
+          displayedTables =
+              displayedTables.where((t) => t.status == _selectedStatusFilter).toList();
+        }
+        if (_selectedZone != 'الكل') {
+          displayedTables = displayedTables.where((t) => t.zone == _selectedZone).toList();
+        }
+
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Column(
+            children: [
+              // Occupancy Summary Bar
+              _buildOccupancySummary(
+                total: allTables.length,
+                vacant: vacantCount,
+                occupied: occupiedCount,
+                billRequested: billRequestedCount,
               ),
-            ),
-          ],
+
+              // Filter Rails (Status Pills + Zone Selector)
+              _buildFilterRail(zones),
+
+              // Table Grid
+              Expanded(
+                child: displayedTables.isEmpty
+                    ? const PieEmptyState(
+                        title: 'مفيش طاولات مطابقة',
+                        description: 'جرب تختار فلتر تاني أو قسماً مختلفاً من الصالة.',
+                        icon: Icons.table_restaurant_outlined,
+                      )
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 320,
+                          mainAxisExtent: 210,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                        ),
+                        itemCount: displayedTables.length,
+                        itemBuilder: (context, index) {
+                          final table = displayedTables[index];
+                          return _buildTableCard(table);
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+  }
+
+  Widget _buildOccupancySummary({
+    required int total,
+    required int vacant,
+    required int occupied,
+    required int billRequested,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: PieColors.surface1,
+        border: Border(bottom: BorderSide(color: PieColors.border, width: 1)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildSummaryItem('إجمالي الطاولات', total, PieColors.ink),
+          _buildSummaryItem('شاغرة', vacant, const Color(0xFF4ADE80)),
+          _buildSummaryItem('مشغولة', occupied, PieColors.cashierAccent),
+          _buildSummaryItem('طلب الحساب', billRequested, const Color(0xFFF87171)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem(String label, int count, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PieNumeral.count(
+          count,
+          style: PieTypography.monoHeading.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+        ),
       ],
     );
   }
-}
 
-/// The design's occupancy strip: the hall name over its table count, with a
-/// real occupancy percentage on the right. The percentage is derived from the
-/// loaded tables, so an empty floor reads 0% rather than a placeholder.
-class _OccupancyBar extends StatelessWidget {
-  const _OccupancyBar({
-    required this.zone,
-    required this.total,
-    required this.occupied,
-  });
-
-  final String zone;
-  final int total;
-  final int occupied;
-
-  @override
-  Widget build(BuildContext context) {
-    final percent = total == 0 ? 0 : (occupied * 100 / total).round();
+  Widget _buildFilterRail(List<String> zones) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLow,
-        border: Border.all(color: AppColors.borderSubtle),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
+        color: PieColors.canvas,
+        border: Border(bottom: BorderSide(color: PieColors.border, width: 1)),
       ),
-      child: Row(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildStatusChip(null, 'الكل'),
+            const SizedBox(width: 6),
+            _buildStatusChip(TableStatus.vacant, 'شاغرة'),
+            const SizedBox(width: 6),
+            _buildStatusChip(TableStatus.occupied, 'مشغولة'),
+            const SizedBox(width: 6),
+            _buildStatusChip(TableStatus.billRequested, 'طلب الحساب'),
+            const SizedBox(width: 16),
+            Container(width: 1, height: 24, color: PieColors.border),
+            const SizedBox(width: 16),
+            Text('المنطقة:', style: PieTypography.caption),
+            const SizedBox(width: 8),
+            for (final zone in zones) ...[
+              ActionChip(
+                label: Text(zone),
+                backgroundColor: _selectedZone == zone ? PieColors.surface3 : PieColors.surface1,
+                side: BorderSide(
+                  color: _selectedZone == zone ? PieColors.cashierAccent : PieColors.border,
+                ),
+                labelStyle: PieTypography.caption.copyWith(
+                  color: _selectedZone == zone ? PieColors.cashierAccent : PieColors.inkSecondary,
+                ),
+                onPressed: () => setState(() => _selectedZone = zone),
+              ),
+              const SizedBox(width: 6),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(TableStatus? status, String label) {
+    final isSelected = _selectedStatusFilter == status;
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      backgroundColor: PieColors.surface1,
+      selectedColor: PieColors.cashierSurface,
+      side: BorderSide(
+        color: isSelected ? PieColors.cashierAccent : PieColors.border,
+      ),
+      labelStyle: PieTypography.caption.copyWith(
+        color: isSelected ? PieColors.cashierAccent : PieColors.inkSecondary,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+      ),
+      onSelected: (_) => setState(() => _selectedStatusFilter = status),
+    );
+  }
+
+  Widget _buildTableCard(DiningTable table) {
+    final elapsedMinutes = table.seatedAt == null
+        ? null
+        : DateTime.now().difference(table.seatedAt!).inMinutes;
+
+    return PieCard(
+      padding: const EdgeInsets.all(14),
+      isActive: table.status == TableStatus.billRequested,
+      activeColor: const Color(0xFFF87171),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceHigh,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            ),
-            child: const Icon(Icons.meeting_room_outlined,
-                size: 18, color: AppColors.brand),
+          // Table Code & State Badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: PieColors.surface2,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: PieColors.border),
+                    ),
+                    child: Text(
+                      table.code,
+                      style: PieTypography.monoHeading.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: PieColors.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    table.zone,
+                    style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                  ),
+                ],
+              ),
+              PieBadge.tableState(table.status),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(zone,
-                    overflow: TextOverflow.ellipsis, style: AppText.bodyStrong),
+
+          // Details: Party Size, Steward, Elapsed
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (table.status != TableStatus.vacant) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'الضيوف: ${table.partySize} أفراد • ${table.steward.isEmpty ? "بدون ويتر" : table.steward}',
+                      style: PieTypography.caption,
+                    ),
+                    if (elapsedMinutes != null)
+                      Text(
+                        'منذ $elapsedMinutes دقيقة',
+                        style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('الحساب الجاري:', style: PieTypography.caption),
+                    PieNumeral.money(
+                      table.runningTotal,
+                      style: PieTypography.monoBody.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: PieColors.cashierAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
                 Text(
-                  total == 0
-                      ? 'مفيش طاولات متعرفة لسه.'
-                      : 'إجمالي $total طاولة • معدل الإشغال $percent%',
-                  style: AppText.caption,
-                  overflow: TextOverflow.ellipsis,
+                  'السعة: ${table.capacity} مقاعد',
+                  style: PieTypography.body.copyWith(color: PieColors.inkMuted),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'جاهزة لاستقبال الطلبات',
+                  style: PieTypography.caption.copyWith(color: const Color(0xFF4ADE80)),
+                ),
+              ],
+            ],
+          ),
+
+          // Per-state action button
+          _buildTableActionButton(table),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableActionButton(DiningTable table) {
+    final services = AppScope.of(context);
+
+    switch (table.status) {
+      case TableStatus.vacant:
+        return PieButton.secondary(
+          onPressed: () => _showOccupyDialog(table),
+          label: 'تسكين الضيوف',
+          icon: Icons.person_add_alt_1_rounded,
+          height: 38,
+        );
+      case TableStatus.occupied:
+        return PieButton.ghost(
+          onPressed: () async {
+            await services.tables?.requestBill(table.id);
+            _loadTables();
+          },
+          label: 'طلب الحساب',
+          icon: Icons.receipt_long_rounded,
+          height: 38,
+        );
+      case TableStatus.billRequested:
+        return PieButton.primary(
+          onPressed: () async {
+            await services.tables?.clearTable(table.id);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  backgroundColor: PieColors.surface2,
+                  content: Text('تم تحصيل الحساب وتفريغ الطاولة'),
+                ),
+              );
+              _loadTables();
+            }
+          },
+          label: 'تحصيل وتفريغ الطاولة',
+          icon: Icons.check_circle_outline_rounded,
+          accentColor: const Color(0xFFF87171),
+          height: 38,
+        );
+    }
+  }
+
+  void _showOccupyDialog(DiningTable table) {
+    final services = AppScope.of(context);
+    final partyController = TextEditingController(text: '2');
+    final stewardController = TextEditingController(text: 'أحمد');
+
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Dialog(
+          backgroundColor: PieColors.surfaceOverlay,
+          child: Container(
+            width: 360,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'تسكين طاولة ${table.code}',
+                  style: PieTypography.heading,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: partyController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'عدد الأفراد'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: stewardController,
+                  decoration: const InputDecoration(labelText: 'اسم الويتر المسؤول'),
+                ),
+                const SizedBox(height: 20),
+                PieButton.primary(
+                  onPressed: () async {
+                    final party = int.tryParse(partyController.text) ?? 2;
+                    final steward = stewardController.text.trim();
+                    await services.tables?.seatTable(
+                      tableId: table.id,
+                      partySize: party,
+                      steward: steward,
+                    );
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      _loadTables();
+                    }
+                  },
+                  label: 'تسكين وفتح الطاولة',
+                  accentColor: PieColors.cashierAccent,
                 ),
               ],
             ),
           ),
-          Text('$percent%',
-              style: AppText.kpiValue.copyWith(fontSize: 16)),
-        ],
-      ),
-    );
-  }
-}
-
-/// The design's status pills, each carrying its own count. Tapping the active
-/// pill clears the filter, so there is always a way back to every table
-/// without hunting for a separate "all" control.
-class _StatusChips extends StatelessWidget {
-  const _StatusChips({
-    required this.counts,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final Map<TableStatus, int> counts;
-  final TableStatus? selected;
-
-  /// Null clears the filter; a status narrows to it.
-  final ValueChanged<TableStatus?> onSelect;
-
-  Color _tone(TableStatus status) => switch (status) {
-        TableStatus.vacant => AppColors.secondary,
-        TableStatus.occupied => AppColors.brand,
-        TableStatus.billRequested => AppColors.tertiary,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final total = counts.values.fold(0, (a, b) => a + b);
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _pill(
-            label: 'الكل',
-            count: total,
-            active: selected == null,
-            tone: AppColors.brand,
-            onTap: () => onSelect(null),
-          ),
-          for (final status in TableStatus.values) ...[
-            const SizedBox(width: 8),
-            _pill(
-              label: status.label,
-              count: counts[status] ?? 0,
-              active: selected == status,
-              tone: _tone(status),
-              onTap: () => onSelect(status),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _pill({
-    required String label,
-    required int count,
-    required bool active,
-    required Color tone,
-    required VoidCallback onTap,
-  }) {
-    final fg = active ? AppColors.onBrand : AppColors.fgMuted;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active ? tone : AppColors.surfaceSunken,
-          border: Border.all(
-              color: active ? tone : AppColors.borderSubtle),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label,
-                style: AppText.label
-                    .copyWith(color: fg, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 6),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: active
-                    ? AppColors.onBrand.withValues(alpha: 0.20)
-                    : AppColors.surfaceCard,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text('$count',
-                  style: AppText.caption.copyWith(
-                      fontSize: 11,
-                      color: fg,
-                      fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TableCard extends StatelessWidget {
-  const _TableCard({
-    required this.table,
-    required this.onSeat,
-    required this.onBill,
-    required this.onClear,
-  });
-
-  final DiningTable table;
-  final VoidCallback onSeat;
-  final VoidCallback onBill;
-  final VoidCallback onClear;
-
-  /// The design colours each state with its own family: mint for a free
-  /// table, amber for one mid-service, periwinkle for one awaiting its bill.
-  Color get _accent => switch (table.status) {
-        TableStatus.vacant => AppColors.secondary,
-        TableStatus.occupied => AppColors.brand,
-        TableStatus.billRequested => AppColors.tertiary,
-      };
-
-  /// How long the party has been seated, in the design's compact "42 د" form.
-  /// Null when the table has no seating timestamp — the badge is then simply
-  /// absent rather than showing a zero that would read as "just seated".
-  String? get _elapsed {
-    final at = table.seatedAt;
-    if (at == null) return null;
-    final minutes = DateTime.now().difference(at).inMinutes;
-    if (minutes < 0) return null;
-    if (minutes < 60) return '$minutes د';
-    return '${minutes ~/ 60} س ${minutes % 60} د';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = _accent;
-    final elapsed = _elapsed;
-    final occupied = table.status != TableStatus.vacant;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLow,
-        border: Border.all(color: AppColors.borderSubtle),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // The design's table-code block: a small square carrying the
-              // word "طاولة" over the code, tinted with the state colour.
-              // 44px was the design's square, but its two Arabic lines do not
-              // fit that height and overflowed by 12. Sized to the text plus
-              // padding instead, so the block is honest at any font size.
-              Container(
-                width: 48,
-                constraints: const BoxConstraints(minHeight: 44),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceHigh,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('طاولة',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.caption.copyWith(
-                            fontSize: 9, height: 1.1, color: AppColors.fgMuted)),
-                    Text(
-                      table.code,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.kpiValue
-                          .copyWith(fontSize: 13, height: 1.15),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: accent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            table.status.label,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.bodyStrong
-                                .copyWith(fontSize: 13, color: accent),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      occupied
-                          ? '${table.partySize} أفراد'
-                              '${table.steward.isEmpty ? '' : ' · ${table.steward}'}'
-                          : 'السعة القصوى: ${table.capacity} أفراد',
-                      style: AppText.caption,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (!occupied && table.zone.isNotEmpty)
-                      Text(table.zone,
-                          style: AppText.caption,
-                          overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-              if (elapsed != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceHigh,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.timer_outlined, size: 13, color: accent),
-                      const SizedBox(width: 4),
-                      Text(elapsed,
-                          style: AppText.caption
-                              .copyWith(color: accent, fontSize: 11)),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const Spacer(),
-          // The design closes each occupied card with the running bill on its
-          // own sunken strip and a full-width action beneath it.
-          if (occupied) ...[
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceCard,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          table.status == TableStatus.billRequested
-                              ? 'المطلوب سداده'
-                              : 'الحساب الجاري',
-                          style: AppText.caption.copyWith(fontSize: 10),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          money(table.runningTotal),
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.kpiValue.copyWith(fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if ((table.currentOrderRef ?? '').isNotEmpty)
-                    Text(table.currentOrderRef!, style: AppText.monoSmall),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          switch (table.status) {
-            TableStatus.vacant => RmsButton(
-                label: 'فتح طلب جديد',
-                icon: Icons.add_circle_outlined,
-                dense: true,
-                onPressed: onSeat,
-              ),
-            TableStatus.occupied => RmsButton(
-                label: 'عرض السلة / الدفع',
-                icon: Icons.shopping_cart_checkout_outlined,
-                dense: true,
-                onPressed: onBill,
-              ),
-            TableStatus.billRequested => RmsButton(
-                label: 'تحصيل كاش / فيزا',
-                icon: Icons.payments_outlined,
-                dense: true,
-                variant: BtnVariant.secondary,
-                onPressed: onClear,
-              ),
-          },
-        ],
-      ),
-    );
-  }
-}
-
-class _SeatInput {
-  _SeatInput({required this.partySize, required this.steward});
-
-  final int partySize;
-  final String steward;
-}
-
-class _SeatSheet extends StatefulWidget {
-  const _SeatSheet({required this.table});
-
-  final DiningTable table;
-
-  @override
-  State<_SeatSheet> createState() => _SeatSheetState();
-}
-
-class _SeatSheetState extends State<_SeatSheet> {
-  int _party = 2;
-  final _steward = TextEditingController();
-
-  @override
-  void dispose() {
-    _steward.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DialogShell(
-      title: 'تسكين ${widget.table.code}',
-      subtitle: 'سعة ${widget.table.capacity} أفراد.',
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                  child: Text('عدد الأفراد', style: AppText.bodyStrong)),
-              _DenomLikeButton(
-                  icon: Icons.remove,
-                  onTap: () =>
-                      setState(() => _party = (_party - 1).clamp(1, 99))),
-              SizedBox(
-                width: 40,
-                child: Text('$_party',
-                    textAlign: TextAlign.center,
-                    style: AppText.h1.copyWith(fontSize: 20)),
-              ),
-              _DenomLikeButton(
-                  icon: Icons.add,
-                  onTap: () =>
-                      setState(() => _party = (_party + 1).clamp(1, 99))),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _steward,
-            decoration: const InputDecoration(
-              labelText: 'المضيف (اختياري)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        RmsButton(
-          label: 'إلغاء',
-          variant: BtnVariant.ghost,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        if (_party > widget.table.capacity)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text('فوق سعة الطاولة — هيتسجّل كده.',
-                style: AppText.caption),
-          ),
-        RmsButton(
-          label: 'سكّن الطاولة',
-          onPressed: () => Navigator.of(context).pop(
-            _SeatInput(
-                partySize: _party, steward: _steward.text.trim()),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DenomLikeButton extends StatelessWidget {
-  const _DenomLikeButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.borderStrong),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Icon(icon, size: 18, color: AppColors.fgSecondary),
       ),
     );
   }
