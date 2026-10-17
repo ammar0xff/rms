@@ -22,6 +22,7 @@ import '../../domain/models/app_role.dart';
 import '../../domain/navigation/delivery_navigation.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import 'trip_phase_rail.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/payment.dart';
 import '../common/format.dart';
@@ -1160,6 +1161,12 @@ class _DriverJobCard extends StatelessWidget {
               onPressed: onCollect,
               dense: false,
             ),
+          // The design's per-stop progress rail, derived from the stop's own
+          // state so it can never claim a phase the repository disagrees with.
+          if (job.state != DeliveryState.returned) ...[
+            const SizedBox(height: 8),
+            TripPhaseRail(state: job.state),
+          ],
           if (advanceLabel != null ||
               (job.state == DeliveryState.delivered && collection == null)) ...[
             const SizedBox(height: 8),

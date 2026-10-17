@@ -14,6 +14,10 @@ node_modules/
 .astro/
 dist/
 
+# Stitch design exports. Pulled by tool/build_web_ui.py from the Stitch API and
+# regenerated on demand — they are source material for the port, not app code.
+.design-export/
+
 # IDE
 .idea/
 .vscode/
