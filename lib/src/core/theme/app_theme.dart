@@ -4,9 +4,10 @@ import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_text.dart';
 
-/// The design ships a dark-only system, so there is no light variant to fall
-/// back to: [dark] is the theme, and [light] is an alias kept so callers that
-/// name the brightness keep working.
+/// The design is dark-only and shadow-free — "Blur filters and diffused drop
+/// shadows are omitted to maintain 60 FPS rendering performance on low-spec
+/// hardware" — so depth here is entirely tonal, and no elevation shadow or
+/// surface tint is ever introduced.
 abstract final class AppTheme {
   static ThemeData light() => dark();
 
@@ -14,26 +15,16 @@ abstract final class AppTheme {
     const scheme = ColorScheme.dark(
       primary: AppColors.brand,
       onPrimary: AppColors.onBrand,
-      primaryContainer: AppColors.brandContainer,
-      onPrimaryContainer: AppColors.onBrandContainer,
-      secondary: AppColors.secondary,
-      onSecondary: AppColors.onSecondary,
-      secondaryContainer: AppColors.secondaryContainer,
-      onSecondaryContainer: AppColors.onSecondaryContainer,
-      tertiary: AppColors.tertiary,
-      onTertiary: AppColors.onTertiary,
-      tertiaryContainer: AppColors.tertiaryContainer,
-      onTertiaryContainer: AppColors.onTertiaryContainer,
-      surface: AppColors.surface,
-      onSurface: AppColors.fg,
-      surfaceContainerHighest: AppColors.surfaceHighest,
-      onSurfaceVariant: AppColors.fgSecondary,
+      surface: AppColors.base,
+      onSurface: AppColors.fgSecondary,
+      surfaceContainerHighest: AppColors.surfaceBright,
+      onSurfaceVariant: AppColors.fgMuted,
       outline: AppColors.outline,
       outlineVariant: AppColors.outlineVariant,
       error: AppColors.negative,
-      onError: AppColors.onNegative,
-      errorContainer: AppColors.negativeContainer,
-      onErrorContainer: AppColors.onNegativeContainer,
+      onError: AppColors.negative,
+      secondary: AppColors.secondary,
+      tertiary: AppColors.tertiary,
     );
 
     return ThemeData(
@@ -42,8 +33,6 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: AppColors.base,
       canvasColor: AppColors.base,
-      // The design animates its own state (active:scale-95) rather than
-      // flashing a system ripple, so the splash is suppressed to match.
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
       dividerColor: AppColors.borderSubtle,
@@ -63,41 +52,41 @@ abstract final class AppTheme {
         backgroundColor: AppColors.base,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         toolbarHeight: AppSpacing.topBarHeight,
         titleTextStyle: AppText.pageTitle,
         iconTheme: IconThemeData(color: AppColors.fgMuted, size: 18),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.surfaceLow,
+        backgroundColor: AppColors.base,
         indicatorColor: Colors.transparent,
         elevation: 0,
-        height: 64,
+        height: AppSpacing.topBarHeight,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? AppText.label.copyWith(color: AppColors.brandContainer)
-              : AppText.label.copyWith(color: AppColors.fgMuted),
+              ? AppText.label.copyWith(color: AppColors.brand)
+              : AppText.label.copyWith(color: AppColors.fgDim),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             size: 20,
             color: states.contains(WidgetState.selected)
-                ? AppColors.brandContainer
-                : AppColors.fgMuted,
+                ? AppColors.brand
+                : AppColors.fgDim,
           ),
         ),
       ),
       iconTheme: const IconThemeData(color: AppColors.fgMuted, size: 18),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(AppColors.fgGhost),
-        radius: const Radius.circular(8),
-        thickness: WidgetStateProperty.all(6),
+        thumbColor: WidgetStateProperty.all(AppColors.outlineVariant),
+        radius: const Radius.circular(4),
+        thickness: WidgetStateProperty.all(4),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: AppColors.inverseSurface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          border: Border.all(color: AppColors.outlineVariant),
         ),
         textStyle: AppText.caption.copyWith(color: AppColors.inverseOnSurface),
       ),

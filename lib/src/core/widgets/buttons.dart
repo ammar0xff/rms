@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text.dart';
 
-enum BtnVariant { primary, secondary, ghost }
+enum BtnVariant { primary, secondary, ghost, destructive }
 
 class RmsButton extends StatelessWidget {
   const RmsButton({
@@ -14,6 +14,7 @@ class RmsButton extends StatelessWidget {
     this.icon,
     this.variant = BtnVariant.secondary,
     this.dense = true,
+    this.accent,
   });
 
   final String label;
@@ -22,26 +23,39 @@ class RmsButton extends StatelessWidget {
   final BtnVariant variant;
   final bool dense;
 
+  /// Overrides the primary fill. The design says a primary button is filled
+  /// with the *role* accent, so a manager's confirm action is emerald rather
+  /// than the app-wide cashier amber.
+  final Color? accent;
+
   @override
   Widget build(BuildContext context) {
-    // The design's own recipe: solid `bg-primary text-on-primary` for the
-    // main action, `bg-surface-container-high text-on-surface` for the quiet
-    // one, and an outlined ghost with no fill.
+    // Components → Buttons & Interactive Controls, verbatim:
+    //   Primary   "Solid fill using role accent, label in dark ink #0A0A0C
+    //              with font-weight 600. Height 40px desktop, 48px touch."
+    //   Secondary "Background #16161A, border 1px solid #1E1E22, text #E4E4E7.
+    //              On hover/active the border transitions to #27272A with
+    //              surface elevation to #1A1A1E."
     final (bg, border, fg) = switch (variant) {
       BtnVariant.primary => (
-          AppColors.brand,
+          accent ?? AppColors.brand,
           Colors.transparent,
           AppColors.onBrand,
         ),
       BtnVariant.secondary => (
-          AppColors.surfaceHigh,
-          Colors.transparent,
-          AppColors.fg,
+          AppColors.surfaceSecondary,
+          AppColors.control,
+          AppColors.fgSecondary,
         ),
       BtnVariant.ghost => (
           Colors.transparent,
           AppColors.control,
           AppColors.fgMuted,
+        ),
+      BtnVariant.destructive => (
+          AppColors.negativeContainer,
+          AppColors.destructive,
+          AppColors.negative,
         ),
     };
 
@@ -54,8 +68,8 @@ class RmsButton extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           hoverColor: variant == BtnVariant.primary
-              ? AppColors.brandHover
-              : AppColors.hover,
+              ? (accent ?? AppColors.brand).withValues(alpha: 0.88)
+              : AppColors.surfaceBright,
           child: Container(
             // 40/48px: the minimum comfortable touch targets. dense is for
             // toolbars and table rows; anything a thumb aims at uses normal.
@@ -78,8 +92,10 @@ class RmsButton extends StatelessWidget {
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.bodyStrong.copyWith(
+                    style: AppText.body.copyWith(
                       color: fg,
+                      // "label in dark ink with font-weight 600"
+                      fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
                   ),

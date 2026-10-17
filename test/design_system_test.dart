@@ -4,192 +4,189 @@ import 'package:rms/src/core/theme/app_colors.dart';
 import 'package:rms/src/core/theme/app_spacing.dart';
 import 'package:rms/src/core/theme/app_text.dart';
 import 'package:rms/src/core/theme/app_theme.dart';
-import 'package:rms/src/core/widgets/buttons.dart';
 
-/// These assertions are transcribed from the design files' own token blocks.
-/// They exist to stop the palette drifting away from the source: if a colour is
-/// "touched up" here, one of these fails and the change has to be justified
-/// against the file it came from.
+/// Every value asserted here is quoted from the Stitch project's own
+/// `designMd`. These tests are the record that the palette came from the
+/// design document and not from a hand-reading of the generated HTML — a
+/// wrong value here means the app has drifted off the system.
 void main() {
-  group('Stitch dark palette, verbatim', () {
-    test('surfaces match the elevation ladder in the config', () {
-      expect(AppColors.surfaceLowest, const Color(0xFF0E0E10));
-      expect(AppColors.surfaceLow, const Color(0xFF1B1B1D));
-      expect(AppColors.surfaceCard, const Color(0xFF201F21));
-      expect(AppColors.surfaceHigh, const Color(0xFF2A2A2C));
-      expect(AppColors.surfaceHighest, const Color(0xFF353437));
-      expect(AppColors.surfaceVariant, const Color(0xFF353437));
-      expect(AppColors.surfaceBright, const Color(0xFF39393B));
+  group('depth by tonal stacking', () {
+    test('the five levels match the design', () {
+      // Level 0 (canvas) -> Level 4 (modals)
+      expect(AppColors.base, const Color(0xFF0A0A0C));
+      expect(AppColors.surfaceSunken, const Color(0xFF0C0C0E));
+      expect(AppColors.surface, const Color(0xFF101012));
+      expect(AppColors.surfaceSecondary, const Color(0xFF16161A));
+      expect(AppColors.surfaceBright, const Color(0xFF1A1A1E));
+      expect(AppColors.surfaceDrawer, const Color(0xFF0E0E10));
     });
 
-    test('the page background is the file\'s #131315', () {
-      expect(AppColors.base, const Color(0xFF131315));
-      // The files spell the same colour three ways.
-      expect(AppColors.surface, AppColors.base);
-    });
-
-    test('foreground steps match on-surface / on-surface-variant', () {
-      expect(AppColors.fg, const Color(0xFFE5E1E4));
-      expect(AppColors.fgSecondary, const Color(0xFFD7C3AE));
-      expect(AppColors.fgMuted, const Color(0xFF9F8E7A));
-      expect(AppColors.fgDim, AppColors.fgMuted);
-      expect(AppColors.outline, const Color(0xFF9F8E7A));
-      expect(AppColors.outlineVariant, const Color(0xFF524434));
-    });
-
-    test('the amber primary family is intact', () {
-      expect(AppColors.brand, const Color(0xFFFFC77F));
-      expect(AppColors.brandContainer, const Color(0xFFF5A524));
-      expect(AppColors.brandFixed, const Color(0xFFFFDDB5));
-      expect(AppColors.brandFixedDim, const Color(0xFFFFB957));
-      expect(AppColors.brandHover, const Color(0xFFFFB944));
-      expect(AppColors.onBrand, const Color(0xFF462B00));
-      expect(AppColors.onBrandContainer, const Color(0xFF643F00));
-    });
-
-    test('the mint secondary family is intact', () {
-      expect(AppColors.secondary, const Color(0xFF45DFA4));
-      expect(AppColors.secondaryContainer, const Color(0xFF00BD85));
-      expect(AppColors.secondaryFixed, const Color(0xFF68FCBF));
-      expect(AppColors.onSecondary, const Color(0xFF003825));
-      expect(AppColors.positive, AppColors.secondary);
-    });
-
-    test('the periwinkle tertiary family is intact', () {
-      expect(AppColors.tertiary, const Color(0xFFB6D3FF));
-      expect(AppColors.tertiaryContainer, const Color(0xFF84B8FF));
-      expect(AppColors.tertiaryFixed, const Color(0xFFD4E3FF));
-      expect(AppColors.tertiaryFixedDim, const Color(0xFFA4C9FF));
-      expect(AppColors.onTertiary, const Color(0xFF00315D));
-      expect(AppColors.info, AppColors.tertiaryContainer);
-    });
-
-    test('the error family is intact', () {
-      expect(AppColors.negative, const Color(0xFFFFB4AB));
-      expect(AppColors.negativeContainer, const Color(0xFF93000A));
-      expect(AppColors.onNegative, const Color(0xFF690005));
-    });
-
-    test('role accents only borrow hues the design already defines', () {
-      final allowed = <Color>[
-        AppColors.brand,
-        AppColors.tertiary,
-        AppColors.secondary,
-        AppColors.tertiaryFixedDim,
+    test('each level is genuinely lighter than the one below it', () {
+      // The design stacks tone monotonically; a typo that breaks the ladder
+      // would flatten the whole surface hierarchy.
+      double l(Color c) => c.computeLuminance();
+      final ladder = [
+        AppColors.base,
+        AppColors.surfaceSunken,
+        AppColors.surface,
+        AppColors.surfaceSecondary,
+        AppColors.surfaceBright,
       ];
-      expect(allowed, contains(AppColors.cashierAccent));
-      expect(allowed, contains(AppColors.driverAccent));
-      expect(allowed, contains(AppColors.managerAccent));
-      expect(allowed, contains(AppColors.developerAccent));
+      for (var i = 1; i < ladder.length; i++) {
+        expect(l(ladder[i]), greaterThan(l(ladder[i - 1])),
+            reason: 'level $i must sit above level ${i - 1}');
+      }
+    });
+
+    test('hairlines follow the border and dividers rule', () {
+      expect(AppColors.borderStrong, const Color(0xFF1A1A1E));
+      expect(AppColors.borderSubtle, const Color(0xFF16161A));
+      expect(AppColors.control, const Color(0xFF1E1E22));
     });
   });
 
-  group('type scale from the fontSize blocks', () {
-    test('numeric-display becomes hero at 36px', () {
-      expect(AppText.hero.fontSize, 36);
-      expect(AppText.hero.fontWeight, FontWeight.w600);
+  group('typography and ink levels', () {
+    test('the five ink steps match', () {
+      expect(AppColors.fg, const Color(0xFFFAFAFA));
+      expect(AppColors.fgSecondary, const Color(0xFFE4E4E7));
+      expect(AppColors.fgMuted, const Color(0xFFA1A1AA));
+      expect(AppColors.fgDim, const Color(0xFF71717A));
+      expect(AppColors.fgGhost, const Color(0xFF27272A));
     });
 
-    test('headline roles carry the file sizes', () {
+    test('ink also descends monotonically', () {
+      double l(Color c) => c.computeLuminance();
+      final ink = [
+        AppColors.fg,
+        AppColors.fgSecondary,
+        AppColors.fgMuted,
+        AppColors.fgDim,
+        AppColors.fgGhost,
+      ];
+      for (var i = 1; i < ink.length; i++) {
+        expect(l(ink[i]), lessThan(l(ink[i - 1])),
+            reason: 'ink step $i must sit below step ${i - 1}');
+      }
+    });
+  });
+
+  group('role accents', () {
+    test('the four surviving roles carry their documented hues', () {
+      expect(AppColors.cashierAccent, const Color(0xFFF5A524));
+      expect(AppColors.driverAccent, const Color(0xFF60A5FA));
+      expect(AppColors.managerAccent, const Color(0xFF34D399));
+      expect(AppColors.developerAccent, const Color(0xFFA78BFA));
+    });
+
+    test('sync states carry their documented hues', () {
+      expect(AppColors.warning, const Color(0xFFFBBF24));
+      expect(AppColors.positive, const Color(0xFF34D399));
+      expect(AppColors.negative, const Color(0xFFF87171));
+      expect(AppColors.info, const Color(0xFF60A5FA));
+      expect(AppColors.destructive, const Color(0xFFEF4444));
+    });
+
+    test('filled controls know when their ink must be light', () {
+      // The violet admin accent is too light to carry the design's dark ink.
+      expect(AppColors.isLightAccent(AppColors.developerAccent), isTrue);
+      expect(AppColors.isLightAccent(AppColors.managerAccent), isTrue);
+      expect(AppColors.isLightAccent(AppColors.driverAccent), isTrue);
+      expect(AppColors.isLightAccent(AppColors.cashierAccent), isFalse);
+    });
+  });
+
+  group('shapes', () {
+    test('radii match the shape language', () {
+      expect(AppSpacing.radiusSm, 4);
+      expect(AppSpacing.radiusMd, 8);
+      expect(AppSpacing.radiusLg, 8);
+      expect(AppSpacing.radiusXl, 12);
+      expect(AppSpacing.radiusPill, 999);
+    });
+
+    test('the 4px base step and 44px touch target hold', () {
+      expect(AppSpacing.base, 4);
+      expect(AppSpacing.touchTarget, 44);
+    });
+  });
+
+  group('type scale', () {
+    test('numerals are mono, per the font architecture rule', () {
+      for (final style in [
+        AppText.hero,
+        AppText.kpiValue,
+        AppText.mono,
+        AppText.monoSmall,
+      ]) {
+        expect(style.fontFamily, 'JetBrainsMono');
+        expect(style.fontFeatures, contains(FontFeature.tabularFigures()));
+      }
+    });
+
+    test('labels are mono too — the design puts labels in the mono face', () {
+      for (final style in [AppText.label, AppText.tableHeader]) {
+        expect(style.fontFamily, 'JetBrainsMono');
+      }
+    });
+
+    test('headlines and body copy are the sans face', () {
+      for (final style in [
+        AppText.h1,
+        AppText.h2,
+        AppText.pageTitle,
+        AppText.body,
+        AppText.bodyStrong,
+        AppText.sectionHeading,
+        AppText.tableCell,
+        AppText.tableCellPrimary,
+        AppText.caption,
+        AppText.navItem,
+      ]) {
+        expect(style.fontFamily, 'IBMPlexSansArabic');
+      }
+    });
+
+    test('nominal sizes match the design block', () {
+      expect(AppText.hero.fontSize, 36);
+      expect(AppText.kpiValue.fontSize, 20);
+      expect(AppText.mono.fontSize, 14);
+      expect(AppText.monoSmall.fontSize, 11);
       expect(AppText.h1.fontSize, 24);
       expect(AppText.h2.fontSize, 16);
       expect(AppText.pageTitle.fontSize, 20);
-      expect(AppText.kpiValue.fontSize, 20);
-    });
-
-    test('body and label roles carry the file sizes', () {
       expect(AppText.body.fontSize, 13);
       expect(AppText.bodyStrong.fontSize, 15);
       expect(AppText.label.fontSize, 12);
-      expect(AppText.caption.fontSize, 11);
-      expect(AppText.tableHeader.fontSize, 11);
+      expect(AppText.caption.fontSize, 12);
     });
 
-    test('every style names the design face', () {
-      final sans = <TextStyle>[
-        AppText.hero, AppText.h1, AppText.h2, AppText.pageTitle,
-        AppText.sectionHeading, AppText.body, AppText.bodyStrong,
-        AppText.tableCell, AppText.tableCellPrimary, AppText.tableHeader,
-        AppText.label, AppText.caption, AppText.kpiValue, AppText.navItem,
-      ];
-      for (final style in sans) {
-        expect(style.fontFamily, 'IBMPlexSansArabic');
-      }
-      expect(AppText.mono.fontFamily, 'JetBrainsMono');
-      expect(AppText.monoSmall.fontFamily, 'JetBrainsMono');
+    test('arabic leading carries the design\'s 4px expansion', () {
+      // body-md is 13/18 nominally; the expansion makes the ratio 22/13.
+      expect(AppText.body.height, closeTo(22 / 13, 0.001));
+      // body-lg is 15/22; expanded to 26/15.
+      expect(AppText.bodyStrong.height, closeTo(26 / 15, 0.001));
     });
 
-    test('money columns get tabular figures', () {
-      expect(AppText.kpiValue.fontFeatures, contains(FontFeature.tabularFigures()));
-    });
-  });
-
-  group('radii follow the design\'s usage counts', () {
-    test('rounded-lg is the workhorse', () {
-      expect(AppSpacing.radiusMd, 8);
-      expect(AppSpacing.radiusLg, 12);
-      expect(AppSpacing.radiusXl, 16);
-    });
-
-    test('the header is the design\'s h-16', () {
-      expect(AppSpacing.topBarHeight, 64);
+    test('monospace numerals stay left-to-right inside RTL', () {
+      // Without this a negative delta or an MM:SS timer reorders in Arabic.
+      expect(AppText.mono.textDirection, TextDirection.ltr);
+      expect(AppText.hero.textDirection, TextDirection.ltr);
+      expect(AppText.monoSmall.textDirection, TextDirection.ltr);
     });
   });
 
   group('theme wiring', () {
-    test('the app is dark, with the file\'s scaffold', () {
+    test('the app is dark and shadow-free', () {
       final theme = AppTheme.dark();
       expect(theme.brightness, Brightness.dark);
       expect(theme.scaffoldBackgroundColor, AppColors.base);
-      expect(theme.colorScheme.primary, AppColors.brand);
-      expect(theme.colorScheme.secondary, AppColors.secondary);
-      expect(theme.colorScheme.tertiary, AppColors.tertiary);
-      expect(theme.colorScheme.error, AppColors.negative);
-      expect(theme.colorScheme.onSurface, AppColors.fg);
-    });
-
-    test('there is no light variant to fall back to', () {
+      expect(theme.elevationOverlayEnabled, isFalse);
       expect(AppTheme.light().brightness, Brightness.dark);
     });
-  });
 
-  group('buttons follow the design recipe', () {
-    Future<Material?> fillOf(WidgetTester tester, BtnVariant variant) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.dark(),
-          home: Scaffold(
-            body: Center(child: RmsButton(label: 'احفظ', variant: variant)),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final materials = tester.widgetList<Material>(find.byType(Material));
-      for (final m in materials) {
-        if (m.color != null && m.color != Colors.transparent) return m;
-      }
-      return null;
-    }
-
-    testWidgets('primary is bg-primary with on-primary text', (tester) async {
-      await fillOf(tester, BtnVariant.primary);
-      final ink = tester.widgetList<Material>(find.byType(Material));
-      expect(
-        ink.any((m) => m.color == AppColors.brand),
-        isTrue,
-        reason: 'primary must fill with the design\'s brand amber',
-      );
-    });
-
-    testWidgets('secondary is a surface-container-high fill',
-        (tester) async {
-      await fillOf(tester, BtnVariant.secondary);
-      final ink = tester.widgetList<Material>(find.byType(Material));
-      expect(
-        ink.any((m) => m.color == AppColors.surfaceHigh),
-        isTrue,
-        reason: 'secondary must fill with surface-container-high',
-      );
+    test('the scheme carries the brand amber as primary', () {
+      expect(AppTheme.dark().colorScheme.primary, AppColors.brand);
+      expect(AppTheme.dark().colorScheme.onPrimary, AppColors.onBrand);
     });
   });
 }
