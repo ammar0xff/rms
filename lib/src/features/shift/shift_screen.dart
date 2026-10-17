@@ -110,6 +110,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
         children: [
           RoleHero(
             role: AppRole.cashier,
+            icon: Icons.schedule,
             kicker: 'شيفت النهاردة',
             title: !_hasStore
                 ? 'مفيش مخزن متاح'
@@ -118,7 +119,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
                 ? '${money(_stats.unsynced)} لسه ما اتزامنش'
                 : 'كل المبيعات على الجهاز',
             value: money(_stats.sales),
-            valueLabel: 'مبيعات النهاردة',
+            valueLabel: 'ج.م مبيعات النهاردة',
             action: RmsButton(
               label: 'بيع جديد',
               icon: Icons.point_of_sale,

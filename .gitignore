@@ -5,6 +5,12 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 
+# Node / Astro. The web/ tree is worked on locally but never committed whole:
+# its node_modules is ~235MB across ~12.5k files, which the remote rejects.
+node_modules/
+.astro/
+dist/
+
 # IDE
 .idea/
 .vscode/

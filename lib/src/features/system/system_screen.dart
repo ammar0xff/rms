@@ -103,6 +103,8 @@ class _SystemScreenState extends State<SystemScreen> {
             animation: monitor,
             builder: (context, _) => RoleHero(
               role: AppRole.developer,
+              icon: Icons.memory,
+              live: monitor.online,
               kicker: 'حالة النظام',
               title:
                   monitor.online ? 'متصل وشغال' : 'شغال من غير نت',

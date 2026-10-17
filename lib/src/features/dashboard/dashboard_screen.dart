@@ -110,13 +110,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         RoleHero(
           role: AppRole.manager,
-          kicker: 'القيادة · نظرة النهاردة',
+          kicker: 'صافي مبيعات اليوم الحية',
+          icon: Icons.query_stats,
+          live: !useMock && monitor.online,
           title: useMock ? 'بيانات تجريبية' : 'مبيعات اليوم',
           subtitle: useMock
               ? 'مقارنة بمتوسط 14 يومًا'
               : 'على الجهاز ده · ${metrics.todayOrders} أوردر',
           value: useMock ? '8,412.50' : money(metrics.todayTotal).replaceAll(' ج.م', ''),
-          valueLabel: 'صافي المبيعات · جنيه',
+          valueLabel: 'ج.م',
         ),
         GridRow(children: [
           KpiCard(

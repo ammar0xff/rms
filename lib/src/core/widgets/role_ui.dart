@@ -21,6 +21,11 @@ Color roleAccent(AppRole role) => switch (role) {
 
 /// The top of a role home: who/where you are, the one number that matters,
 /// and the one action you'll take next.
+/// The role home banner, built to the design's recipe: a 16px-rounded card
+/// filled with the same top-to-bottom gradient the files use
+/// (`from-[#1c2229] to-[#14171e]`), an accent-tinted border, a soft black
+/// shadow, the label beside a tinted icon chip, and the live pill on the far
+/// side of the same row.
 class RoleHero extends StatelessWidget {
   const RoleHero({
     super.key,
@@ -31,6 +36,8 @@ class RoleHero extends StatelessWidget {
     this.value,
     this.valueLabel,
     this.action,
+    this.live = false,
+    this.icon,
   });
 
   final AppRole role;
@@ -40,6 +47,8 @@ class RoleHero extends StatelessWidget {
   final String? value;
   final String? valueLabel;
   final Widget? action;
+  final bool live;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -47,14 +56,61 @@ class RoleHero extends StatelessWidget {
     final identity = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          kicker,
-          style: AppText.label.copyWith(
-            color: accent,
-            fontWeight: FontWeight.w700,
-          ),
+        Row(
+          children: [
+            if (icon != null) ...[
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.10),
+                  border: Border.all(color: accent.withValues(alpha: 0.20)),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: Icon(icon, size: 16, color: accent),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: Text(
+                kicker,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.label.copyWith(
+                  color: AppColors.fgSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (live) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.10),
+                  border: Border.all(color: accent.withValues(alpha: 0.30)),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration:
+                          BoxDecoration(color: accent, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('تحديث لحظي',
+                        style: AppText.caption.copyWith(color: accent)),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 12),
         Text(title, style: AppText.h1),
         if (subtitle != null) ...[
           const SizedBox(height: 4),
@@ -65,49 +121,61 @@ class RoleHero extends StatelessWidget {
     final figure = value == null
         ? null
         : Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // The design sets the figure in mono, tightly tracked.
               Text(
                 value!,
-                style: AppText.hero.copyWith(
-                  fontSize: 32,
+                style: AppText.mono.copyWith(
+                  fontSize: 30,
+                  height: 36 / 30,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.03 * 30,
                   color: AppColors.fg,
                 ),
               ),
-              if (valueLabel != null) Text(valueLabel!, style: AppText.caption),
+              if (valueLabel != null) ...[
+                const SizedBox(height: 2),
+                Text(valueLabel!, style: AppText.bodyStrong.copyWith(
+                  color: accent,
+                )),
+              ],
             ],
           );
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            accent.withValues(alpha: 0.14),
-            accent.withValues(alpha: 0.03),
-          ],
+        // The files' own gradient stops, not an accent wash: the banner reads
+        // as a lit panel rather than a tinted card.
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1C2229), Color(0xFF14171E)],
         ),
-        color: AppColors.surface,
-        border: Border.all(color: accent.withValues(alpha: 0.25)),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg + 7),
+        border: Border.all(color: accent.withValues(alpha: 0.30)),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.55),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           LayoutBuilder(
             builder: (context, c) {
-              // The big figure needs ~150px; below 560px it sits under the
-              // title instead of squeezing it into overflow.
-              if (figure == null || c.maxWidth >= 560) {
+              // Side by side only when the figure gets real room; otherwise
+              // the design's own stacking keeps the numbers from wrapping.
+              if (figure != null && c.maxWidth >= 420) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: identity),
-                    if (figure != null) ...[
-                      const SizedBox(width: 12),
-                      Flexible(child: figure),
-                    ],
+                    const SizedBox(width: 12),
+                    Flexible(child: figure),
                   ],
                 );
               }
@@ -115,8 +183,10 @@ class RoleHero extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   identity,
-                  const SizedBox(height: 12),
-                  figure,
+                  if (figure != null) ...[
+                    const SizedBox(height: 12),
+                    figure,
+                  ],
                 ],
               );
             },
@@ -130,6 +200,7 @@ class RoleHero extends StatelessWidget {
     );
   }
 }
+
 
 /// One KPI: label on top, big tabular number, optional delta chip.
 class KpiCard extends StatelessWidget {

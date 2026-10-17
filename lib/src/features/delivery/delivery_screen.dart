@@ -962,13 +962,15 @@ class _NextStopHero extends StatelessWidget {
     };
     return RoleHero(
       role: AppRole.driver,
+      icon: Icons.delivery_dining_outlined,
+      live: true,
       kicker: position.isEmpty
           ? 'المحطة الجاية · ${job.state.label}'
           : '$position · ${job.state.label}',
       title: job.address,
       subtitle: '${job.orderRef} · ${job.driver}',
       value: money(job.amount),
-      valueLabel: 'التحصيل عند التسليم',
+      valueLabel: 'ج.م للتحصيل',
       action: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

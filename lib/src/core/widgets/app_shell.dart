@@ -329,6 +329,24 @@ class _AppShellState extends State<AppShell> {
   AppUser? _user;
   AppRole? _role;
 
+  /// The header's second line. The branch is fetched by the screen that owns
+  /// it; until then the page title stands in, so the line is never blank.
+  String? _branchName;
+
+  /// The operator's initials, as the design's avatar carries them. Taken from
+  /// the display name's first two words; absent a name, no avatar is drawn
+  /// rather than a placeholder letter.
+  String? get _initials {
+    final name = _user?.displayName.trim();
+    if (name == null || name.isEmpty) return null;
+    final parts = name.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return null;
+    // Arabic names sit in the BMP, so a single code unit is one letter and
+    // no grapheme splitter is needed here.
+    if (parts.length == 1) return parts.first.substring(0, 1);
+    return '${parts.first[0]}${parts[1][0]}';
+  }
+
 
   /// Bottom-bar index: the role's tabs, or المزيد for everything else —
   /// including the menu grid itself.
@@ -447,8 +465,12 @@ class _AppShellState extends State<AppShell> {
                           Expanded(
                             child: Column(
                               children: [
-                                _TopBar(title: title),
-                                const Divider(height: 1, color: AppColors.borderStrong),
+                                _TopBar(
+                                  title: title,
+                                  role: _role,
+                                  branch: _branchName,
+                                  initials: _initials,
+                                ),
                                 Expanded(child: stacked),
                               ],
                             ),
@@ -457,8 +479,12 @@ class _AppShellState extends State<AppShell> {
                       )
                     : Column(
                         children: [
-                          _TopBar(title: title),
-                          const Divider(height: 1, color: AppColors.borderStrong),
+                          _TopBar(
+                            title: title,
+                            role: _role,
+                            branch: _branchName,
+                            initials: _initials,
+                          ),
                           Expanded(child: stacked),
                         ],
                       ),
@@ -861,34 +887,126 @@ class _UserRow extends StatelessWidget {
   }
 }
 
+/// The header, built to the design's structure rather than Material's
+/// AppBar: a 64px band holding a live dot plus the role pill on the first
+/// line, the branch name and its verified glyph on the second, then the
+/// connection pill and the operator's initials.
+///
+/// The search and notifications buttons the design shows are deliberately not
+/// ported — they carry no handler here, and a control that does nothing is
+/// worse than its absence. Per-screen search lives in ListToolbar, where it
+/// filters something real.
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title});
+  const _TopBar({required this.title, this.role, this.branch, this.initials});
 
   final String title;
+  final AppRole? role;
+  final String? branch;
+  final String? initials;
 
   @override
   Widget build(BuildContext context) {
-    // Title plus live sync state on every screen, both widths. The old
-    // search and notifications buttons had no handlers and the branch pill
-    // was a hardcoded label with a dead dropdown arrow — all three violated
-    // the no-dead-controls rule, so all three are gone. Per-screen search
-    // lives in ListToolbar, where it filters something real.
-    return SizedBox(
+    final accent = role == null ? AppColors.brand : roleAccent(role!);
+    return Container(
       height: AppSpacing.topBarHeight,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Flexible(
-              child: Text(title,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.pageTitle),
-            ),
-            const Spacer(),
-            const SyncChip(),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: AppColors.surfaceLowest,
+        border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
       ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _LiveDot(color: accent),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.15),
+                          border: Border.all(
+                              color: accent.withValues(alpha: 0.30)),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusPill),
+                        ),
+                        child: Text(
+                          role?.label ?? title,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.caption.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        branch ?? title,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.bodyStrong.copyWith(fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.verified, size: 16, color: accent),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const SyncChip(),
+          if (initials != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceHigh,
+                border: Border.all(color: AppColors.surfaceHighest),
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                initials!,
+                style: AppText.caption.copyWith(
+                  color: AppColors.fg,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The design's pulsing presence dot. Static here: an animation per header
+/// would keep a ticker alive on every screen, and the sync chip already
+/// carries the live state.
+class _LiveDot extends StatelessWidget {
+  const _LiveDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }
