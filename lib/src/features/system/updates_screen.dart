@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_version.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_typography.dart';
@@ -26,7 +27,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   String _installStatusText = '';
 
   // Local device version & status
-  final String _currentVersion = '1.2.0';
+  final String _currentVersion = AppVersion.number;
   UpdateManifest? _availableRelease;
   int _unsyncedOutboxCount = 0;
   bool _acknowledgedRisk = false;

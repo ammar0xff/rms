@@ -92,7 +92,11 @@ class _ZReportScreenState extends State<ZReportScreen> {
             content: Text('تم تقفيل الوردية وتسجيل تقرير Z بنجاح'),
           ),
         );
-        Navigator.of(context).pop();
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        } else {
+          setState(() {});
+        }
       }
     }
   }
