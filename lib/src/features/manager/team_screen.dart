@@ -1,10 +1,14 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
+import '../../data/repositories/firebase_auth_repository.dart';
 import '../../domain/models/app_role.dart';
 import '../../domain/models/app_user.dart';
 import '../../domain/models/permissions.dart';
@@ -88,6 +92,78 @@ class _TeamScreenState extends State<TeamScreen> {
 
   AppRole? _selectedRoleFilter;
   _TeamMember? _selectedMember;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _usersSub;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _listenToLiveUsers();
+  }
+
+  void _listenToLiveUsers() {
+    final services = AppScope.of(context);
+    if (!services.firebaseReady) return;
+
+    _usersSub?.cancel();
+    _usersSub = FirebaseFirestore.instance.collection('users').snapshots().listen(
+      (snapshot) {
+        if (!mounted || snapshot.docs.isEmpty) return;
+        final List<_TeamMember> live = [];
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final email = (data['email'] as String? ?? '').trim();
+          final roleStr = data['role'] as String?;
+          final role = AppRole.tryParse(roleStr) ?? inferRoleFromEmail(email);
+          final displayName = (data['displayName'] as String? ?? '').trim();
+          final name = displayName.isNotEmpty
+              ? displayName
+              : (email.isNotEmpty ? email.split('@').first : 'موظف');
+          final rawPerms = (data['permissions'] as List?)?.cast<String>() ?? [];
+          final perms = rawPerms.isNotEmpty
+              ? rawPerms.toSet()
+              : (role == AppRole.manager || role == AppRole.developer
+                  ? Set.of(Permissions.all)
+                  : <String>{Permissions.orderVoid, Permissions.paymentReprint});
+
+          live.add(
+            _TeamMember(
+              user: AppUser(
+                uid: doc.id,
+                displayName: name,
+                email: email,
+                role: role,
+              ),
+              shiftActive: true,
+              shiftOpenedAt: (data['updatedAt'] is Timestamp)
+                  ? (data['updatedAt'] as Timestamp).toDate()
+                  : null,
+              permissions: perms,
+            ),
+          );
+        }
+
+        if (live.isNotEmpty) {
+          setState(() {
+            _members.clear();
+            _members.addAll(live);
+            if (_selectedMember != null) {
+              _selectedMember = _members.firstWhere(
+                (m) => m.user.uid == _selectedMember!.user.uid,
+                orElse: () => _members.first,
+              );
+            }
+          });
+        }
+      },
+      onError: (_) {},
+    );
+  }
+
+  @override
+  void dispose() {
+    _usersSub?.cancel();
+    super.dispose();
+  }
 
   List<_TeamMember> get _filteredMembers {
     if (_selectedRoleFilter == null) return _members;
@@ -95,14 +171,25 @@ class _TeamScreenState extends State<TeamScreen> {
   }
 
   void _openPermissionsDialog(_TeamMember member) {
+    final services = AppScope.of(context);
     showDialog<void>(
       context: context,
       builder: (ctx) => _PermissionMatrixDialog(
         member: member,
-        onPermissionsChanged: (newPerms) {
+        onMemberUpdated: (newRole, newPerms) async {
           setState(() {
             member.permissions = newPerms;
+            member.user = member.user.copyWith(role: newRole);
           });
+          if (services.firebaseReady) {
+            try {
+              await FirebaseFirestore.instance.collection('users').doc(member.user.uid).set({
+                'role': newRole.name,
+                'permissions': newPerms.toList(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+            } catch (_) {}
+          }
         },
       ),
     );
@@ -481,7 +568,7 @@ class _TeamMember {
     required this.permissions,
   });
 
-  final AppUser user;
+  AppUser user;
   final bool shiftActive;
   final DateTime? shiftOpenedAt;
   Set<String> permissions;
@@ -490,11 +577,11 @@ class _TeamMember {
 class _PermissionMatrixDialog extends StatefulWidget {
   const _PermissionMatrixDialog({
     required this.member,
-    required this.onPermissionsChanged,
+    required this.onMemberUpdated,
   });
 
   final _TeamMember member;
-  final ValueChanged<Set<String>> onPermissionsChanged;
+  final void Function(AppRole role, Set<String> perms) onMemberUpdated;
 
   @override
   State<_PermissionMatrixDialog> createState() => _PermissionMatrixDialogState();
@@ -502,11 +589,13 @@ class _PermissionMatrixDialog extends StatefulWidget {
 
 class _PermissionMatrixDialogState extends State<_PermissionMatrixDialog> {
   late Set<String> _perms;
+  late AppRole _role;
 
   @override
   void initState() {
     super.initState();
     _perms = Set.of(widget.member.permissions);
+    _role = widget.member.user.role;
   }
 
   @override
@@ -516,39 +605,67 @@ class _PermissionMatrixDialogState extends State<_PermissionMatrixDialog> {
       child: AlertDialog(
         backgroundColor: PieColors.surface2,
         title: Text(
-          'تعديل صلاحيات ${widget.member.user.displayName}',
+          'تعديل دور وصلاحيات ${widget.member.user.displayName}',
           style: PieTypography.h3.copyWith(color: PieColors.textPrimary),
         ),
         content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...Permissions.all.map((key) {
-                final has = _perms.contains(key);
-                return CheckboxListTile(
-                  title: Text(
-                    Permissions.labels[key] ?? key,
-                    style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('الدور الوظيفي للموظف:', style: PieTypography.label),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<AppRole>(
+                  value: _role,
+                  dropdownColor: PieColors.surface3,
+                  style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                  decoration: const InputDecoration(
+                    filled: true,
+                    fillColor: PieColors.well,
+                    border: OutlineInputBorder(),
                   ),
-                  subtitle: Text(
-                    key,
-                    style: PieTypography.caption.copyWith(color: PieColors.textMuted),
-                  ),
-                  value: has,
-                  activeColor: PieColors.roleManager,
+                  items: const [
+                    DropdownMenuItem(value: AppRole.cashier, child: Text('كاشير (Cashier)')),
+                    DropdownMenuItem(value: AppRole.driver, child: Text('كابتن توصيل (Driver)')),
+                    DropdownMenuItem(value: AppRole.manager, child: Text('مدير فرع (Manager)')),
+                    DropdownMenuItem(value: AppRole.developer, child: Text('مسؤول نظام (Developer)')),
+                  ],
                   onChanged: (val) {
-                    setState(() {
-                      if (val == true) {
-                        _perms.add(key);
-                      } else {
-                        _perms.remove(key);
-                      }
-                    });
+                    if (val != null) setState(() => _role = val);
                   },
-                );
-              }),
-            ],
+                ),
+                const SizedBox(height: 16),
+                Text('مصفوفة الصلاحيات الخاصة:', style: PieTypography.label),
+                const SizedBox(height: 8),
+                ...Permissions.all.map((key) {
+                  final has = _perms.contains(key);
+                  return CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      Permissions.labels[key] ?? key,
+                      style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                    ),
+                    subtitle: Text(
+                      key,
+                      style: PieTypography.caption.copyWith(color: PieColors.textMuted),
+                    ),
+                    value: has,
+                    activeColor: PieColors.roleManager,
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          _perms.add(key);
+                        } else {
+                          _perms.remove(key);
+                        }
+                      });
+                    },
+                  );
+                }),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -557,10 +674,10 @@ class _PermissionMatrixDialogState extends State<_PermissionMatrixDialog> {
             child: const Text('إلغاء', style: TextStyle(color: PieColors.textMuted)),
           ),
           PieButton(
-            label: 'حفظ الصلاحيات',
+            label: 'حفظ التعديلات',
             role: AppRole.manager,
             onPressed: () {
-              widget.onPermissionsChanged(_perms);
+              widget.onMemberUpdated(_role, _perms);
               Navigator.pop(context);
             },
           ),

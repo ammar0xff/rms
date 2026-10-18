@@ -13,6 +13,9 @@ class FacilitySettings {
     this.receiptFooter = '',
     this.themePreset = 'amber',
     this.printerCodepage = 'UTF-8',
+    this.printerIp = '',
+    this.printerPort = 9100,
+    this.networkPrintingEnabled = false,
     this.currency = 'ج.م',
     this.autoAssignDelivery = true,
     this.soundEffectsEnabled = true,
@@ -33,6 +36,9 @@ class FacilitySettings {
   final String receiptFooter;
   final String themePreset;
   final String printerCodepage;
+  final String printerIp;
+  final int printerPort;
+  final bool networkPrintingEnabled;
   final String currency;
 
   /// Operational flags: auto-dispatch delivery jobs to drivers, sound FX, branch
@@ -53,6 +59,9 @@ class FacilitySettings {
     String? receiptFooter,
     String? themePreset,
     String? printerCodepage,
+    String? printerIp,
+    int? printerPort,
+    bool? networkPrintingEnabled,
     String? currency,
     bool? autoAssignDelivery,
     bool? soundEffectsEnabled,
@@ -71,6 +80,9 @@ class FacilitySettings {
         receiptFooter: receiptFooter ?? this.receiptFooter,
         themePreset: themePreset ?? this.themePreset,
         printerCodepage: printerCodepage ?? this.printerCodepage,
+        printerIp: printerIp ?? this.printerIp,
+        printerPort: printerPort ?? this.printerPort,
+        networkPrintingEnabled: networkPrintingEnabled ?? this.networkPrintingEnabled,
         currency: currency ?? this.currency,
         autoAssignDelivery: autoAssignDelivery ?? this.autoAssignDelivery,
         soundEffectsEnabled: soundEffectsEnabled ?? this.soundEffectsEnabled,
@@ -90,6 +102,9 @@ class FacilitySettings {
         'receiptFooter': receiptFooter,
         'themePreset': themePreset,
         'printerCodepage': printerCodepage,
+        'printerIp': printerIp,
+        'printerPort': printerPort,
+        'networkPrintingEnabled': networkPrintingEnabled,
         'currency': currency,
         'autoAssignDelivery': autoAssignDelivery,
         'soundEffectsEnabled': soundEffectsEnabled,
@@ -110,6 +125,9 @@ class FacilitySettings {
         receiptFooter: record['receiptFooter'] as String? ?? '',
         themePreset: record['themePreset'] as String? ?? 'amber',
         printerCodepage: record['printerCodepage'] as String? ?? 'UTF-8',
+        printerIp: record['printerIp'] as String? ?? '',
+        printerPort: (record['printerPort'] as num?)?.toInt() ?? 9100,
+        networkPrintingEnabled: record['networkPrintingEnabled'] as bool? ?? false,
         currency: record['currency'] as String? ?? 'ج.م',
         autoAssignDelivery: record['autoAssignDelivery'] as bool? ?? true,
         soundEffectsEnabled: record['soundEffectsEnabled'] as bool? ?? true,

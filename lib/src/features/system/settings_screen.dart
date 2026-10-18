@@ -10,6 +10,8 @@ import '../../core/widgets/pie_card.dart';
 import '../../domain/models/app_role.dart';
 import '../../domain/models/branch.dart';
 import '../../domain/models/facility_settings.dart';
+import '../../domain/services/network_esc_pos_adapter.dart';
+import '../../domain/services/socket_printer/socket_printer_transport.dart';
 
 /// Screen 26: Terminal Identity, Facility Settings, Tax & Service Rates, and Thermal Printer Preferences.
 class SettingsScreen extends StatefulWidget {
@@ -30,9 +32,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _vatRateCtrl;
   late TextEditingController _serviceRateCtrl;
   late TextEditingController _receiptFooterCtrl;
+  late TextEditingController _printerIpCtrl;
+  late TextEditingController _printerPortCtrl;
 
   String _printerCodepage = 'UTF-8';
   String _currency = 'ج.م';
+  bool _networkPrintingEnabled = false;
+  bool _isTestingPrinter = false;
   bool _autoAssignDelivery = true;
   bool _soundEffectsEnabled = true;
   bool _simulateOffline = false;
@@ -52,6 +58,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _vatRateCtrl = TextEditingController();
     _serviceRateCtrl = TextEditingController();
     _receiptFooterCtrl = TextEditingController();
+    _printerIpCtrl = TextEditingController();
+    _printerPortCtrl = TextEditingController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadSettings());
   }
@@ -66,6 +74,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _vatRateCtrl.dispose();
     _serviceRateCtrl.dispose();
     _receiptFooterCtrl.dispose();
+    _printerIpCtrl.dispose();
+    _printerPortCtrl.dispose();
     super.dispose();
   }
 
@@ -95,6 +105,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? 'شكراً لزيارتكم! الرقم الضريبي موثق.'
             : settings.receiptFooter;
         _printerCodepage = settings.printerCodepage;
+        _printerIpCtrl.text = settings.printerIp;
+        _printerPortCtrl.text = settings.printerPort.toString();
+        _networkPrintingEnabled = settings.networkPrintingEnabled;
         _currency = settings.currency;
         _autoAssignDelivery = settings.autoAssignDelivery;
         _soundEffectsEnabled = settings.soundEffectsEnabled;
@@ -103,6 +116,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _activeBranchId = activeBranch?.id ?? settings.activeBranchId;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _testPrinter() async {
+    final ip = _printerIpCtrl.text.trim();
+    final port = int.tryParse(_printerPortCtrl.text.trim()) ?? 9100;
+    if (ip.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: PieColors.stateError,
+          content: Text('اكتب عنوان IP الخاص بالطابعة أولاً'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isTestingPrinter = true);
+    final services = AppScope.of(context);
+    final adapter = services.print?.adapter;
+    bool success = false;
+    if (adapter is NetworkEscPosPrintAdapter) {
+      success = await adapter.testPrinterConnection(ip, port);
+    } else {
+      success = await createSocketPrinterTransport().testConnection(ip, port);
+    }
+
+    if (mounted) {
+      setState(() => _isTestingPrinter = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: success ? PieColors.stateSynced : PieColors.stateError,
+          content: Text(success
+              ? 'تم الاتصال بالطابعة ($ip:$port) بنجاح!'
+              : 'تعذّر الاتصال بالطابعة ($ip:$port). تأكد من توصيلها بالشبكة وتشغيلها.'),
+        ),
+      );
     }
   }
 
@@ -139,6 +188,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       serviceRate: srv,
       receiptFooter: _receiptFooterCtrl.text.trim(),
       printerCodepage: _printerCodepage,
+      printerIp: _printerIpCtrl.text.trim(),
+      printerPort: int.tryParse(_printerPortCtrl.text.trim()) ?? 9100,
+      networkPrintingEnabled: _networkPrintingEnabled,
       currency: _currency,
       autoAssignDelivery: _autoAssignDelivery,
       soundEffectsEnabled: _soundEffectsEnabled,
@@ -405,6 +457,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 border: OutlineInputBorder(),
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            const Divider(color: PieColors.borderMuted),
+                            const SizedBox(height: 8),
+                            SwitchListTile(
+                              value: _networkPrintingEnabled,
+                              activeThumbColor: PieColors.roleCashier,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'تفعيل الطباعة المباشرة عبر الشبكة (LAN / Ethernet)',
+                                style: PieTypography.bodyStrong.copyWith(color: PieColors.textPrimary),
+                              ),
+                              subtitle: Text(
+                                'إرسال أوامر الطباعة وبونات المطبخ مباشرة إلى عنوان IP الطابعة الحرارية (Port 9100)',
+                                style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                              ),
+                              onChanged: (val) => setState(() => _networkPrintingEnabled = val),
+                            ),
+                            if (_networkPrintingEnabled) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextFormField(
+                                      controller: _printerIpCtrl,
+                                      style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                                      decoration: const InputDecoration(
+                                        labelText: 'عنوان IP الطابعة (مثال: 192.168.1.100)',
+                                        filled: true,
+                                        fillColor: PieColors.well,
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    flex: 1,
+                                    child: TextFormField(
+                                      controller: _printerPortCtrl,
+                                      keyboardType: TextInputType.number,
+                                      style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                                      decoration: const InputDecoration(
+                                        labelText: 'المنفذ (Port)',
+                                        filled: true,
+                                        fillColor: PieColors.well,
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: OutlinedButton.icon(
+                                  icon: _isTestingPrinter
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.print_outlined, size: 18),
+                                  label: const Text('اختبار اتصال الطابعة'),
+                                  onPressed: _isTestingPrinter ? null : _testPrinter,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
