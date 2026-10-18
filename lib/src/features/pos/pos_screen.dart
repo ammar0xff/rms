@@ -1264,6 +1264,8 @@ class _PosScreenState extends State<PosScreen> {
                                 Text(
                                   'طلب: $orderRef • تم إيقاف التوزيع التلقائي من الإعدادات',
                                   style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),

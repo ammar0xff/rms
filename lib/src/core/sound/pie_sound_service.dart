@@ -26,14 +26,20 @@ class PieSoundService {
     try {
       switch (sound) {
         case PieSound.click:
+          SystemSound.play(SystemSoundType.click);
+          HapticFeedback.selectionClick();
+          break;
         case PieSound.pop:
           SystemSound.play(SystemSoundType.click);
+          HapticFeedback.lightImpact();
           break;
         case PieSound.beep:
           SystemSound.play(SystemSoundType.alert);
+          HapticFeedback.heavyImpact();
           break;
         case PieSound.chime:
           SystemSound.play(SystemSoundType.click);
+          HapticFeedback.mediumImpact();
           break;
       }
     } catch (_) {}

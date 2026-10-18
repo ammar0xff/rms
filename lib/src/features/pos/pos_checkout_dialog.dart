@@ -108,8 +108,9 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
   }
 
   bool get _isPhoneValid {
-    if (!_isDelivery) return true;
-    final digits = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+    final phone = _phoneController.text.trim();
+    if (!_isDelivery && phone.isEmpty) return true;
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
     return digits.length >= 8;
   }
 

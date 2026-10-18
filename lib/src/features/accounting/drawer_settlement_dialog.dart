@@ -141,6 +141,7 @@ class _DrawerSettlementDialogState extends State<DrawerSettlementDialog> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -17,6 +17,7 @@ class SyncMonitor extends ChangeNotifier {
   OutboxStore? _outbox;
   ConnectivityMonitor? _connectivity;
   StreamSubscription<bool>? _connSub;
+  Timer? _pollTimer;
 
   bool _systemOnline = true;
   bool _simulatedOffline = false;
@@ -45,12 +46,12 @@ class SyncMonitor extends ChangeNotifier {
       _connectivity = ConnectivityMonitor();
       _connectivity!.isOnline.then((val) {
         _systemOnline = val;
-        notifyListeners();
+        refresh();
       }).catchError((_) {});
       _connSub = _connectivity!.onChanged.listen(
         (online) {
           _systemOnline = online;
-          notifyListeners();
+          refresh();
         },
         onError: (_) {},
         cancelOnError: false,
@@ -63,6 +64,8 @@ class SyncMonitor extends ChangeNotifier {
   void attach({SyncService? sync, OutboxStore? outbox}) {
     _sync = sync;
     _outbox = outbox;
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => refresh());
     refresh();
   }
 
@@ -103,13 +106,13 @@ class SyncMonitor extends ChangeNotifier {
 
   void toggleConnectivity() {
     _simulatedOffline = !_simulatedOffline;
-    notifyListeners();
+    refresh();
   }
 
   void setSimulatedOffline(bool offline) {
     if (_simulatedOffline != offline) {
       _simulatedOffline = offline;
-      notifyListeners();
+      refresh();
     }
   }
 
@@ -123,6 +126,7 @@ class SyncMonitor extends ChangeNotifier {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _connSub?.cancel();
     super.dispose();
   }

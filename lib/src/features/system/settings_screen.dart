@@ -375,7 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           children: [
                             DropdownButtonFormField<String>(
-                              value: _printerCodepage,
+                              initialValue: _printerCodepage,
                               dropdownColor: PieColors.surface3,
                               style: PieTypography.body.copyWith(color: PieColors.textPrimary),
                               decoration: const InputDecoration(
@@ -422,7 +422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           children: [
                             if (_branches.isNotEmpty) ...[
                               DropdownButtonFormField<String>(
-                                value: _activeBranchId,
+                                initialValue: _activeBranchId,
                                 dropdownColor: PieColors.surface3,
                                 style: PieTypography.body.copyWith(color: PieColors.textPrimary),
                                 decoration: const InputDecoration(
