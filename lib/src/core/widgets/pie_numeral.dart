@@ -132,21 +132,34 @@ class PieNumeral extends StatelessWidget {
       textBaseline: TextBaseline.alphabetic,
       children: [
         if (prefix != null)
-          Text(
-            prefix!,
-            style: PieTypography.caption.copyWith(
-              color: color ?? PieColors.inkSecondary,
-            ),
-          ),
-        numWidget,
-        if (suffix != null)
-          Padding(
-            padding: const EdgeInsets.only(right: 2),
+          Flexible(
+            fit: FlexFit.loose,
             child: Text(
-              suffix!,
+              prefix!,
               style: PieTypography.caption.copyWith(
                 color: color ?? PieColors.inkSecondary,
-                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        Flexible(
+          fit: FlexFit.loose,
+          child: numWidget,
+        ),
+        if (suffix != null)
+          Flexible(
+            fit: FlexFit.loose,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 2),
+              child: Text(
+                suffix!,
+                style: PieTypography.caption.copyWith(
+                  color: color ?? PieColors.inkSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),

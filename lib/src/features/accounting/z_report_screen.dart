@@ -180,7 +180,14 @@ class _ZReportScreenState extends State<ZReportScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('الرصيد المحسوب بالدفتر:', style: PieTypography.body),
+                  Expanded(
+                    child: Text(
+                      'الرصيد المحسوب بالدفتر:',
+                      style: PieTypography.body,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   PieNumeral.money(
                     expectedCash,
                     style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
@@ -191,7 +198,14 @@ class _ZReportScreenState extends State<ZReportScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('الرصيد الفعلي المجرود:', style: PieTypography.bodyStrong),
+                  Expanded(
+                    child: Text(
+                      'الرصيد الفعلي المجرود:',
+                      style: PieTypography.bodyStrong,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   PieNumeral.money(
                     countedCash,
                     style: PieTypography.monoHeading.copyWith(
@@ -206,33 +220,42 @@ class _ZReportScreenState extends State<ZReportScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('الفارق (العجز / الزيادة):', style: PieTypography.bodyStrong),
-                  if (variance == 0)
-                    Text(
-                      'مطابق تماماً (0.00)',
-                      style: PieTypography.monoBody.copyWith(
-                        color: const Color(0xFF4ADE80),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    )
-                  else if (variance > 0)
-                    PieNumeral.money(
-                      variance,
-                      prefix: 'زيادة: +',
-                      style: PieTypography.monoBody.copyWith(
-                        color: const Color(0xFF4ADE80),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    )
-                  else
-                    PieNumeral.money(
-                      variance.abs(),
-                      prefix: 'عجز: -',
-                      style: PieTypography.monoBody.copyWith(
-                        color: PieColors.stateError,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  Expanded(
+                    child: Text(
+                      'الفارق (العجز / الزيادة):',
+                      style: PieTypography.bodyStrong,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: variance == 0
+                        ? Text(
+                            'مطابق تماماً (0.00)',
+                            style: PieTypography.monoBody.copyWith(
+                              color: const Color(0xFF4ADE80),
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : (variance > 0
+                            ? PieNumeral.money(
+                                variance,
+                                prefix: 'زيادة: +',
+                                style: PieTypography.monoBody.copyWith(
+                                  color: const Color(0xFF4ADE80),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              )
+                            : PieNumeral.money(
+                                variance.abs(),
+                                prefix: 'عجز: -',
+                                style: PieTypography.monoBody.copyWith(
+                                  color: PieColors.stateError,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              )),
+                  ),
                 ],
               ),
             ],

@@ -70,10 +70,11 @@ class PieBadge extends StatelessWidget {
     bool isConflict = false,
     bool isOffline = false,
     int pendingCount = 0,
+    bool compact = false,
   }) {
     if (isConflict) {
-      return const PieBadge(
-        label: 'تعارض في البيانات',
+      return PieBadge(
+        label: compact ? 'تعارض' : 'تعارض في البيانات',
         color: PieColors.stateConflict,
         backgroundColor: PieColors.stateConflictBg,
         icon: Icons.warning_amber_rounded,
@@ -81,7 +82,9 @@ class PieBadge extends StatelessWidget {
     }
     if (isOffline) {
       return PieBadge(
-        label: pendingCount > 0 ? 'أوفلاين ($pendingCount معلق)' : 'أوفلاين',
+        label: compact
+            ? (pendingCount > 0 ? '$pendingCount معلق' : 'أوفلاين')
+            : (pendingCount > 0 ? 'أوفلاين ($pendingCount معلق)' : 'أوفلاين'),
         color: PieColors.stateOffline,
         backgroundColor: PieColors.stateOfflineBg,
         icon: Icons.cloud_off_rounded,
@@ -89,7 +92,9 @@ class PieBadge extends StatelessWidget {
     }
     if (isPending) {
       return PieBadge(
-        label: pendingCount > 0 ? 'على الجهاز ($pendingCount)' : 'على الجهاز',
+        label: compact
+            ? '$pendingCount معلق'
+            : (pendingCount > 0 ? 'على الجهاز ($pendingCount)' : 'على الجهاز'),
         color: PieColors.statePending,
         backgroundColor: PieColors.statePendingBg,
         icon: Icons.cloud_upload_outlined,

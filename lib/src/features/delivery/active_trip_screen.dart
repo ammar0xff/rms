@@ -244,46 +244,52 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PieColors.border),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(phases.length, (index) {
-          final phase = phases[index];
-          final isPassed = phase.$2;
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(phases.length, (index) {
+            final phase = phases[index];
+            final isPassed = phase.$2;
 
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: isPassed ? PieColors.driverAccent : PieColors.surface2,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isPassed ? PieColors.driverAccent : PieColors.border,
+            return Padding(
+              padding: EdgeInsets.only(left: index < phases.length - 1 ? 14 : 0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: isPassed ? PieColors.driverAccent : PieColors.surface2,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isPassed ? PieColors.driverAccent : PieColors.border,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isPassed ? Colors.black : PieColors.inkMuted,
+                      ),
+                    ),
                   ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isPassed ? Colors.black : PieColors.inkMuted,
+                  const SizedBox(width: 5),
+                  Text(
+                    phase.$1,
+                    style: PieTypography.caption.copyWith(
+                      color: isPassed ? PieColors.ink : PieColors.inkMuted,
+                      fontWeight: isPassed ? FontWeight.w600 : FontWeight.w400,
+                    ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 5),
-              Text(
-                phase.$1,
-                style: PieTypography.caption.copyWith(
-                  color: isPassed ? PieColors.ink : PieColors.inkMuted,
-                  fontWeight: isPassed ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ],
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -307,33 +313,41 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isExpanded ? PieColors.driverAccent : PieColors.surface2,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: PieColors.border),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$stopNumber',
-                      style: PieTypography.monoBody.copyWith(
-                        color: isExpanded ? Colors.black : PieColors.ink,
-                        fontWeight: FontWeight.w700,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isExpanded ? PieColors.driverAccent : PieColors.surface2,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: PieColors.border),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$stopNumber',
+                        style: PieTypography.monoBody.copyWith(
+                          color: isExpanded ? Colors.black : PieColors.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'أوردر #${delivery.orderRef}',
-                    style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'أوردر #${delivery.orderRef}',
+                        style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   PieBadge.deliveryState(delivery.state),
                   const SizedBox(width: 6),
@@ -377,16 +391,20 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             Row(
               children: [
                 const Icon(Icons.phone_in_talk_rounded, size: 16, color: PieColors.driverAccent),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text('العميل: ', style: PieTypography.caption.copyWith(color: PieColors.inkSecondary)),
-                Directionality(
-                  textDirection: TextDirection.ltr,
-                  child: Text(
-                    '01012345678',
-                    style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
+                Expanded(
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      '01012345678',
+                      style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 PieButton.ghost(
                   onPressed: () => _callPhone('01012345678'),
                   label: 'اتصال',

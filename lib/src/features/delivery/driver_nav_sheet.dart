@@ -123,11 +123,15 @@ class DriverNavSheet extends StatelessWidget {
                     children: [
                       const Icon(Icons.payments_rounded, color: PieColors.driverAccent, size: 20),
                       const SizedBox(width: 8),
-                      Text(
-                        'تذكير استلام النقدية (كاش عند الباب):',
-                        style: PieTypography.subheading.copyWith(
-                          color: PieColors.ink,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          'تذكير استلام النقدية (كاش عند الباب):',
+                          style: PieTypography.subheading.copyWith(
+                            color: PieColors.ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -151,9 +155,13 @@ class DriverNavSheet extends StatelessWidget {
               children: [
                 const Icon(Icons.gps_fixed_rounded, size: 13, color: PieColors.inkMuted),
                 const SizedBox(width: 6),
-                Text(
-                  'يتم تسجيل وقت ومسار الوصول محلياً في سجل الجهاز (Local Log)',
-                  style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                Flexible(
+                  child: Text(
+                    'يتم تسجيل وقت ومسار الوصول محلياً في سجل الجهاز (Local Log)',
+                    style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

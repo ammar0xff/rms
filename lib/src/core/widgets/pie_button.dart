@@ -160,11 +160,15 @@ class PieButton extends StatelessWidget {
           Icon(icon, size: 18, color: fg),
           const SizedBox(width: 8),
         ],
-        Text(
-          label,
-          style: PieTypography.bodyStrong.copyWith(
-            color: fg,
-            fontSize: height < 44 ? 13 : 14,
+        Flexible(
+          child: Text(
+            label,
+            style: PieTypography.bodyStrong.copyWith(
+              color: fg,
+              fontSize: height < 44 ? 13 : 14,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

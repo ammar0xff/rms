@@ -44,46 +44,51 @@ class PieCard extends StatelessWidget {
     final effectiveSurface = surfaceColor ?? PieColors.surface1;
     final effectiveActiveColor = activeColor ?? PieColors.cashierAccent;
 
-    final effectiveBorder = isActive
-        ? Border.all(color: effectiveActiveColor, width: 1.5)
-        : Border.all(color: borderColor ?? PieColors.border, width: 1);
+    final effectiveBorderSide = isActive
+        ? BorderSide(color: effectiveActiveColor, width: 1.5)
+        : BorderSide(color: borderColor ?? PieColors.border, width: 1);
 
-    final boxDecoration = BoxDecoration(
-      color: effectiveSurface,
-      borderRadius: BorderRadius.circular(borderRadius),
-      border: effectiveBorder,
-      boxShadow: isActive
-          ? [
-              BoxShadow(
-                color: effectiveActiveColor.withOpacity(0.18),
-                blurRadius: 12,
-                spreadRadius: 1,
-              ),
-            ]
-          : null,
-    );
-
-    Widget content = Container(
-      width: width,
-      height: height,
-      margin: margin,
-      decoration: boxDecoration,
-      padding: padding,
-      child: child,
-    );
-
+    Widget content;
     if (onTap != null) {
       content = Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(borderRadius),
+        color: effectiveSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          side: effectiveBorderSide,
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(borderRadius),
           splashColor: (activeColor ?? PieColors.ink).withOpacity(0.08),
           highlightColor: (activeColor ?? PieColors.ink).withOpacity(0.04),
-          child: content,
+          child: Container(
+            width: width,
+            height: height,
+            padding: padding,
+            child: child,
+          ),
         ),
       );
+    } else {
+      content = Material(
+        color: effectiveSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          side: effectiveBorderSide,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          width: width,
+          height: height,
+          padding: padding,
+          child: child,
+        ),
+      );
+    }
+
+    if (margin != null) {
+      content = Padding(padding: margin!, child: content);
     }
 
     return content;

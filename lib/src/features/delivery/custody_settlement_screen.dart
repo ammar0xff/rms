@@ -28,6 +28,7 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
   // Generate daily handover code
   final String _handoverCode = 'HND-8429';
   bool _isSubmitting = false;
+  final Set<String> _locallySettledStopIds = {};
 
   Future<void> _submitHandover({
     required double totalAmount,
@@ -113,9 +114,16 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
           }
         }
 
+        await services.sync?.requestSync();
+
         PieSoundService.playCashDrawer();
 
         if (mounted) {
+          setState(() {
+            for (final stop in deliveredStops) {
+              _locallySettledStopIds.add(stop.id);
+            }
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: PieColors.surface2,
@@ -174,6 +182,7 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
                 .where((d) =>
                     d.state == DeliveryState.delivered &&
                     d.settlementStatus != SettlementStatus.settled &&
+                    !_locallySettledStopIds.contains(d.id) &&
                     !d.address.contains('استلام من الفرع'))
                 .toList();
 
@@ -304,19 +313,24 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('أوردر #${stop.orderRef}',
-                                  style: PieTypography.bodyStrong),
-                              const SizedBox(height: 2),
-                              Text(
-                                stop.address,
-                                style: PieTypography.caption
-                                    .copyWith(color: PieColors.inkSecondary),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('أوردر #${stop.orderRef}',
+                                    style: PieTypography.bodyStrong),
+                                const SizedBox(height: 2),
+                                Text(
+                                  stop.address,
+                                  style: PieTypography.caption
+                                      .copyWith(color: PieColors.inkSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           PieNumeral.money(
                             stop.amount,
                             style: PieTypography.monoBody.copyWith(

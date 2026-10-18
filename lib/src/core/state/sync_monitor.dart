@@ -39,7 +39,14 @@ class SyncMonitor extends ChangeNotifier {
       ? Duration.zero
       : DateTime.now().difference(_lastSyncAt!);
 
+  static bool enablePolling = true;
+  static bool enableConnectivity = true;
+
   void _initConnectivity() {
+    if (!enableConnectivity) {
+      _systemOnline = true;
+      return;
+    }
     try {
       // If Flutter bindings are not initialized (e.g. pure unit tests), skip platform channels
       WidgetsBinding.instance;
@@ -65,8 +72,17 @@ class SyncMonitor extends ChangeNotifier {
     _sync = sync;
     _outbox = outbox;
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => refresh());
+    if (enablePolling) {
+      _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => refresh());
+    }
     refresh();
+  }
+
+  void detach() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _sync = null;
+    _outbox = null;
   }
 
   Future<void> refresh() async {

@@ -24,6 +24,8 @@ import '../accounting/z_report_screen.dart';
 class ShiftScreen extends StatefulWidget {
   const ShiftScreen({super.key});
 
+  static bool enableTicker = true;
+
   @override
   State<ShiftScreen> createState() => _ShiftScreenState();
 }
@@ -39,10 +41,12 @@ class _ShiftScreenState extends State<ShiftScreen> {
   @override
   void initState() {
     super.initState();
-    // Live elapsed timer ticker (1 second)
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
+    // Live elapsed timer ticker (1 second) - disabled in test environments
+    if (ShiftScreen.enableTicker) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   @override

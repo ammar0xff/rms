@@ -74,141 +74,151 @@ class PieScaffold extends StatelessWidget {
           scrolledUnderElevation: 0,
           toolbarHeight: 56,
           automaticallyImplyLeading: false,
-          titleSpacing: 16,
+          centerTitle: false,
+          titleSpacing: isDesktop ? 16 : 8,
           bottom: const PreferredSize(
             preferredSize: Size.fromHeight(1),
             child: Divider(color: PieColors.border, height: 1, thickness: 1),
           ),
           title: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Role Identity Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: PieColors.surfaceFor(role),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: PieColors.borderFor(role), width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: roleAccent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      role.label,
-                      style: PieTypography.label.copyWith(
-                        color: roleAccent,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Active Branch Badge ("branch is must")
-              FutureBuilder<BranchModel?>(
-                future: services.branches?.activeBranch(),
-                builder: (context, branchSnap) {
-                  final branch = branchSnap.data;
-                  final branchName = branch?.name ?? 'فرع المعادي';
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: PieColors.surface2,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: PieColors.borderMuted),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.storefront_outlined,
-                          size: 14,
-                          color: PieColors.inkSecondary,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: PieColors.surfaceFor(role),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: PieColors.borderFor(role), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: roleAccent,
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(width: 5),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: isDesktop ? 160 : 85),
-                          child: Text(
-                            branchName,
-                            style: PieTypography.caption.copyWith(
-                              color: PieColors.ink,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          role.label,
+                          style: PieTypography.label.copyWith(
+                            color: roleAccent,
+                            fontWeight: FontWeight.w700,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-
-              Expanded(
-                child: Text(
-                  title ?? 'فطيرة للتشغيل',
-                  style: PieTypography.subheading.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: PieColors.ink,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-              // Honest Sync Chip (Clickable for sync diagnostic / offline toggle)
-              ListenableBuilder(
-                listenable: monitor,
-                builder: (context, _) {
-                  final isOffline = !monitor.online;
-                  return Tooltip(
-                    message: 'اضغط لعرض تفاصيل المزامنة وحالة الاتصال',
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: () => _showSyncStatusModal(context, monitor, services),
-                      child: PieBadge.syncStatus(
-                        isSynced: monitor.pending == 0 && monitor.conflicts == 0 && !isOffline,
-                        isPending: monitor.pending > 0,
-                        isConflict: monitor.conflicts > 0,
-                        isOffline: isOffline,
-                        pendingCount: monitor.pending,
                       ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-              // Role Switcher Button (demo)
-              if (onRoleSwitch != null)
-                PopupMenuButton<AppRole>(
-                  tooltip: 'تبديل الدور الوظيفي',
-                  icon: const Icon(Icons.swap_horiz_rounded, color: PieColors.inkSecondary),
-                  color: PieColors.surfaceOverlay,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: const BorderSide(color: PieColors.border),
+                    ],
                   ),
-                  onSelected: onRoleSwitch,
-                  itemBuilder: (context) => [
-                    _buildRoleMenuItem(AppRole.cashier, role),
-                    _buildRoleMenuItem(AppRole.driver, role),
-                    _buildRoleMenuItem(AppRole.manager, role),
-                    _buildRoleMenuItem(AppRole.developer, role),
-                  ],
                 ),
-              if (actions != null) ...actions!,
+              ),
+
+              if (isDesktop) ...[
+                const SizedBox(width: 10),
+                FutureBuilder<BranchModel?>(
+                  future: services.branches?.activeBranch(),
+                  builder: (context, branchSnap) {
+                    final branch = branchSnap.data;
+                    final branchName = branch?.name ?? 'فرع المعادي';
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: PieColors.surface2,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: PieColors.borderMuted),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.storefront_outlined,
+                            size: 14,
+                            color: PieColors.inkSecondary,
+                          ),
+                          const SizedBox(width: 5),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 160),
+                            child: Text(
+                              branchName,
+                              style: PieTypography.caption.copyWith(
+                                color: PieColors.ink,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title ?? 'فطيرة للتشغيل',
+                    style: PieTypography.subheading.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: PieColors.ink,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ],
           ),
+          actions: [
+            // Honest Sync Chip (Clickable for sync diagnostic / offline toggle)
+            ListenableBuilder(
+              listenable: monitor,
+              builder: (context, _) {
+                final isOffline = !monitor.online;
+                return Tooltip(
+                  message: 'اضغط لعرض تفاصيل المزامنة وحالة الاتصال',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () => _showSyncStatusModal(context, monitor, services),
+                    child: PieBadge.syncStatus(
+                      isSynced: monitor.pending == 0 && monitor.conflicts == 0 && !isOffline,
+                      isPending: monitor.pending > 0,
+                      isConflict: monitor.conflicts > 0,
+                      isOffline: isOffline,
+                      pendingCount: monitor.pending,
+                      compact: !isDesktop,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 4),
+            // Role Switcher Button (demo)
+            if (onRoleSwitch != null)
+              PopupMenuButton<AppRole>(
+                tooltip: 'تبديل الدور الوظيفي',
+                icon: const Icon(Icons.swap_horiz_rounded, color: PieColors.inkSecondary),
+                color: PieColors.surfaceOverlay,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: PieColors.border),
+                ),
+                onSelected: onRoleSwitch,
+                itemBuilder: (context) => [
+                  _buildRoleMenuItem(AppRole.cashier, role),
+                  _buildRoleMenuItem(AppRole.driver, role),
+                  _buildRoleMenuItem(AppRole.manager, role),
+                  _buildRoleMenuItem(AppRole.developer, role),
+                ],
+              ),
+            if (actions != null) ...actions!,
+          ],
         ),
         body: isDesktop ? _buildDesktopLayout(roleAccent) : body,
         bottomNavigationBar: isDesktop ? null : _buildMobileBottomBar(roleAccent),
@@ -293,11 +303,15 @@ class PieScaffold extends StatelessWidget {
                             color: isSelected ? roleAccent : PieColors.inkMuted,
                           ),
                           const SizedBox(width: 12),
-                          Text(
-                            item.label,
-                            style: PieTypography.bodyStrong.copyWith(
-                              color: isSelected ? roleAccent : PieColors.inkSecondary,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          Expanded(
+                            child: Text(
+                              item.label,
+                              style: PieTypography.bodyStrong.copyWith(
+                                color: isSelected ? roleAccent : PieColors.inkSecondary,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ),
                         ],

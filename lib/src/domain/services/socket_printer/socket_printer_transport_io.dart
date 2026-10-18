@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'socket_printer_transport_stub.dart';
+import 'socket_printer_transport_interface.dart';
 
 SocketPrinterTransport createSocketPrinterTransport() => _IoSocketPrinterTransport();
 

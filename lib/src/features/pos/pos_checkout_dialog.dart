@@ -391,11 +391,14 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                 color: _isDelivery ? PieColors.driverAccent : PieColors.inkSecondary,
               ),
               const SizedBox(width: 6),
-              Text(
-                _isDelivery ? 'بيانات العميل والتوصيل (إلزامية)' : 'بيانات العميل (اختيارية)',
-                style: PieTypography.label.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: _isDelivery ? PieColors.ink : PieColors.inkSecondary,
+              Expanded(
+                child: Text(
+                  _isDelivery ? 'بيانات العميل والتوصيل (إلزامية)' : 'بيانات العميل (اختيارية)',
+                  style: PieTypography.label.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: _isDelivery ? PieColors.ink : PieColors.inkSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (_isDelivery) ...[
@@ -476,18 +479,23 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: PieTypography.caption.copyWith(
-                color: isError ? PieColors.stateError : PieColors.inkSecondary,
-                fontWeight: isRequired ? FontWeight.w600 : FontWeight.w400,
+            Expanded(
+              child: Text(
+                label,
+                style: PieTypography.caption.copyWith(
+                  color: isError ? PieColors.stateError : PieColors.inkSecondary,
+                  fontWeight: isRequired ? FontWeight.w600 : FontWeight.w400,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (isError)
+            if (isError) ...[
+              const SizedBox(width: 4),
               Text(
                 'مطلوب',
                 style: PieTypography.caption.copyWith(color: PieColors.stateError, fontSize: 10),
               ),
+            ],
           ],
         ),
         const SizedBox(height: 4),
@@ -629,10 +637,14 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'الإجمالي المطلوب',
-                style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+              Expanded(
+                child: Text(
+                  'الإجمالي المطلوب',
+                  style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               PieNumeral.money(
                 widget.totalAmount,
                 style: PieTypography.monoHeading.copyWith(
@@ -660,7 +672,14 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('المبلغ المدفوع:', style: PieTypography.body),
+              Expanded(
+                child: Text(
+                  'المبلغ المدفوع:',
+                  style: PieTypography.body,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               PieNumeral.money(
                 _tenderedAmount,
                 style: PieTypography.monoHeading.copyWith(fontWeight: FontWeight.w600),
@@ -671,12 +690,16 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'الباقي للعميل:',
-                style: PieTypography.bodyStrong.copyWith(
-                  color: _changeDue > 0 ? PieColors.cashierAccent : PieColors.inkSecondary,
+              Expanded(
+                child: Text(
+                  'الباقي للعميل:',
+                  style: PieTypography.bodyStrong.copyWith(
+                    color: _changeDue > 0 ? PieColors.cashierAccent : PieColors.inkSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               PieNumeral.money(
                 _changeDue,
                 style: PieTypography.monoHeading.copyWith(
@@ -783,7 +806,14 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: PieTypography.body),
+          Expanded(
+            child: Text(
+              title,
+              style: PieTypography.body,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
           PieNumeral.money(
             amount.abs(),
             prefix: isNegative ? '- ' : null,

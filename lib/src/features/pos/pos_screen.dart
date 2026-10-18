@@ -654,15 +654,20 @@ class _PosScreenState extends State<PosScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.receipt_long_rounded, size: 18, color: PieColors.cashierAccent),
-                  const SizedBox(width: 8),
-                  Text(
-                    'الفاتورة الحالية',
-                    style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.receipt_long_rounded, size: 18, color: PieColors.cashierAccent),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'الفاتورة الحالية',
+                        style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (_cartItems.isNotEmpty)
                 TextButton(
@@ -1183,7 +1188,14 @@ class _PosScreenState extends State<PosScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: PieTypography.caption),
+          Expanded(
+            child: Text(
+              label,
+              style: PieTypography.caption,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
           PieNumeral.money(amount, style: PieTypography.monoCaption),
         ],
       ),

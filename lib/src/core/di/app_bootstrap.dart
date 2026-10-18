@@ -77,15 +77,20 @@ import '../state/sync_monitor.dart';
 ///
 /// The on-device store is opened independently of Firebase: if it cannot be
 /// opened, the app still boots (persistence is simply disabled for the session).
-Future<AppServices> bootstrapApp() async {
-  final config = FirebaseConfig.fromEnvironment();
-  final database = await _openLocalDatabase();
+Future<AppServices> bootstrapApp({
+  LocalDatabase? testDatabase,
+  FirebaseConfig? testConfig,
+}) async {
+  final config = testConfig ?? FirebaseConfig.fromEnvironment();
+  final database = testDatabase ?? await _openLocalDatabase();
   final migration = await _runMigrations(database);
 
   // Before anything reads the version, so the update engine compares the
   // manifest against what is genuinely installed rather than against whatever
   // constant was compiled in.
-  await AppVersionReader.hydrate();
+  if (testDatabase == null) {
+    await AppVersionReader.hydrate();
+  }
 
   return _resolveAuth(config, database, migration);
 }

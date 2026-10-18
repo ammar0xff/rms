@@ -450,22 +450,27 @@ class _TeamScreenState extends State<TeamScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('الصلاحيات الخاصة الممنوحة:', style: PieTypography.caption.copyWith(color: PieColors.textSecondary)),
-                      const SizedBox(height: 4),
-                      Text(
-                        member.permissions.isEmpty
-                            ? 'الافتراضية للدور فقط'
-                            : '${member.permissions.length} صلاحيات مفعلة',
-                        style: PieTypography.body.copyWith(
-                          color: member.permissions.isEmpty ? PieColors.textMuted : PieColors.textPrimary,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('الصلاحيات الخاصة الممنوحة:', style: PieTypography.caption.copyWith(color: PieColors.textSecondary)),
+                        const SizedBox(height: 4),
+                        Text(
+                          member.permissions.isEmpty
+                              ? 'الافتراضية للدور فقط'
+                              : '${member.permissions.length} صلاحيات مفعلة',
+                          style: PieTypography.body.copyWith(
+                            color: member.permissions.isEmpty ? PieColors.textMuted : PieColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   PieButton(
                     label: 'تعديل الصلاحيات',
                     variant: PieButtonVariant.ghost,
