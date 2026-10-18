@@ -20,6 +20,8 @@ name: Release
 # same version.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       platforms:
@@ -27,9 +29,10 @@ on:
         type: string
         default: 'all'
       version:
-        description: Human version, e.g. 0.9.0
+        description: Human version, e.g. 0.9.0 (leave blank to infer from pubspec.yaml)
         type: string
-        required: true
+        required: false
+        default: ''
       channel:
         type: choice
         options: [production, beta, development]
@@ -75,18 +78,48 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      version: ${{ steps.plan.outputs.version }}
+      requested_platforms: ${{ steps.plan.outputs.requested_platforms }}
+      channel: ${{ steps.plan.outputs.channel }}
+      severity: ${{ steps.plan.outputs.severity }}
+      rollout: ${{ steps.plan.outputs.rollout }}
+      min_supported: ${{ steps.plan.outputs.min_supported }}
+      rollback_target: ${{ steps.plan.outputs.rollback_target }}
+      release_notes: ${{ steps.plan.outputs.release_notes }}
     steps:
-      # The platform list cannot be filtered with a job-level `if`: GitHub
-      # evaluates jobs.<id>.if before the matrix is expanded, so `matrix` is
-      # not in scope there. Turning the list into a matrix here is the
-      # reliable way to build only what was asked for.
-      - name: Resolve the requested platforms
+      - uses: actions/checkout@v7
+      - name: Resolve the release configuration
         id: plan
         run: |
           set -euo pipefail
+
+          version="${{ inputs.version }}"
+          if [ -z "$version" ]; then
+            version=$(grep -m1 '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d'+' -f1)
+          fi
+
           requested="${{ inputs.platforms }}"
-          if [ "$requested" = "all" ]; then
+          if [ -z "$requested" ] || [ "$requested" = "all" ]; then
             requested="android,linux,windows,macos"
+          fi
+
+          channel="${{ inputs.channel }}"
+          [ -n "$channel" ] || channel="production"
+
+          severity="${{ inputs.severity }}"
+          [ -n "$severity" ] || severity="recommended"
+
+          rollout="${{ inputs.rollout }}"
+          [ -n "$rollout" ] || rollout="100"
+
+          min_supported="${{ inputs.min-supported }}"
+          [ -n "$min_supported" ] || min_supported="0.0.0"
+
+          rollback_target="${{ inputs.rollback-target }}"
+
+          release_notes="${{ inputs.release-notes }}"
+          if [ -z "$release_notes" ]; then
+            release_notes=$(git log -1 --pretty=%B)
           fi
 
           entries='['
@@ -111,8 +144,20 @@ jobs:
           done
           entries+=']'
 
-          echo "Building: $requested"
+          echo "Building version: $version on platforms: $requested"
           echo "matrix=$entries" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "requested_platforms=$requested" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "severity=$severity" >> "$GITHUB_OUTPUT"
+          echo "rollout=$rollout" >> "$GITHUB_OUTPUT"
+          echo "min_supported=$min_supported" >> "$GITHUB_OUTPUT"
+          echo "rollback_target=$rollback_target" >> "$GITHUB_OUTPUT"
+          {
+            echo "release_notes<<EOF"
+            echo "$release_notes"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.platform }}
@@ -200,7 +245,7 @@ jobs:
       - name: Build artifact
         env:
           PLATFORM: ${{ matrix.platform }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ needs.prepare.outputs.version }}
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -282,13 +327,13 @@ jobs:
           NODE_ENV: production
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          VERSION: ${{ inputs.version }}
-          RELEASE_NOTES: ${{ inputs.release-notes }}
-          CHANNEL: ${{ inputs.channel }}
-          SEVERITY: ${{ inputs.severity }}
-          ROLLOUT: ${{ inputs.rollout }}
-          MIN_SUPPORTED: ${{ inputs.min-supported }}
-          ROLLBACK_TARGET: ${{ inputs.rollback-target }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_NOTES: ${{ needs.prepare.outputs.release_notes }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+          SEVERITY: ${{ needs.prepare.outputs.severity }}
+          ROLLOUT: ${{ needs.prepare.outputs.rollout }}
+          MIN_SUPPORTED: ${{ needs.prepare.outputs.min_supported }}
+          ROLLBACK_TARGET: ${{ needs.prepare.outputs.rollback_target }}
         run: |
           set -euo pipefail
           TAG="v${VERSION}"
@@ -343,9 +388,9 @@ jobs:
           {
             echo "### Release published"
             echo ""
-            echo "- Tag: \`v${{ inputs.version }}\`"
-            echo "- Platforms: ${{ inputs.platforms }}"
-            echo "- Channel: \`${{ inputs.channel }}\`"
-            echo "- Severity: \`${{ inputs.severity }}\`"
-            echo "- Rollout: ${{ inputs.rollout }}%"
+            echo "- Tag: \`v${{ needs.prepare.outputs.version }}\`"
+            echo "- Platforms: ${{ needs.prepare.outputs.requested_platforms }}"
+            echo "- Channel: \`${{ needs.prepare.outputs.channel }}\`"
+            echo "- Severity: \`${{ needs.prepare.outputs.severity }}\`"
+            echo "- Rollout: ${{ needs.prepare.outputs.rollout }}%"
           } >> "$GITHUB_STEP_SUMMARY"

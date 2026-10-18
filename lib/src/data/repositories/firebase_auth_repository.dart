@@ -38,20 +38,44 @@ abstract interface class AuthBackend {
 /// Used as a fallback when Firestore is offline or before server lookup completes.
 AppRole inferRoleFromEmail(String? email) {
   final local = (email ?? '').trim().toLowerCase().split('@').first;
-  for (final entry in const [
-    ('driver', AppRole.driver),
-    ('cashier', AppRole.cashier),
-    ('manager', AppRole.manager),
-    ('developer', AppRole.developer),
-    ('dev', AppRole.developer),
-    ('admin', AppRole.developer),
-  ]) {
-    if (local == entry.$1 ||
-        local.startsWith('${entry.$1}.') ||
-        local.startsWith('${entry.$1}_')) {
-      return entry.$2;
-    }
+  if (local.isEmpty) return AppRole.cashier;
+
+  // Courier / Driver detection (e.g. driver1, pilot_alex, courier, delivery, tayar)
+  if (local.contains('driver') ||
+      local.contains('pilot') ||
+      local.contains('courier') ||
+      local.contains('delivery') ||
+      local.contains('tayyar') ||
+      local.contains('tayar')) {
+    return AppRole.driver;
   }
+
+  // Developer / System Admin detection (e.g. admin, sysadmin, dev, root, superadmin)
+  if (local.contains('admin') ||
+      local.contains('dev') ||
+      local.contains('root') ||
+      local.contains('super')) {
+    return AppRole.developer;
+  }
+
+  // Manager detection (e.g. manager, modir, supervisor, gm, branch_lead)
+  if (local.contains('manager') ||
+      local.contains('modir') ||
+      local.contains('supervis') ||
+      local.contains('lead') ||
+      local.contains('head')) {
+    return AppRole.manager;
+  }
+
+  // Cashier detection (e.g. cashier, cahier, pos, till, teller)
+  if (local.contains('cashier') ||
+      local.contains('cahier') ||
+      local.contains('pos') ||
+      local.contains('till') ||
+      local.contains('teller')) {
+    return AppRole.cashier;
+  }
+
   return AppRole.cashier;
 }
 
@@ -169,18 +193,48 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() => _backend.signOut();
 
-  /// Reads the operator's role from `users/{uid}`. Any failure — missing
-  /// document, offline, denied rules — falls back to inferring from email
-  /// (or cashier default) rather than locking the operator out.
+  /// Reads the operator's role from `users/{uid}`. If missing or without a role,
+  /// infers from the email convention and initializes the user profile doc.
+  /// Any failure — offline, denied rules — safely falls back to inferring
+  /// from email rather than locking the operator out.
   @override
   Future<AppRole> roleFor(AppUser user) async {
     try {
       final db = _firestore ?? FirebaseFirestore.instance;
-      final doc = await db.collection('users').doc(user.uid).get();
-      final role = AppRole.tryParse(doc.data()?['role']) ?? inferRoleFromEmail(user.email);
+      final docRef = db.collection('users').doc(user.uid);
+      final doc = await docRef.get();
+      final data = doc.data();
+      final parsedRole = AppRole.tryParse(data?['role']);
+
+      if (parsedRole != null) {
+        final backend = _backend;
+        if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = parsedRole;
+        return parsedRole;
+      }
+
+      // No role on the document, by design. The rules let an operator create
+      // and maintain their own profile but refuse a self-assigned `role`,
+      // because that field is what `isPrivileged()` reads — writing it would be
+      // a privilege escalation, not a profile. Sending it anyway would get the
+      // whole write denied and leave no profile at all. Until a manager assigns
+      // a real role, the email inference below stands in, which is what this
+      // method has always fallen back to.
+      final inferredRole = inferRoleFromEmail(user.email);
+      try {
+        await docRef.set({
+          'uid': user.uid,
+          'email': user.email ?? '',
+          'displayName':
+              user.displayName ?? (user.email?.split('@').first ?? ''),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {
+        // Non-fatal if offline or Firestore uninitialized
+      }
+
       final backend = _backend;
-      if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = role;
-      return role;
+      if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = inferredRole;
+      return inferredRole;
     } catch (_) {
       final role = inferRoleFromEmail(user.email);
       final backend = _backend;

@@ -7,6 +7,7 @@ import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
+import 'driver_identity_service.dart';
 
 /// Screen 14: Delivery Log & Daily Archive (سجل التوصيل والأرشيف اليومي للطيار)
 ///
@@ -36,18 +37,37 @@ class _TripLogScreenState extends State<TripLogScreen> {
         appBar: AppBar(
           title: Text('سجل التوصيل اليومي', style: PieTypography.heading),
         ),
-        body: FutureBuilder<List<DeliveryModel>>(
-          future: deliveryRepo?.listDeliveries(),
+        body: FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            deliveryRepo?.listDrivers() ?? Future.value(<DriverModel>[]),
+            deliveryRepo?.listDeliveries() ?? Future.value(<DeliveryModel>[]),
+          ]),
           builder: (context, snapshot) {
-            final allDeliveries = snapshot.data ?? [];
-            final deliveredList = allDeliveries.where((d) => d.state == DeliveryState.delivered).toList();
-            final failedList = allDeliveries.where((d) => d.state == DeliveryState.failed || d.state == DeliveryState.returned).toList();
+            final drivers = (snapshot.data?[0] as List<DriverModel>?) ?? [];
+            final allDeliveries = (snapshot.data?[1] as List<DeliveryModel>?) ?? [];
+            final myDriverName = DriverSession.instance.resolveCurrentDriverName(
+              user: services.auth.currentUser,
+              drivers: drivers,
+            );
 
-            final totalCollected = deliveredList.fold(0.0, (sum, d) => sum + d.amount);
+            final myDeliveries =
+                allDeliveries.where((d) => d.driver == myDriverName).toList();
+            final deliveredList = myDeliveries
+                .where((d) => d.state == DeliveryState.delivered)
+                .toList();
+            final failedList = myDeliveries
+                .where((d) =>
+                    d.state == DeliveryState.failed ||
+                    d.state == DeliveryState.returned)
+                .toList();
 
-            var filtered = allDeliveries;
+            final totalCollected =
+                deliveredList.fold(0.0, (sum, d) => sum + d.amount);
+
+            var filtered = myDeliveries;
             if (_selectedFilter != null) {
-              filtered = filtered.where((d) => d.state == _selectedFilter).toList();
+              filtered =
+                  filtered.where((d) => d.state == _selectedFilter).toList();
             }
 
             return ListView(

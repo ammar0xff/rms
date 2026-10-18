@@ -18,6 +18,7 @@ abstract final class PieColors {
 
   /// Resting card surface (0xFF12141A)
   static const Color surface1 = Color(0xFF12141A);
+  static const Color surface = surface1;
 
   /// Raised card / container surface (0xFF1A1D26)
   static const Color surface2 = Color(0xFF1A1D26);

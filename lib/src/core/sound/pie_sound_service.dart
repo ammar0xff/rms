@@ -43,4 +43,10 @@ class PieSoundService {
   void pop() => play(PieSound.pop);
   void beep() => play(PieSound.beep);
   void chime() => play(PieSound.chime);
+
+  static void playOrderPlaced() => instance.chime();
+  static void playCashDrawer() => instance.chime();
+  static void playRoleSwitch() => instance.pop();
+  static void playClick() => instance.click();
+  static void playBeep() => instance.beep();
 }

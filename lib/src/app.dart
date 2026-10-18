@@ -14,6 +14,7 @@ import 'features/accounting/z_report_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/delivery/active_trip_screen.dart';
 import 'features/delivery/custody_settlement_screen.dart';
+import 'features/delivery/driver_profile_screen.dart';
 import 'features/delivery/fleet_screen.dart';
 import 'features/delivery/trip_log_screen.dart';
 import 'features/manager/approvals_screen.dart';
@@ -270,6 +271,11 @@ class _RoleShellState extends State<_RoleShell> {
               selectedIcon: Icons.point_of_sale,
             ),
             PieNavItem(
+              label: 'طيارين الفرع',
+              icon: Icons.two_wheeler_outlined,
+              selectedIcon: Icons.two_wheeler,
+            ),
+            PieNavItem(
               label: 'الوردية والخزينة',
               icon: Icons.schedule_outlined,
               selectedIcon: Icons.schedule,
@@ -292,6 +298,7 @@ class _RoleShellState extends State<_RoleShell> {
           ],
           const [
             PosScreen(),
+            FleetScreen(),
             ShiftScreen(),
             InvoicesScreen(),
             ZReportScreen(),
@@ -318,16 +325,16 @@ class _RoleShellState extends State<_RoleShell> {
               selectedIcon: Icons.history,
             ),
             PieNavItem(
-              label: 'فريق التوصيل',
-              icon: Icons.two_wheeler_outlined,
-              selectedIcon: Icons.two_wheeler,
+              label: 'ملفي وحالتي',
+              icon: Icons.badge_outlined,
+              selectedIcon: Icons.badge,
             ),
           ],
           const [
             ActiveTripScreen(),
             CustodySettlementScreen(),
             TripLogScreen(),
-            FleetScreen(),
+            DriverProfileScreen(),
           ],
         );
 

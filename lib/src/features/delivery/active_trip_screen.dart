@@ -8,8 +8,10 @@ import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
+import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import 'driver_fail_dialog.dart';
+import 'driver_identity_service.dart';
 import 'driver_nav_sheet.dart';
 import 'driver_receipt_sheet.dart';
 
@@ -53,23 +55,38 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: FutureBuilder<List<DeliveryModel>>(
-        future: deliveryRepo.listDeliveries(),
+      child: FutureBuilder<List<dynamic>>(
+        future: Future.wait([
+          deliveryRepo.listDrivers(),
+          deliveryRepo.listDeliveries(),
+        ]),
         builder: (context, snapshot) {
-          final allDeliveries = snapshot.data ?? [];
-          final activeDeliveries = allDeliveries
-              .where((d) => d.state != DeliveryState.delivered && d.state != DeliveryState.failed)
+          final drivers = (snapshot.data?[0] as List<DriverModel>?) ?? [];
+          final allDeliveries = (snapshot.data?[1] as List<DeliveryModel>?) ?? [];
+          final myDriverName = DriverSession.instance.resolveCurrentDriverName(
+            user: services.auth.currentUser,
+            drivers: drivers,
+          );
+
+          final myDeliveries =
+              allDeliveries.where((d) => d.driver == myDriverName).toList();
+          final activeDeliveries = myDeliveries
+              .where((d) =>
+                  d.state != DeliveryState.delivered &&
+                  d.state != DeliveryState.failed)
               .toList();
 
-          final totalCustody = allDeliveries
-              .where((d) => d.state == DeliveryState.delivered)
+          final totalCustody = myDeliveries
+              .where((d) =>
+                  d.state == DeliveryState.delivered &&
+                  d.settlementStatus != SettlementStatus.settled)
               .fold(0.0, (sum, d) => sum + d.amount);
 
           if (activeDeliveries.isEmpty) {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _buildTripHeader(activeDeliveries.length, totalCustody),
+                _buildTripHeader(myDriverName, activeDeliveries.length, totalCustody),
                 const SizedBox(height: 20),
                 const PieCard(
                   padding: EdgeInsets.all(32),
@@ -92,7 +109,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               // Trip Header
-              _buildTripHeader(activeDeliveries.length, totalCustody),
+              _buildTripHeader(myDriverName, activeDeliveries.length, totalCustody),
               const SizedBox(height: 16),
 
               // Four-phase progress indicator
@@ -145,7 +162,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     );
   }
 
-  Widget _buildTripHeader(int stopsCount, double custody) {
+  Widget _buildTripHeader(String driverName, int stopsCount, double custody) {
     return PieCard(
       padding: const EdgeInsets.all(18),
       surfaceColor: PieColors.surface2,
@@ -172,7 +189,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('الطيار: كابتن أحمد محمود', style: PieTypography.bodyStrong),
+                  Text('الطيار: $driverName', style: PieTypography.bodyStrong),
                   const SizedBox(height: 2),
                   Text(
                     '$stopsCount محطات توصيل متبقية',
