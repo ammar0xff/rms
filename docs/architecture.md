@@ -188,6 +188,14 @@ Two update paths publish the same manifest shape, so a client cannot tell them a
   and still writes the Firestore document during the transition so pre-0.14.0
   clients keep updating. Manual on purpose: publishing changes what every enrolled device is offered, so it must not run
   on every push, and a missing secret must never break the normal build.
+
+  One dispatch publishes every platform. `platforms` takes a comma-separated
+  list or `all`; a `prepare` job turns that into a build matrix so each target
+  builds on its own runner — Windows and macOS cannot be cross-compiled from
+  Linux — and a single `publish` job then creates the release and writes every
+  manifest. Publishing from one job is deliberate rather than incidental: four
+  dispatches would race each other on `gh release create` and hand the same
+  version four different build numbers.
 - **Bring your own artifact** — the same publisher, `tool/publish_release.mjs`, invoked with
   `--reference` against an already-hosted artifact. Nothing is uploaded; only the manifests are
   written.

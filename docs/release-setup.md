@@ -203,6 +203,46 @@ Unsigned builds are fine for proving the target compiles, which CI already does.
 
 ---
 
+## Cutting a release
+
+The **Release** workflow takes `platforms` — a comma-separated list, or `all`
+for every target — plus `version`. One dispatch covers the whole release:
+
+```bash
+gh workflow run Release --ref main \
+  -f platforms=all \
+  -f version=0.30.0 \
+  -f channel=production \
+  -f severity=recommended \
+  -f rollout=100 \
+  -F "release-notes=@release-notes.md"
+```
+
+It runs in three stages:
+
+1. **Plan the release** turns the `platforms` list into a build matrix. It has to
+   be a separate job because GitHub evaluates `jobs.<id>.if` *before* expanding a
+   matrix, so `matrix` is not in scope for filtering there.
+2. **Build** fans out one job per platform on that platform's runner — Windows
+   and macOS cannot be cross-compiled from Linux — and uploads each bundle.
+   `fail-fast` is off so a macOS hiccup cannot cost you the Android APK.
+3. **Publish** runs once, creates the GitHub Release, and uploads each artifact
+   with its `manifest.<platform>.json`.
+
+Two consequences worth knowing:
+
+- **One dispatch, one build number.** `GITHUB_RUN_NUMBER` is per *run*, not per
+  job, so every manifest for a version shares the number baked into the APK as
+  its `versionCode`. Dispatching per platform instead would give the same
+  version four different build numbers.
+- **A failed platform blocks the release.** `publish` needs all build legs, so a
+  partial release is never published for platforms that did not build.
+
+Windows and macOS bundles publish **unsigned** until the certificates in
+sections 3 and 4 exist. Android is the only signed target.
+
+---
+
 ## Verifying it worked
 
 After adding the Android secrets, run **Build native artifacts**, download the
