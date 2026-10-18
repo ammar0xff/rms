@@ -10,15 +10,22 @@ name: Release
 #
 # The equivalent of "upload a ready APK/EXE" is the same publisher invoked
 # with --reference, which skips the upload and writes only the manifests.
+#
+# Builds are split per operating system because Windows and macOS cannot be
+# cross-compiled from Linux. Every requested platform is built on its own
+# runner and uploaded as a workflow artifact; a single publish job then
+# creates the release once and writes every manifest. Publishing from one job
+# is deliberate: four concurrent `gh release create` calls race each other,
+# and four dispatches would hand out four different build numbers for the
+# same version.
 
 on:
   workflow_dispatch:
     inputs:
-      platform:
-        description: Target platform
-        type: choice
-        options: [android, windows, linux, macos]
-        default: android
+      platforms:
+        description: Comma-separated platforms, or "all"
+        type: string
+        default: 'all'
       version:
         description: Human version, e.g. 0.9.0
         type: string
@@ -55,10 +62,68 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+# Bash everywhere so one set of scripts runs on every runner. Without this a
+# `run:` step on windows-latest would go through PowerShell, where base64,
+# sha256sum and stat mean something else entirely.
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  publish:
-    name: Build and publish
+  prepare:
+    name: Plan the release
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      # The platform list cannot be filtered with a job-level `if`: GitHub
+      # evaluates jobs.<id>.if before the matrix is expanded, so `matrix` is
+      # not in scope there. Turning the list into a matrix here is the
+      # reliable way to build only what was asked for.
+      - name: Resolve the requested platforms
+        id: plan
+        run: |
+          set -euo pipefail
+          requested="${{ inputs.platforms }}"
+          if [ "$requested" = "all" ]; then
+            requested="android,linux,windows,macos"
+          fi
+
+          entries='['
+          first=1
+          IFS=',' read -ra wanted <<< "$requested"
+          for platform in "${wanted[@]}"; do
+            platform="$(echo "$platform" | tr -d '[:space:]')"
+            [ -n "$platform" ] || continue
+            case "$platform" in
+              android) os=ubuntu-latest  ;;
+              linux)   os=ubuntu-latest  ;;
+              windows) os=windows-latest ;;
+              macos)   os=macos-latest   ;;
+              *)
+                echo "::error::unknown platform '$platform'"
+                exit 1
+                ;;
+            esac
+            if [ "$first" -eq 0 ]; then entries+=','; fi
+            first=0
+            entries+="{\"platform\":\"$platform\",\"os\":\"$os\"}"
+          done
+          entries+=']'
+
+          echo "Building: $requested"
+          echo "matrix=$entries" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing must not cancel the others — otherwise a macOS
+      # toolchain hiccup silently costs you the Android APK too.
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
 
@@ -66,14 +131,38 @@ jobs:
         with:
           channel: stable
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev \
+            libstdc++-12-dev
+
+      # Unsigned: distribution needs an Apple Developer identity that does not
+      # exist yet. Flutter 3.47 has no --no-codesign flag, so the signing
+      # identity is cleared in the build config instead. This is applied to the
+      # runner's working copy only, so the repository keeps the real signing
+      # configuration for when an Apple Developer identity exists.
+      - name: Disable macOS code signing for this build
+        if: matrix.platform == 'macos'
+        run: |
+          cat >> macos/Runner/Configs/AppInfo.xcconfig <<'EOF'
+          CODE_SIGN_IDENTITY = ""
+          CODE_SIGNING_REQUIRED = NO
+          CODE_SIGNING_ALLOWED = NO
+          EOF
 
       - name: Check required secrets
         env:
@@ -90,6 +179,7 @@ jobs:
         run: flutter pub get
 
       - name: Set up release signing
+        if: matrix.platform == 'android'
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -107,12 +197,9 @@ jobs:
             "keyAlias=$KEY_ALIAS" \
             "storeFile=rms-release.keystore" > android/key.properties
 
-      - name: Install publisher dependencies
-        run: npm install --no-save firebase-admin
-
       - name: Build artifact
         env:
-          PLATFORM: ${{ inputs.platform }}
+          PLATFORM: ${{ matrix.platform }}
           VERSION: ${{ inputs.version }}
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
@@ -143,99 +230,122 @@ jobs:
               echo "ARTIFACT=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_ENV"
               ;;
             linux)
-              sudo apt-get update
-              sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
               flutter build linux --release "${defines[@]}" --build-name="$VERSION"
               tar -czf build/rms-linux.tar.gz -C build/linux/x64/release/bundle .
               echo "ARTIFACT=build/rms-linux.tar.gz" >> "$GITHUB_ENV"
               ;;
-            windows|macos)
-              echo "::error::$PLATFORM cannot be built on a Linux runner."
-              echo "Run this workflow on a native runner, or add a per-OS job."
-              exit 1
+            windows)
+              flutter build windows --release "${defines[@]}" --build-name="$VERSION"
+              tar -czf build/rms-windows.tar.gz -C build/windows/x64/runner/Release .
+              echo "ARTIFACT=build/rms-windows.tar.gz" >> "$GITHUB_ENV"
+              ;;
+            macos)
+              flutter build macos --release "${defines[@]}" --build-name="$VERSION"
+              tar -czf build/rms-macos.tar.gz -C build/macos/Build/Products/Release rms.app
+              echo "ARTIFACT=build/rms-macos.tar.gz" >> "$GITHUB_ENV"
               ;;
           esac
+
+      - name: Upload the built artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.platform }}
+          path: ${{ env.ARTIFACT }}
+          retention-days: 30
+
+  publish:
+    name: Publish the release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install publisher dependencies
+        run: npm install --no-save firebase-admin
+
+      - name: Download the built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundle-*
+          path: .
 
       # Artifacts are hosted on GitHub Releases rather than Cloud Storage, which
       # would need a Blaze billing account. The release is created here and the
       # manifest is written from its download URL.
-      - name: Publish artifact to a GitHub Release
-        id: asset
+      - name: Upload each artifact and write its manifest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
-          RELEASE_NOTES: ${{ inputs.release-notes }}
-        run: |
-          set -euo pipefail
-          NAME=$(basename "$ARTIFACT")
-          TAG="v${VERSION}"
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG exists — replacing the asset."
-            gh release upload "$TAG" "$ARTIFACT" --clobber
-          else
-            gh release create "$TAG" "$ARTIFACT" \
-              --title "$TAG" \
-              --notes "${RELEASE_NOTES:-Automated release.}"
-          fi
-
-          URL=$(gh release view "$TAG" --json assets \
-            --jq ".assets[] | select(.name == \"$NAME\") | .url")
-          if [ -z "$URL" ]; then
-            echo "::error::could not resolve the download URL for $NAME"
-            exit 1
-          fi
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-
-      - name: Hash the artifact
-        id: digest
-        run: |
-          echo "sha=$(sha256sum "$ARTIFACT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "size=$(stat -c%s "$ARTIFACT")" >> "$GITHUB_OUTPUT"
-
-      - name: Publish artifact and manifest
-        env:
           NODE_ENV: production
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_NOTES: ${{ inputs.release-notes }}
+          CHANNEL: ${{ inputs.channel }}
+          SEVERITY: ${{ inputs.severity }}
+          ROLLOUT: ${{ inputs.rollout }}
+          MIN_SUPPORTED: ${{ inputs.min-supported }}
+          ROLLBACK_TARGET: ${{ inputs.rollback-target }}
         run: |
           set -euo pipefail
-          TAG="v${{ inputs.version }}"
-          node tool/publish_release.mjs \
-            --reference "${{ steps.asset.outputs.url }}" \
-            --sha256 "${{ steps.digest.outputs.sha }}" \
-            --size "${{ steps.digest.outputs.size }}" \
-            --build-number "${GITHUB_RUN_NUMBER}" \
-            --platform "${{ inputs.platform }}" \
-            --version "${{ inputs.version }}" \
-            --channel "${{ inputs.channel }}" \
-            --severity "${{ inputs.severity }}" \
-            --rollout "${{ inputs.rollout }}" \
-            --release-notes "${{ inputs.release-notes }}" \
-            --min-supported "${{ inputs.min-supported }}" \
-            --rollback-target "${{ inputs.rollback-target }}"
-          # The device tracks GitHub Releases, not Firestore: this asset is
-          # the update backend. The Firestore write above stays during the
-          # transition so pre-0.14.0 clients keep updating.
-          gh release upload "$TAG" "manifest.${{ inputs.platform }}.json" --clobber
+          TAG="v${VERSION}"
 
-      - name: Keep the artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-${{ inputs.platform }}-${{ inputs.version }}
-          path: ${{ env.ARTIFACT }}
-          retention-days: 30
+          for dir in bundle-*; do
+            [ -d "$dir" ] || continue
+            platform="${dir#bundle-}"
+
+            artifact=$(find "$dir" -maxdepth 1 -type f | head -1)
+            if [ -z "$artifact" ]; then
+              echo "::error::$dir holds no artifact for $platform"
+              exit 1
+            fi
+            name=$(basename "$artifact")
+
+            if ! gh release view "$TAG" >/dev/null 2>&1; then
+              gh release create "$TAG" \
+                --title "$TAG" \
+                --notes "${RELEASE_NOTES:-Automated release.}"
+            fi
+            gh release upload "$TAG" "$artifact" --clobber
+
+            url=$(gh release view "$TAG" --json assets \
+              --jq ".assets[] | select(.name == \"$name\") | .url")
+            if [ -z "$url" ]; then
+              echo "::error::could not resolve the download URL for $name"
+              exit 1
+            fi
+
+            node tool/publish_release.mjs \
+              --reference "$url" \
+              --sha256 "$(sha256sum "$artifact" | cut -d' ' -f1)" \
+              --size "$(stat -c%s "$artifact")" \
+              --build-number "${GITHUB_RUN_NUMBER}" \
+              --platform "$platform" \
+              --version "$VERSION" \
+              --channel "$CHANNEL" \
+              --severity "$SEVERITY" \
+              --rollout "$ROLLOUT" \
+              --release-notes "$RELEASE_NOTES" \
+              --min-supported "$MIN_SUPPORTED" \
+              --rollback-target "$ROLLBACK_TARGET"
+
+            # The device tracks GitHub Releases, not Firestore: this asset is
+            # the update backend. The Firestore write above stays during the
+            # transition so pre-0.14.0 clients keep updating.
+            gh release upload "$TAG" "manifest.$platform.json" --clobber
+          done
 
       - name: Summary
         run: |
           {
             echo "### Release published"
             echo ""
-            echo "- Platform: \`${{ inputs.platform }}\`"
-            echo "- Version: \`${{ inputs.version }}\`"
+            echo "- Tag: \`v${{ inputs.version }}\`"
+            echo "- Platforms: ${{ inputs.platforms }}"
             echo "- Channel: \`${{ inputs.channel }}\`"
             echo "- Severity: \`${{ inputs.severity }}\`"
             echo "- Rollout: ${{ inputs.rollout }}%"
-            echo "- Artifact: \`$ARTIFACT\`"
           } >> "$GITHUB_STEP_SUMMARY"
