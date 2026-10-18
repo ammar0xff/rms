@@ -28,7 +28,6 @@ import 'features/system/conflicts_screen.dart';
 import 'features/system/diagnostics_screen.dart';
 import 'features/system/settings_screen.dart';
 import 'features/system/updates_screen.dart';
-import 'features/tables/tables_screen.dart';
 
 /// The root application widget for PIE Operations.
 class RmsApp extends StatelessWidget {
@@ -54,6 +53,7 @@ class _AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<_AppRoot> {
   AppRole? _selectedRoleOverride;
+  String? _lastUserUid;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +65,10 @@ class _AppRootState extends State<_AppRoot> {
       builder: (context, snapshot) {
         final user = snapshot.data;
         if (user == null) {
+          _lastUserUid = null;
+          _selectedRoleOverride = null;
           return MaterialApp(
+            key: const ValueKey('signed_out_app'),
             title: 'PIE Operations',
             debugShowCheckedModeBanner: false,
             locale: const Locale('ar'),
@@ -80,6 +83,11 @@ class _AppRootState extends State<_AppRoot> {
           );
         }
 
+        if (_lastUserUid != user.uid) {
+          _lastUserUid = user.uid;
+          _selectedRoleOverride = null;
+        }
+
         // The role comes from the signed-in user's server-side document.
         // It may only be overridden in demo mode, where the repository infers
         // the role from the email and switching is the intended way to walk
@@ -90,6 +98,7 @@ class _AppRootState extends State<_AppRoot> {
         final activeRole = demo ? (_selectedRoleOverride ?? user.role) : user.role;
 
         return MaterialApp(
+          key: ValueKey('app_${user.uid}_${activeRole.name}'),
           title: 'PIE Operations',
           debugShowCheckedModeBanner: false,
           locale: const Locale('ar'),
@@ -101,6 +110,7 @@ class _AppRootState extends State<_AppRoot> {
           ],
           theme: PieTheme.themeFor(activeRole),
           home: _RoleShell(
+            key: ValueKey('shell_${user.uid}_${activeRole.name}'),
             user: user,
             activeRole: activeRole,
             // Null outside demo mode: the scaffold then renders no switcher
@@ -121,6 +131,7 @@ class _AppRootState extends State<_AppRoot> {
 
 class _RoleShell extends StatefulWidget {
   const _RoleShell({
+    super.key,
     required this.user,
     required this.activeRole,
     required this.onRoleSwitch,
@@ -185,10 +196,10 @@ class _RoleShellState extends State<_RoleShell> {
             borderRadius: BorderRadius.circular(12),
             side: const BorderSide(color: PieColors.border),
           ),
-          title: Row(
+          title: const Row(
             children: [
-              const Icon(Icons.logout_rounded, color: PieColors.stateError, size: 22),
-              const SizedBox(width: 10),
+              Icon(Icons.logout_rounded, color: PieColors.stateError, size: 22),
+              SizedBox(width: 10),
               Text('تسجيل الخروج', style: PieTypography.heading),
             ],
           ),
@@ -259,11 +270,6 @@ class _RoleShellState extends State<_RoleShell> {
               selectedIcon: Icons.point_of_sale,
             ),
             PieNavItem(
-              label: 'طاولات الصالة',
-              icon: Icons.table_restaurant_outlined,
-              selectedIcon: Icons.table_restaurant,
-            ),
-            PieNavItem(
               label: 'الوردية والخزينة',
               icon: Icons.schedule_outlined,
               selectedIcon: Icons.schedule,
@@ -278,13 +284,18 @@ class _RoleShellState extends State<_RoleShell> {
               icon: Icons.summarize_outlined,
               selectedIcon: Icons.summarize,
             ),
+            PieNavItem(
+              label: 'الإعدادات',
+              icon: Icons.tune_outlined,
+              selectedIcon: Icons.tune,
+            ),
           ],
           const [
             PosScreen(),
-            TablesScreen(),
             ShiftScreen(),
             InvoicesScreen(),
             ZReportScreen(),
+            SettingsScreen(),
           ],
         );
 

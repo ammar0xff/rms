@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/data/repositories/auth_repository.dart';
 import 'package:rms/src/data/repositories/firebase_auth_repository.dart';
+import 'package:rms/src/domain/models/app_role.dart';
 import 'package:rms/src/domain/models/app_user.dart';
 
 /// A backend that records what it was asked and answers as told.
@@ -211,6 +212,42 @@ void main() {
       backend.controller.add(null);
 
       expect(await next, isNull);
+    });
+
+    test('infers role from email convention', () {
+      expect(inferRoleFromEmail('driver@pie.eg'), AppRole.driver);
+      expect(inferRoleFromEmail('driver.ahmed@pie.eg'), AppRole.driver);
+      expect(inferRoleFromEmail('manager@pie.eg'), AppRole.manager);
+      expect(inferRoleFromEmail('dev@pie.eg'), AppRole.developer);
+      expect(inferRoleFromEmail('developer@pie.eg'), AppRole.developer);
+      expect(inferRoleFromEmail('cashier@pie.eg'), AppRole.cashier);
+      expect(inferRoleFromEmail('unknown@pie.eg'), AppRole.cashier);
+    });
+
+    test('resolves role upon sign-in with email', () async {
+      const driverUser = AppUser(uid: 'u-driver', email: 'driver@pie.eg');
+      final backend = _Backend(signedIn: driverUser);
+      final repo = FirebaseAuthRepository(backend: backend);
+
+      final signedIn = await repo.signInWithEmail(
+        email: 'driver@pie.eg',
+        password: 'password',
+      );
+
+      expect(signedIn.role, AppRole.driver);
+      expect(signedIn.email, 'driver@pie.eg');
+    });
+
+    test('authStateChanges propagates resolved role for user', () async {
+      const managerUser = AppUser(uid: 'u-mgr', email: 'manager@pie.eg');
+      final backend = _Backend(signedIn: managerUser);
+      final repo = FirebaseAuthRepository(backend: backend);
+
+      final next = repo.authStateChanges().first;
+      backend.controller.add(managerUser);
+
+      final user = await next;
+      expect(user?.role, AppRole.manager);
     });
   });
 }

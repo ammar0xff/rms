@@ -14,6 +14,11 @@ class FacilitySettings {
     this.themePreset = 'amber',
     this.printerCodepage = 'UTF-8',
     this.currency = 'ج.م',
+    this.autoAssignDelivery = true,
+    this.soundEffectsEnabled = true,
+    this.activeBranchId = 'BR-01',
+    this.activeBranchName = 'بوابة الشمال',
+    this.simulateOffline = false,
   });
 
   final String nameAr;
@@ -30,6 +35,13 @@ class FacilitySettings {
   final String printerCodepage;
   final String currency;
 
+  /// Operational flags: auto-dispatch delivery jobs to drivers, sound FX, branch
+  final bool autoAssignDelivery;
+  final bool soundEffectsEnabled;
+  final String activeBranchId;
+  final String activeBranchName;
+  final bool simulateOffline;
+
   FacilitySettings copyWith({
     String? nameAr,
     String? nameEn,
@@ -42,6 +54,11 @@ class FacilitySettings {
     String? themePreset,
     String? printerCodepage,
     String? currency,
+    bool? autoAssignDelivery,
+    bool? soundEffectsEnabled,
+    String? activeBranchId,
+    String? activeBranchName,
+    bool? simulateOffline,
   }) =>
       FacilitySettings(
         nameAr: nameAr ?? this.nameAr,
@@ -55,6 +72,11 @@ class FacilitySettings {
         themePreset: themePreset ?? this.themePreset,
         printerCodepage: printerCodepage ?? this.printerCodepage,
         currency: currency ?? this.currency,
+        autoAssignDelivery: autoAssignDelivery ?? this.autoAssignDelivery,
+        soundEffectsEnabled: soundEffectsEnabled ?? this.soundEffectsEnabled,
+        activeBranchId: activeBranchId ?? this.activeBranchId,
+        activeBranchName: activeBranchName ?? this.activeBranchName,
+        simulateOffline: simulateOffline ?? this.simulateOffline,
       );
 
   Map<String, Object?> toRecord() => {
@@ -69,6 +91,11 @@ class FacilitySettings {
         'themePreset': themePreset,
         'printerCodepage': printerCodepage,
         'currency': currency,
+        'autoAssignDelivery': autoAssignDelivery,
+        'soundEffectsEnabled': soundEffectsEnabled,
+        'activeBranchId': activeBranchId,
+        'activeBranchName': activeBranchName,
+        'simulateOffline': simulateOffline,
       };
 
   static FacilitySettings fromRecord(Map<String, Object?> record) =>
@@ -84,5 +111,10 @@ class FacilitySettings {
         themePreset: record['themePreset'] as String? ?? 'amber',
         printerCodepage: record['printerCodepage'] as String? ?? 'UTF-8',
         currency: record['currency'] as String? ?? 'ج.م',
+        autoAssignDelivery: record['autoAssignDelivery'] as bool? ?? true,
+        soundEffectsEnabled: record['soundEffectsEnabled'] as bool? ?? true,
+        activeBranchId: record['activeBranchId'] as String? ?? 'BR-01',
+        activeBranchName: record['activeBranchName'] as String? ?? 'بوابة الشمال',
+        simulateOffline: record['simulateOffline'] as bool? ?? false,
       );
 }

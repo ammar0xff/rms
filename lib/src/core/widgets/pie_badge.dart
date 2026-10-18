@@ -69,6 +69,7 @@ class PieBadge extends StatelessWidget {
     bool isPending = false,
     bool isConflict = false,
     bool isOffline = false,
+    int pendingCount = 0,
   }) {
     if (isConflict) {
       return const PieBadge(
@@ -78,20 +79,20 @@ class PieBadge extends StatelessWidget {
         icon: Icons.warning_amber_rounded,
       );
     }
-    if (isPending) {
-      return const PieBadge(
-        label: 'على الجهاز',
-        color: PieColors.statePending,
-        backgroundColor: PieColors.statePendingBg,
-        icon: Icons.cloud_upload_outlined,
-      );
-    }
     if (isOffline) {
-      return const PieBadge(
-        label: 'أوفلاين',
+      return PieBadge(
+        label: pendingCount > 0 ? 'أوفلاين ($pendingCount معلق)' : 'أوفلاين',
         color: PieColors.stateOffline,
         backgroundColor: PieColors.stateOfflineBg,
         icon: Icons.cloud_off_rounded,
+      );
+    }
+    if (isPending) {
+      return PieBadge(
+        label: pendingCount > 0 ? 'على الجهاز ($pendingCount)' : 'على الجهاز',
+        color: PieColors.statePending,
+        backgroundColor: PieColors.statePendingBg,
+        icon: Icons.cloud_upload_outlined,
       );
     }
     return const PieBadge(

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
+import '../../core/sound/pie_sound_service.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../domain/models/app_role.dart';
+import '../../domain/models/branch.dart';
 import '../../domain/models/facility_settings.dart';
 
 /// Screen 26: Terminal Identity, Facility Settings, Tax & Service Rates, and Thermal Printer Preferences.
@@ -30,6 +33,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _printerCodepage = 'UTF-8';
   String _currency = 'ج.م';
+  bool _autoAssignDelivery = true;
+  bool _soundEffectsEnabled = true;
+  bool _simulateOffline = false;
+  String _activeBranchId = 'BR-01';
+  List<BranchModel> _branches = [];
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -62,11 +70,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final facilityRepo = AppScope.of(context).facility;
+    final services = AppScope.of(context);
+    final facilityRepo = services.facility;
+    final branchRepo = services.branches;
+
     FacilitySettings settings = const FacilitySettings();
     if (facilityRepo != null) {
       settings = await facilityRepo.load();
     }
+
+    final branches = await branchRepo?.listBranches() ?? [];
+    final activeBranch = await branchRepo?.activeBranch();
 
     if (mounted) {
       setState(() {
@@ -82,6 +96,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             : settings.receiptFooter;
         _printerCodepage = settings.printerCodepage;
         _currency = settings.currency;
+        _autoAssignDelivery = settings.autoAssignDelivery;
+        _soundEffectsEnabled = settings.soundEffectsEnabled;
+        _simulateOffline = SyncMonitor.instance.isSimulatedOffline || settings.simulateOffline;
+        _branches = branches;
+        _activeBranchId = activeBranch?.id ?? settings.activeBranchId;
         _isLoading = false;
       });
     }
@@ -91,10 +110,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
-    final facilityRepo = AppScope.of(context).facility;
+    final services = AppScope.of(context);
+    final facilityRepo = services.facility;
+    final branchRepo = services.branches;
 
     final vat = (double.tryParse(_vatRateCtrl.text.trim()) ?? 14.0) / 100.0;
     final srv = (double.tryParse(_serviceRateCtrl.text.trim()) ?? 12.0) / 100.0;
+
+    final selectedBranch = _branches.firstWhere(
+      (b) => b.id == _activeBranchId,
+      orElse: () => BranchModel(
+        id: _activeBranchId,
+        name: 'بوابة الشمال',
+        code: 'NS-01',
+        city: 'القاهرة',
+        timezone: 'Africa/Cairo',
+        openedAt: DateTime.now(),
+      ),
+    );
 
     final updated = FacilitySettings(
       nameAr: _nameArCtrl.text.trim(),
@@ -107,18 +140,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
       receiptFooter: _receiptFooterCtrl.text.trim(),
       printerCodepage: _printerCodepage,
       currency: _currency,
+      autoAssignDelivery: _autoAssignDelivery,
+      soundEffectsEnabled: _soundEffectsEnabled,
+      activeBranchId: _activeBranchId,
+      activeBranchName: selectedBranch.name,
+      simulateOffline: _simulateOffline,
     );
 
     if (facilityRepo != null) {
       await facilityRepo.save(updated);
     }
 
+    if (branchRepo != null) {
+      await branchRepo.setActiveBranch(_activeBranchId);
+    }
+
+    PieSoundService.instance.enabled = _soundEffectsEnabled;
+    SyncMonitor.instance.setSimulatedOffline(_simulateOffline);
+    PieSoundService.instance.chime();
+
     if (mounted) {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم حفظ وتحديث إعدادات المنشأة والطابعة محلياً بنجاح.'),
           backgroundColor: PieColors.stateSynced,
+          content: Text('تم حفظ وتحديث إعدادات المنشأة والفرع والتشغيل بنجاح.'),
         ),
       );
     }
@@ -358,6 +404,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 fillColor: PieColors.well,
                                 border: OutlineInputBorder(),
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Operational & Branch Settings ("branch is must", "auto dispatch in settings")
+                      Text(
+                        'إعدادات الفرع وإسناد التوصيل',
+                        style: PieTypography.h3.copyWith(color: PieColors.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      PieCard(
+                        surface: PieColors.surface2,
+                        child: Column(
+                          children: [
+                            if (_branches.isNotEmpty) ...[
+                              DropdownButtonFormField<String>(
+                                value: _activeBranchId,
+                                dropdownColor: PieColors.surface3,
+                                style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                                decoration: const InputDecoration(
+                                  labelText: 'الفرع النشط الحالي (مطلوب)',
+                                  filled: true,
+                                  fillColor: PieColors.well,
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.storefront_outlined, color: PieColors.inkSecondary),
+                                ),
+                                items: _branches.map((b) {
+                                  return DropdownMenuItem<String>(
+                                    value: b.id,
+                                    child: Text('${b.name} (${b.code}) - ${b.city}'),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _activeBranchId = val);
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'الإسناد التلقائي لطلبات التوصيل',
+                                style: PieTypography.bodyStrong.copyWith(color: PieColors.textPrimary),
+                              ),
+                              subtitle: Text(
+                                _autoAssignDelivery
+                                    ? 'مفعّل: يتم إسناد الأوردر تلقائياً لأقل طيار حمولة عند الدفع.'
+                                    : 'متوقف: يظهر منبثق لاختيار وتعيين الطيار يدوياً من قائمة الطيارين المتاحين.',
+                                style: PieTypography.caption.copyWith(color: PieColors.textSecondary),
+                              ),
+                              value: _autoAssignDelivery,
+                              activeTrackColor: PieColors.roleCashier,
+                              onChanged: (val) {
+                                setState(() => _autoAssignDelivery = val);
+                                PieSoundService.instance.pop();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Sound Effects & Offline Testing
+                      Text(
+                        'المؤثرات الصوتية والشبكة',
+                        style: PieTypography.h3.copyWith(color: PieColors.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      PieCard(
+                        surface: PieColors.surface2,
+                        child: Column(
+                          children: [
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'المؤثرات الصوتية للتطبيق',
+                                style: PieTypography.bodyStrong.copyWith(color: PieColors.textPrimary),
+                              ),
+                              subtitle: Text(
+                                'تشغيل استجابة صوتية عند الضغط على الأزرار، إتمام الفواتير، والتنبيهات.',
+                                style: PieTypography.caption.copyWith(color: PieColors.textSecondary),
+                              ),
+                              value: _soundEffectsEnabled,
+                              activeTrackColor: PieColors.roleCashier,
+                              onChanged: (val) {
+                                setState(() => _soundEffectsEnabled = val);
+                                PieSoundService.instance.enabled = val;
+                                PieSoundService.instance.pop();
+                              },
+                            ),
+                            const Divider(color: PieColors.border),
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'محاكاة وضع أوفلاين (اختبار العمل بدون إنترنت)',
+                                style: PieTypography.bodyStrong.copyWith(color: PieColors.textPrimary),
+                              ),
+                              subtitle: Text(
+                                'يفصل الاتصال سحابياً لاختبار تخزين الأوردرات محلياً في صندوق الصادر.',
+                                style: PieTypography.caption.copyWith(color: PieColors.textSecondary),
+                              ),
+                              value: _simulateOffline,
+                              activeTrackColor: PieColors.stateOffline,
+                              onChanged: (val) {
+                                setState(() => _simulateOffline = val);
+                                SyncMonitor.instance.setSimulatedOffline(val);
+                                PieSoundService.instance.pop();
+                              },
                             ),
                           ],
                         ),

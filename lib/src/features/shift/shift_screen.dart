@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
+import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
@@ -119,8 +120,6 @@ class _ShiftScreenState extends State<ShiftScreen> {
                 Row(
                   children: [
                     _buildChannelFilterChip(null, 'الكل'),
-                    const SizedBox(width: 6),
-                    _buildChannelFilterChip(OrderType.dineIn, 'صالة'),
                     const SizedBox(width: 6),
                     _buildChannelFilterChip(OrderType.takeaway, 'تيك أواي'),
                     const SizedBox(width: 6),
@@ -260,21 +259,116 @@ class _ShiftScreenState extends State<ShiftScreen> {
             ],
           ),
           const SizedBox(height: 18),
-          PieButton.primary(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ZReportScreen(),
-                ),
-              );
-            },
-            label: 'جرد الكاش وتقفيل الوردية (Z-Report)',
-            icon: Icons.point_of_sale_rounded,
-            accentColor: PieColors.cashierAccent,
-          ),
+          if (isOpen)
+            PieButton.primary(
+              onPressed: () {
+                PieSoundService.instance.click();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ZReportScreen(),
+                  ),
+                ).then((_) => _loadData());
+              },
+              label: 'جرد الكاش وتقفيل الوردية (Z-Report)',
+              icon: Icons.point_of_sale_rounded,
+              accentColor: PieColors.cashierAccent,
+            )
+          else
+            PieButton.primary(
+              onPressed: _showOpenShiftDialog,
+              label: 'فتح وردية جديدة وتعيين العهدة',
+              icon: Icons.lock_open_rounded,
+              accentColor: PieColors.stateSynced,
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _showOpenShiftDialog() async {
+    PieSoundService.instance.click();
+    final ctrl = TextEditingController(text: '500');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: PieColors.surfaceOverlay,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: PieColors.border),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_open_rounded, color: PieColors.stateSynced, size: 22),
+              const SizedBox(width: 10),
+              Text('افتتاح وردية جديدة', style: PieTypography.heading),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'أدخل مبلغ العهدة الافتتاحية في درج الكاشير للبدء بالبيع:',
+                style: PieTypography.body,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ctrl,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                style: PieTypography.monoHeading.copyWith(color: PieColors.cashierAccent),
+                decoration: const InputDecoration(
+                  labelText: 'عهدة الافتتاح (Float)',
+                  suffixText: 'ج.م',
+                  filled: true,
+                  fillColor: PieColors.well,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [200, 500, 1000].map((amt) {
+                  return ActionChip(
+                    label: Text('+$amt ج.م'),
+                    backgroundColor: PieColors.surface2,
+                    side: const BorderSide(color: PieColors.border),
+                    onPressed: () {
+                      ctrl.text = amt.toString();
+                      PieSoundService.instance.click();
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: PieColors.cashierAccent,
+                foregroundColor: const Color(0xFF0F1117),
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('فتح الوردية الآن'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      final float = double.tryParse(ctrl.text.trim()) ?? 500.0;
+      final services = AppScope.of(context);
+      await services.cashSessions?.openSession(openingFloat: float);
+      PieSoundService.instance.chime();
+      await _loadData();
+    }
   }
 
   Widget _buildChannelFilterChip(OrderType? type, String label) {

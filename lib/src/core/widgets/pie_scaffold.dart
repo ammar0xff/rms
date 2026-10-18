@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../domain/models/app_role.dart';
+import '../../domain/models/branch.dart';
 import '../di/app_services.dart';
+import '../sound/pie_sound_service.dart';
 import '../state/sync_monitor.dart';
 import '../theme/pie_colors.dart';
 import '../theme/pie_typography.dart';
@@ -110,6 +112,43 @@ class PieScaffold extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+
+              // Active Branch Badge ("branch is must")
+              FutureBuilder<BranchModel?>(
+                future: services.branches?.activeBranch(),
+                builder: (context, branchSnap) {
+                  final branch = branchSnap.data;
+                  final branchName = branch?.name ?? 'فرع المعادي';
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: PieColors.surface2,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: PieColors.borderMuted),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.storefront_outlined,
+                          size: 14,
+                          color: PieColors.inkSecondary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          branchName,
+                          style: PieTypography.caption.copyWith(
+                            color: PieColors.ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 10),
+
               if (title != null)
                 Text(
                   title!,
@@ -124,16 +163,25 @@ class PieScaffold extends StatelessWidget {
                   ),
                 ),
               const Spacer(),
-              // Honest Sync Chip
+
+              // Honest Sync Chip (Clickable for sync diagnostic / offline toggle)
               ListenableBuilder(
                 listenable: monitor,
                 builder: (context, _) {
-                  final isOffline = !monitor.online && services.sync?.isOnline != true;
-                  return PieBadge.syncStatus(
-                    isSynced: monitor.pending == 0 && monitor.conflicts == 0 && !isOffline,
-                    isPending: monitor.pending > 0,
-                    isConflict: monitor.conflicts > 0,
-                    isOffline: isOffline,
+                  final isOffline = !monitor.online;
+                  return Tooltip(
+                    message: 'اضغط لعرض تفاصيل المزامنة وحالة الاتصال',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: () => _showSyncStatusModal(context, monitor, services),
+                      child: PieBadge.syncStatus(
+                        isSynced: monitor.pending == 0 && monitor.conflicts == 0 && !isOffline,
+                        isPending: monitor.pending > 0,
+                        isConflict: monitor.conflicts > 0,
+                        isOffline: isOffline,
+                        pendingCount: monitor.pending,
+                      ),
+                    ),
                   );
                 },
               ),
@@ -221,7 +269,10 @@ class PieScaffold extends StatelessWidget {
                   color: isSelected ? roleAccent.withOpacity(0.12) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   child: InkWell(
-                    onTap: () => onDestinationSelected(index),
+                    onTap: () {
+                      PieSoundService.instance.click();
+                      onDestinationSelected(index);
+                    },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       height: 48,
@@ -280,7 +331,10 @@ class PieScaffold extends StatelessWidget {
 
               return Expanded(
                 child: InkWell(
-                  onTap: () => onDestinationSelected(index),
+                  onTap: () {
+                    PieSoundService.instance.click();
+                    onDestinationSelected(index);
+                  },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Column(
@@ -317,6 +371,142 @@ class PieScaffold extends StatelessWidget {
               );
             }),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showSyncStatusModal(BuildContext context, SyncMonitor monitor, AppServices services) {
+    PieSoundService.instance.click();
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: PieColors.surfaceOverlay,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: PieColors.border),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.sync_rounded, color: PieColors.stateSynced, size: 22),
+              const SizedBox(width: 8),
+              Text('حالة الاتصال والمزامنة', style: PieTypography.heading),
+            ],
+          ),
+          content: StatefulBuilder(
+            builder: (ctx, setModalState) {
+              final isOffline = !monitor.online;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isOffline ? PieColors.stateOfflineBg : PieColors.stateSyncedBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isOffline ? PieColors.stateOffline : PieColors.stateSynced,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isOffline ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
+                          color: isOffline ? PieColors.stateOffline : PieColors.stateSynced,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isOffline ? 'النظام في وضع العمل بدون إنترنت (أوفلاين)' : 'النظام متصل بالإنترنت ومباشر',
+                                style: PieTypography.bodyStrong.copyWith(
+                                  color: isOffline ? PieColors.stateOffline : PieColors.stateSynced,
+                                ),
+                              ),
+                              Text(
+                                isOffline
+                                    ? 'كل العمليات تسجل محلياً على الجهاز ويتم حفظها في صندوق الصادر.'
+                                    : 'تتم مزامنة العمليات تلقائياً مع السيرفر السحابي.',
+                                style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('محاكاة وضع أوفلاين (اختبار)', style: PieTypography.body),
+                    subtitle: Text('يفصل الاتصال برمجياً لاختبار المعاملات دون شبكة', style: PieTypography.caption),
+                    value: monitor.isSimulatedOffline,
+                    activeColor: PieColors.stateOffline,
+                    onChanged: (val) {
+                      setModalState(() {
+                        monitor.setSimulatedOffline(val);
+                      });
+                      PieSoundService.instance.pop();
+                    },
+                  ),
+                  const Divider(color: PieColors.border),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('عمليات معلقة على الجهاز:', style: PieTypography.body),
+                      Text('${monitor.pending}', style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('عمليات متزامنة ومستقرة:', style: PieTypography.body),
+                      Text('${monitor.synced}', style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  if (monitor.conflicts > 0) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('تعارضات بحاجة لمراجعة:', style: PieTypography.body.copyWith(color: PieColors.stateConflict)),
+                        Text('${monitor.conflicts}', style: PieTypography.monoBody.copyWith(color: PieColors.stateConflict, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('إغلاق'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: PieColors.surface2,
+                foregroundColor: PieColors.stateSynced,
+              ),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('مزامنة الآن'),
+              onPressed: () async {
+                PieSoundService.instance.pop();
+                if (services.sync != null) {
+                  await services.sync!.requestSync();
+                }
+                await monitor.refresh();
+                if (ctx.mounted) Navigator.of(ctx).pop();
+              },
+            ),
+          ],
         ),
       ),
     );

@@ -34,6 +34,27 @@ abstract interface class AuthBackend {
   Future<void> signOut();
 }
 
+/// Infers an operator role from their email address convention.
+/// Used as a fallback when Firestore is offline or before server lookup completes.
+AppRole inferRoleFromEmail(String? email) {
+  final local = (email ?? '').trim().toLowerCase().split('@').first;
+  for (final entry in const [
+    ('driver', AppRole.driver),
+    ('cashier', AppRole.cashier),
+    ('manager', AppRole.manager),
+    ('developer', AppRole.developer),
+    ('dev', AppRole.developer),
+    ('admin', AppRole.developer),
+  ]) {
+    if (local == entry.$1 ||
+        local.startsWith('${entry.$1}.') ||
+        local.startsWith('${entry.$1}_')) {
+      return entry.$2;
+    }
+  }
+  return AppRole.cashier;
+}
+
 /// Wraps [FirebaseAuth], translating its exceptions into [AuthBackendFailure].
 class _FirebaseAuthBackend implements AuthBackend {
   _FirebaseAuthBackend(FirebaseAuth auth) : _auth = auth;
@@ -49,7 +70,7 @@ class _FirebaseAuthBackend implements AuthBackend {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
-        role: roles[user.uid] ?? AppRole.cashier,
+        role: roles[user.uid] ?? inferRoleFromEmail(user.email),
       );
 
   @override
@@ -80,7 +101,10 @@ class _FirebaseAuthBackend implements AuthBackend {
   }
 
   @override
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() {
+    roles.clear();
+    return _auth.signOut();
+  }
 }
 
 /// Backend-backed authentication using Firebase Auth (email/password).
@@ -98,10 +122,29 @@ class FirebaseAuthRepository implements AuthRepository {
   final FirebaseFirestore? _firestore;
 
   @override
-  AppUser? get currentUser => _backend.currentUser;
+  AppUser? get currentUser {
+    final user = _backend.currentUser;
+    if (user == null) return null;
+    final backend = _backend;
+    if (backend is _FirebaseAuthBackend) {
+      final cachedRole = backend.roles[user.uid];
+      if (cachedRole != null) {
+        return user.copyWith(role: cachedRole);
+      }
+    }
+    return user.role != AppRole.cashier
+        ? user
+        : user.copyWith(role: inferRoleFromEmail(user.email));
+  }
 
   @override
-  Stream<AppUser?> authStateChanges() => _backend.authStateChanges();
+  Stream<AppUser?> authStateChanges() {
+    return _backend.authStateChanges().asyncMap((user) async {
+      if (user == null) return null;
+      final role = await roleFor(user);
+      return user.copyWith(role: role);
+    });
+  }
 
   @override
   Future<AppUser> signInWithEmail({
@@ -119,26 +162,30 @@ class FirebaseAuthRepository implements AuthRepository {
       // something the form can explain.
       throw const AuthException('تعذّر إنشاء الجلسة.');
     }
-    return user;
+    final role = await roleFor(user);
+    return user.copyWith(role: role);
   }
 
   @override
   Future<void> signOut() => _backend.signOut();
 
   /// Reads the operator's role from `users/{uid}`. Any failure — missing
-  /// document, offline, denied rules — falls back to cashier rather than
-  /// locking the operator out or promoting them.
+  /// document, offline, denied rules — falls back to inferring from email
+  /// (or cashier default) rather than locking the operator out.
   @override
   Future<AppRole> roleFor(AppUser user) async {
     try {
       final db = _firestore ?? FirebaseFirestore.instance;
       final doc = await db.collection('users').doc(user.uid).get();
-      final role = AppRole.tryParse(doc.data()?['role']) ?? AppRole.cashier;
+      final role = AppRole.tryParse(doc.data()?['role']) ?? inferRoleFromEmail(user.email);
       final backend = _backend;
       if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = role;
       return role;
     } catch (_) {
-      return AppRole.cashier;
+      final role = inferRoleFromEmail(user.email);
+      final backend = _backend;
+      if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = role;
+      return role;
     }
   }
 }
