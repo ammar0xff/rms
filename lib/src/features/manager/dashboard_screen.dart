@@ -244,19 +244,28 @@ class DashboardScreen extends StatelessWidget {
     required int deliveriesCount,
     required int lowStockCount,
   }) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.6,
-      children: [
-        _buildKpiCard('عدد الأوردرات', '$ordersCount أوردر', Icons.receipt_long_rounded),
-        _buildKpiCard('متوسط الفاتورة', PieTypography.formatEgp(avgTicket), Icons.analytics_outlined),
-        _buildKpiCard('دليفري قيد التنفيذ', '$deliveriesCount أوردر', Icons.delivery_dining_rounded),
-        _buildKpiCard('نواقص المخزون', '$lowStockCount صنف', Icons.warning_amber_rounded),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 900;
+        final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+        final crossAxisCount = isDesktop ? 4 : (isTablet ? 4 : 2);
+        final childAspectRatio = isDesktop ? 2.2 : (isTablet ? 1.8 : 1.4);
+
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: childAspectRatio,
+          children: [
+            _buildKpiCard('عدد الأوردرات', '$ordersCount أوردر', Icons.receipt_long_rounded),
+            _buildKpiCard('متوسط الفاتورة', PieTypography.formatEgp(avgTicket), Icons.analytics_outlined),
+            _buildKpiCard('دليفري قيد التنفيذ', '$deliveriesCount أوردر', Icons.delivery_dining_rounded),
+            _buildKpiCard('نواقص المخزون', '$lowStockCount صنف', Icons.warning_amber_rounded),
+          ],
+        );
+      },
     );
   }
 
@@ -274,9 +283,13 @@ class DashboardScreen extends StatelessWidget {
               Icon(icon, size: 16, color: PieColors.inkMuted),
             ],
           ),
-          Text(
-            value,
-            style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
+          FittedBox(
+            alignment: Alignment.centerRight,
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),

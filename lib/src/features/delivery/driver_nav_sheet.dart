@@ -45,12 +45,21 @@ class DriverNavSheet extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.navigation_rounded, color: PieColors.driverAccent, size: 22),
-                    const SizedBox(width: 8),
-                    Text('ملاحة خط السير • أوردر #${delivery.orderRef}', style: PieTypography.heading),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.navigation_rounded, color: PieColors.driverAccent, size: 22),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'ملاحة خط السير • أوردر #${delivery.orderRef}',
+                          style: PieTypography.heading,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, color: PieColors.inkSecondary),

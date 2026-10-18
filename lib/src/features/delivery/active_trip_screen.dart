@@ -170,36 +170,46 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: PieColors.driverSurface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: PieColors.driverBorder),
-                ),
-                child: const Icon(
-                  Icons.two_wheeler_rounded,
-                  color: PieColors.driverAccent,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('الطيار: $driverName', style: PieTypography.bodyStrong),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$stopsCount محطات توصيل متبقية',
-                    style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: PieColors.driverSurface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: PieColors.driverBorder),
                   ),
-                ],
-              ),
-            ],
+                  child: const Icon(
+                    Icons.two_wheeler_rounded,
+                    color: PieColors.driverAccent,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'الطيار: $driverName',
+                        style: PieTypography.bodyStrong,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$stopsCount محطات توصيل متبقية',
+                        style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

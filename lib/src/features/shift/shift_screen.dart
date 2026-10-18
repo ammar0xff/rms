@@ -109,24 +109,47 @@ class _ShiftScreenState extends State<ShiftScreen> {
             const SizedBox(height: 20),
 
             // Live Ticket Rail Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'تذاكر الأوردرات اللحظية',
-                  style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
-                ),
-                // Channel Filter Chips
-                Row(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 480;
+                final chips = SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildChannelFilterChip(null, 'الكل'),
+                      const SizedBox(width: 6),
+                      _buildChannelFilterChip(OrderType.takeaway, 'تيك أواي'),
+                      const SizedBox(width: 6),
+                      _buildChannelFilterChip(OrderType.delivery, 'دليفري'),
+                    ],
+                  ),
+                );
+
+                if (isCompact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'تذاكر الأوردرات اللحظية',
+                        style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      chips,
+                    ],
+                  );
+                }
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildChannelFilterChip(null, 'الكل'),
-                    const SizedBox(width: 6),
-                    _buildChannelFilterChip(OrderType.takeaway, 'تيك أواي'),
-                    const SizedBox(width: 6),
-                    _buildChannelFilterChip(OrderType.delivery, 'دليفري'),
+                    Text(
+                      'تذاكر الأوردرات اللحظية',
+                      style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    chips,
                   ],
-                ),
-              ],
+                );
+              },
             ),
             const SizedBox(height: 12),
 
@@ -179,22 +202,28 @@ class _ShiftScreenState extends State<ShiftScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: isOpen ? const Color(0xFF4ADE80) : PieColors.stateError,
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: isOpen ? const Color(0xFF4ADE80) : PieColors.stateError,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isOpen ? 'الوردية مفتوحة ومباشرة' : 'الوردية مقفولة',
-                    style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isOpen ? 'الوردية مفتوحة ومباشرة' : 'الوردية مقفولة',
+                        style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (isOpen)
                 Container(

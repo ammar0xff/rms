@@ -109,18 +109,23 @@ class _TablesScreenState extends State<TablesScreen> {
                         description: 'جرب تختار فلتر تاني أو قسماً مختلفاً من الصالة.',
                         icon: Icons.table_restaurant_outlined,
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 320,
-                          mainAxisExtent: 210,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                        ),
-                        itemCount: displayedTables.length,
-                        itemBuilder: (context, index) {
-                          final table = displayedTables[index];
-                          return _buildTableCard(table);
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isMobile = constraints.maxWidth < 600;
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: isMobile ? 600 : 340,
+                              mainAxisExtent: isMobile ? 195 : 210,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                            ),
+                            itemCount: displayedTables.length,
+                            itemBuilder: (context, index) {
+                              final table = displayedTables[index];
+                              return _buildTableCard(table);
+                            },
+                          );
                         },
                       ),
               ),
@@ -141,14 +146,20 @@ class _TablesScreenState extends State<TablesScreen> {
         color: PieColors.surface1,
         border: Border(bottom: BorderSide(color: PieColors.border, width: 1)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildSummaryItem('إجمالي الطاولات', total, PieColors.ink),
-          _buildSummaryItem('شاغرة', vacant, const Color(0xFF4ADE80)),
-          _buildSummaryItem('مشغولة', occupied, PieColors.cashierAccent),
-          _buildSummaryItem('طلب الحساب', billRequested, const Color(0xFFF87171)),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildSummaryItem('إجمالي الطاولات', total, PieColors.ink),
+            const SizedBox(width: 20),
+            _buildSummaryItem('شاغرة', vacant, const Color(0xFF4ADE80)),
+            const SizedBox(width: 20),
+            _buildSummaryItem('مشغولة', occupied, PieColors.cashierAccent),
+            const SizedBox(width: 20),
+            _buildSummaryItem('طلب الحساب', billRequested, const Color(0xFFF87171)),
+          ],
+        ),
       ),
     );
   }

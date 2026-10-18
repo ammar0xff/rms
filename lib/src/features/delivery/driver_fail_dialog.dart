@@ -48,10 +48,15 @@ class _DriverFailDialogState extends State<DriverFailDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'تعذر تسليم الأوردر #${widget.delivery.orderRef}',
-                    style: PieTypography.heading,
+                  Expanded(
+                    child: Text(
+                      'تعذر تسليم الأوردر #${widget.delivery.orderRef}',
+                      style: PieTypography.heading,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: PieColors.inkSecondary),
                     onPressed: () => Navigator.of(context).pop(false),

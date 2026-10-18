@@ -497,97 +497,120 @@ class _FleetScreenState extends State<FleetScreen> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     // Overview KPI Grid
-                    Row(
-                      children: [
-                        Expanded(
-                          child: PieCard(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('إجمالي الطيارين',
-                                    style: PieTypography.caption),
-                                const SizedBox(height: 6),
-                                PieNumeral.count(
-                                  drivers.length,
-                                  style: PieTypography.monoHeading.copyWith(
-                                    color: PieColors.ink,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                    LayoutBuilder(
+                      builder: (context, kpiConstraints) {
+                        final cardTotal = PieCard(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('إجمالي الطيارين',
+                                  style: PieTypography.caption),
+                              const SizedBox(height: 6),
+                              PieNumeral.count(
+                                drivers.length,
+                                style: PieTypography.monoHeading.copyWith(
+                                  color: PieColors.ink,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: PieCard(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('متاحين بالفرع',
-                                    style: PieTypography.caption),
-                                const SizedBox(height: 6),
-                                PieNumeral.count(
-                                  availableDrivers.length,
-                                  style: PieTypography.monoHeading.copyWith(
-                                    color: const Color(0xFF4ADE80),
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                        );
+                        final cardAvailable = PieCard(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('متاحين بالفرع',
+                                  style: PieTypography.caption),
+                              const SizedBox(height: 6),
+                              PieNumeral.count(
+                                availableDrivers.length,
+                                style: PieTypography.monoHeading.copyWith(
+                                  color: const Color(0xFF4ADE80),
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: PieCard(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('في مشاوير',
-                                    style: PieTypography.caption),
-                                const SizedBox(height: 6),
-                                PieNumeral.count(
-                                  driversOnRouteCount,
-                                  style: PieTypography.monoHeading.copyWith(
-                                    color: PieColors.driverAccent,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                        );
+                        final cardInTransit = PieCard(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('في مشاوير',
+                                  style: PieTypography.caption),
+                              const SizedBox(height: 6),
+                              PieNumeral.count(
+                                driversOnRouteCount,
+                                style: PieTypography.monoHeading.copyWith(
+                                  color: PieColors.driverAccent,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: PieCard(
-                            padding: const EdgeInsets.all(14),
-                            surfaceColor: totalCustodyInTransit > 0
-                                ? const Color(0xFF1E1B18)
-                                : PieColors.surface1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('عهدة في الطريق',
-                                    style: PieTypography.caption),
-                                const SizedBox(height: 6),
-                                PieNumeral.money(
-                                  totalCustodyInTransit,
-                                  style: PieTypography.monoHeading.copyWith(
-                                    color: totalCustodyInTransit > 0
-                                        ? PieColors.cashierAccent
-                                        : PieColors.inkMuted,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                        );
+                        final cardCustody = PieCard(
+                          padding: const EdgeInsets.all(14),
+                          surfaceColor: totalCustodyInTransit > 0
+                              ? const Color(0xFF1E1B18)
+                              : PieColors.surface1,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('عهدة في الطريق',
+                                  style: PieTypography.caption),
+                              const SizedBox(height: 6),
+                              PieNumeral.money(
+                                totalCustodyInTransit,
+                                style: PieTypography.monoHeading.copyWith(
+                                  color: totalCustodyInTransit > 0
+                                      ? PieColors.cashierAccent
+                                      : PieColors.inkMuted,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        );
+
+                        if (kpiConstraints.maxWidth < 650) {
+                          return Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: cardTotal),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: cardAvailable),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(child: cardInTransit),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: cardCustody),
+                                ],
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: cardTotal),
+                            const SizedBox(width: 10),
+                            Expanded(child: cardAvailable),
+                            const SizedBox(width: 10),
+                            Expanded(child: cardInTransit),
+                            const SizedBox(width: 10),
+                            Expanded(child: cardCustody),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
 
@@ -600,24 +623,31 @@ class _FleetScreenState extends State<FleetScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
+                          LayoutBuilder(
+                            builder: (context, headerConstraints) {
+                              final isCompact = headerConstraints.maxWidth < 460;
+                              final titleWidget = Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(Icons.pending_actions_rounded,
                                       color: PieColors.driverAccent, size: 20),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'أوردرات في انتظار التسكين (${waitingDeliveries.length})',
-                                    style: PieTypography.subheading.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: PieColors.ink,
+                                  Flexible(
+                                    child: Text(
+                                      'أوردرات في انتظار التسكين (${waitingDeliveries.length})',
+                                      style: PieTypography.subheading.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: PieColors.ink,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
-                              ),
-                              PieButton.primary(
+                              );
+                              final buttonWidget = PieButton.primary(
+                                label: 'تسكين ذكي آلي',
+                                icon: Icons.auto_mode_rounded,
                                 onPressed: (_isProcessing ||
                                         waitingDeliveries.isEmpty ||
                                         availableDrivers.isEmpty)
@@ -650,11 +680,28 @@ class _FleetScreenState extends State<FleetScreen> {
                                           }
                                         }
                                       },
-                                label: 'تسكين تلقائي',
-                                accentColor: PieColors.driverAccent,
-                                height: 36,
-                              ),
-                            ],
+                              );
+
+                              if (isCompact) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    titleWidget,
+                                    const SizedBox(height: 12),
+                                    buttonWidget,
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(child: titleWidget),
+                                  const SizedBox(width: 12),
+                                  buttonWidget,
+                                ],
+                              );
+                            },
                           ),
                           if (waitingDeliveries.isNotEmpty) ...[
                             const SizedBox(height: 12),
@@ -850,10 +897,12 @@ class _FleetScreenState extends State<FleetScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(driver.name, style: PieTypography.bodyStrong),
-                        const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),

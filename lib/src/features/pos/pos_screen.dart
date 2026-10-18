@@ -525,19 +525,21 @@ class _PosScreenState extends State<PosScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          PieNumeral.money(
-                            item.price,
-                            style: PieTypography.monoBody.copyWith(
-                              color: isSelected ? PieColors.cashierAccent : PieColors.ink,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PieNumeral.money(
+                              item.price,
+                              style: PieTypography.monoBody.copyWith(
+                                color: isSelected ? PieColors.cashierAccent : PieColors.ink,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       if (item.available) ...[
                         if (item.modifierGroups.isNotEmpty)

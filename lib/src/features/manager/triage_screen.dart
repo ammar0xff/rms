@@ -136,20 +136,30 @@ class _TriageScreenState extends State<TriageScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: branch.isActive ? const Color(0xFF4ADE80) : PieColors.inkMuted,
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: branch.isActive ? const Color(0xFF4ADE80) : PieColors.inkMuted,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(branch.name, style: PieTypography.bodyStrong),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        branch.name,
+                        style: PieTypography.bodyStrong,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               if (isDelayed)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

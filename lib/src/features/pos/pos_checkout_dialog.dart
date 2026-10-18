@@ -212,9 +212,11 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
         backgroundColor: PieColors.surfaceOverlay,
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Container(
-          width: 660,
-          constraints: const BoxConstraints(maxHeight: 740),
-          padding: const EdgeInsets.all(22),
+          width: isCompact ? double.infinity : 660,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          padding: EdgeInsets.all(isCompact ? 16 : 22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -223,26 +225,33 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: PieColors.cashierSurface,
-                          borderRadius: BorderRadius.circular(8),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: PieColors.cashierSurface,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            _isDelivery ? Icons.two_wheeler_rounded : Icons.shopping_bag_outlined,
+                            color: PieColors.cashierAccent,
+                            size: 20,
+                          ),
                         ),
-                        child: Icon(
-                          _isDelivery ? Icons.two_wheeler_rounded : Icons.shopping_bag_outlined,
-                          color: PieColors.cashierAccent,
-                          size: 20,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _isDelivery ? 'دفع وإنهاء طلب الدليفري' : 'الدفع وإنهاء الفاتورة (تيك أواي)',
+                            style: (isCompact ? PieTypography.subheading : PieTypography.heading)
+                                .copyWith(fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _isDelivery ? 'دفع وإنهاء طلب الدليفري' : 'الدفع وإنهاء الفاتورة (تيك أواي)',
-                        style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: PieColors.inkSecondary),

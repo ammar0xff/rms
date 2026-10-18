@@ -89,6 +89,7 @@ class _PinDelegationDialogState extends State<PinDelegationDialog> {
       textDirection: TextDirection.rtl,
       child: Dialog(
         backgroundColor: PieColors.surfaceOverlay,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Container(
           width: 340,
           padding: const EdgeInsets.all(24),
@@ -98,7 +99,15 @@ class _PinDelegationDialogState extends State<PinDelegationDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(widget.title, style: PieTypography.heading),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: PieTypography.heading,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: PieColors.inkSecondary),
                     onPressed: () => Navigator.of(context).pop(false),

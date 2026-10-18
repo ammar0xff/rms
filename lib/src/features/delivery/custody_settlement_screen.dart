@@ -193,19 +193,24 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('إجمالي العهدة النقدية في ذمتي:',
-                                  style: PieTypography.body),
-                              const SizedBox(height: 2),
-                              Text(
-                                'الكابتن: $myDriverName',
-                                style: PieTypography.caption
-                                    .copyWith(color: PieColors.inkSecondary),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('إجمالي العهدة النقدية في ذمتي:',
+                                    style: PieTypography.body),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'الكابتن: $myDriverName',
+                                  style: PieTypography.caption
+                                      .copyWith(color: PieColors.inkSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),

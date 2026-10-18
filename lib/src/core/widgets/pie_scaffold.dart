@@ -135,11 +135,16 @@ class PieScaffold extends StatelessWidget {
                           color: PieColors.inkSecondary,
                         ),
                         const SizedBox(width: 5),
-                        Text(
-                          branchName,
-                          style: PieTypography.caption.copyWith(
-                            color: PieColors.ink,
-                            fontWeight: FontWeight.w600,
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: isDesktop ? 160 : 85),
+                          child: Text(
+                            branchName,
+                            style: PieTypography.caption.copyWith(
+                              color: PieColors.ink,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -147,22 +152,19 @@ class PieScaffold extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
 
-              if (title != null)
-                Text(
-                  title!,
-                  style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w600),
-                )
-              else
-                Text(
-                  'فطيرة للتشغيل',
+              Expanded(
+                child: Text(
+                  title ?? 'فطيرة للتشغيل',
                   style: PieTypography.subheading.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: PieColors.ink,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              const Spacer(),
+              ),
 
               // Honest Sync Chip (Clickable for sync diagnostic / offline toggle)
               ListenableBuilder(

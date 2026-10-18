@@ -183,10 +183,10 @@ class _BranchesScreenState extends State<BranchesScreen> {
                 PieCard(
                   padding: const EdgeInsets.all(18),
                   surfaceColor: PieColors.surface2,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  child: LayoutBuilder(
+                    builder: (context, ctaConstraints) {
+                      final isCompact = ctaConstraints.maxWidth < 460;
+                      final infoColumn = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('نقل خامات طارئ بين الفروع', style: PieTypography.subheading),
@@ -196,15 +196,35 @@ class _BranchesScreenState extends State<BranchesScreen> {
                             style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
                           ),
                         ],
-                      ),
-                      PieButton.primary(
+                      );
+                      final button = PieButton.primary(
                         onPressed: () => _showNewTransferDialog(branches),
                         label: 'طلب تحويل',
                         icon: Icons.add_rounded,
                         accentColor: PieColors.managerAccent,
                         height: 42,
-                      ),
-                    ],
+                      );
+
+                      if (isCompact) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            infoColumn,
+                            const SizedBox(height: 12),
+                            button,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: infoColumn),
+                          const SizedBox(width: 14),
+                          button,
+                        ],
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -249,10 +269,15 @@ class _BranchesScreenState extends State<BranchesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                transfer.itemName,
-                style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+              Expanded(
+                child: Text(
+                  transfer.itemName,
+                  style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               _buildTransferStatusBadge(transfer.status),
             ],
           ),
@@ -260,6 +285,8 @@ class _BranchesScreenState extends State<BranchesScreen> {
           Text(
             'من: ${transfer.fromBranchName}  ←  إلى: ${transfer.toBranchName}',
             style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 10),
           Row(

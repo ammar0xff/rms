@@ -40,27 +40,34 @@ class _DrawerSettlementDialogState extends State<DrawerSettlementDialog> {
       textDirection: TextDirection.rtl,
       child: Dialog(
         backgroundColor: PieColors.surfaceOverlay,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Container(
           width: 420,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'تسوية الدرج وتوريد النقدية',
-                    style: PieTypography.heading,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: PieColors.inkSecondary),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'تسوية الدرج وتوريد النقدية',
+                        style: PieTypography.heading,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: PieColors.inkSecondary),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
               Text(
                 'نوع التوريد:',
                 style: PieTypography.label,
