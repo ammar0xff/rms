@@ -362,12 +362,12 @@ class _RoleShellState extends State<_RoleShell> {
               selectedIcon: Icons.people,
             ),
             PieNavItem(
-              label: 'الفروع والتحويلات',
+              label: 'الفروع',
               icon: Icons.store_mall_directory_outlined,
               selectedIcon: Icons.store_mall_directory,
             ),
             PieNavItem(
-              label: 'طوارئ الفروع',
+              label: 'الطوارئ',
               icon: Icons.crisis_alert_outlined,
               selectedIcon: Icons.crisis_alert,
             ),
@@ -386,7 +386,7 @@ class _RoleShellState extends State<_RoleShell> {
         return (
           const [
             PieNavItem(
-              label: 'التشخيص والمزامنة',
+              label: 'التشخيص',
               icon: Icons.monitor_heart_outlined,
               selectedIcon: Icons.monitor_heart,
             ),
@@ -401,7 +401,7 @@ class _RoleShellState extends State<_RoleShell> {
               selectedIcon: Icons.system_update_alt,
             ),
             PieNavItem(
-              label: 'إعدادات المنشأة',
+              label: 'الإعدادات',
               icon: Icons.tune_outlined,
               selectedIcon: Icons.tune,
             ),

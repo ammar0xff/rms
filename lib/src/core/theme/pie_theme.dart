@@ -42,6 +42,19 @@ abstract final class PieTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: PieColors.surfaceOverlay,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: PieColors.border, width: 1),
+        ),
+        contentTextStyle: PieTypography.body.copyWith(
+          color: PieColors.ink,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       dialogTheme: DialogThemeData(
         backgroundColor: PieColors.surfaceOverlay,
         shape: RoundedRectangleBorder(

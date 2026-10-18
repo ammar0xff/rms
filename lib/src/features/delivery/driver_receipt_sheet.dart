@@ -110,12 +110,56 @@ class DriverReceiptSheet extends StatelessWidget {
                   }
                 }),
                 builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(strokeWidth: 2, color: PieColors.driverAccent),
+                          SizedBox(height: 12),
+                          Text('جاري استرجاع أصناف الأوردر...', style: PieTypography.body),
+                        ],
+                      ),
+                    );
+                  }
+
                   final order = snapshot.data;
-                  if (order == null) {
+                  if (order == null || order.items.isEmpty) {
                     return Center(
-                      child: Text(
-                        'جاري تحميل أصناف الأوردر...',
-                        style: PieTypography.body,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: PieColors.surface2,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: PieColors.border),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.receipt_long_rounded,
+                              size: 40,
+                              color: PieColors.driverAccent,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'أوردر رقم #${delivery.orderRef}',
+                              style: PieTypography.bodyStrong,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'تفاصيل الأصناف مسجلة على فاتورة المطبخ الورقية المرفقة بالطلب.',
+                              textAlign: TextAlign.center,
+                              style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'العنوان: ${delivery.address}',
+                              textAlign: TextAlign.center,
+                              style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }

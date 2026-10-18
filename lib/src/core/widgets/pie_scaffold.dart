@@ -354,15 +354,20 @@ class PieScaffold extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          item.label,
-                          style: PieTypography.caption.copyWith(
-                            color: isSelected ? roleAccent : PieColors.inkMuted,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            fontSize: 10.5,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              item.label,
+                              style: PieTypography.caption.copyWith(
+                                color: isSelected ? roleAccent : PieColors.inkMuted,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                fontSize: 10.5,
+                              ),
+                              maxLines: 1,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

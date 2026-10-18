@@ -188,9 +188,13 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           backgroundColor: PieColors.surface1,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
-          title: Text(
-            'تشخيص النظام ومحرك المزامنة',
-            style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              'تشخيص محرك المزامنة',
+              style: PieTypography.heading,
+            ),
           ),
           actions: [
             IconButton(
@@ -358,32 +362,46 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: PieColors.roleSystem.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        entry.operationType.toUpperCase(),
-                        style: PieTypography.caption.copyWith(
-                          color: PieColors.roleSystem,
-                          fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: PieColors.roleSystem.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _localizeOperation(entry.operationType),
+                          style: PieTypography.caption.copyWith(
+                            color: PieColors.roleSystem,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${entry.entityType} : ${entry.entityId}',
-                      style: PieTypography.body.copyWith(
-                        color: PieColors.textPrimary,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(width: 8),
+                      Text(
+                        _localizeEntity(entry.entityType),
+                        style: PieTypography.caption.copyWith(
+                          color: PieColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _formatEntityId(entry.entityId),
+                          style: PieTypography.body.copyWith(
+                            color: PieColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 _buildStatusBadge(entry.syncStatus),
               ],
             ),
@@ -423,6 +441,50 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
         ),
       ),
     );
+  }
+
+  String _localizeOperation(String op) {
+    final lower = op.toLowerCase();
+    if (lower.contains('settledriver')) return 'تسوية عهدة طيار';
+    if (lower.contains('deliverystate')) return 'تحديث حالة توصيل';
+    if (lower.contains('createdelivery')) return 'إنشاء توصيل';
+    if (lower.contains('recordcollection')) return 'تحصيل كاش';
+    if (lower.contains('submitapproval')) return 'طلب اعتماد';
+    if (lower.contains('recordbatchsettlement')) return 'توريد عهدة كاش';
+    if (lower.contains('finalizesettlement')) return 'إخلاء طرف';
+    return switch (lower) {
+      'create' => 'إنشاء',
+      'update' => 'تحديث',
+      'delete' => 'حذف',
+      'upsert' => 'حفظ',
+      _ => op.toUpperCase(),
+    };
+  }
+
+  String _localizeEntity(String entity) {
+    return switch (entity.toLowerCase()) {
+      'order' => 'طلب',
+      'delivery' => 'توصيل',
+      'collection' => 'تحصيل',
+      'payment' => 'مدفوعات',
+      'drawer_shift' || 'drawer' => 'درج نقدية',
+      'inventory' => 'مخزون',
+      'stock_movement' => 'حركة مخزون',
+      'supplier' => 'مورد',
+      'expense' => 'مصروفات',
+      'customer' => 'عميل',
+      'user' => 'مستخدم',
+      'facility' => 'المنشأة',
+      'branch' => 'فرع',
+      _ => entity,
+    };
+  }
+
+  String _formatEntityId(String id) {
+    if (id.length > 18 && !id.contains(' ')) {
+      return '#${id.substring(0, 8)}...';
+    }
+    return id.startsWith('#') ? id : '#$id';
   }
 
   Widget _buildStatusBadge(OutboxStatus status) {

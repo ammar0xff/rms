@@ -596,8 +596,8 @@ Future<void> _primeDeliveryData(LocalDeliveryRepository? deliveries) async {
       ),
       DeliveryModel(
         id: 'DL-0096',
-        orderRef: 'T-019',
-        address: 'استلام من الفرع',
+        orderRef: 'ORD-4824',
+        address: '15 شارع النصر، المعادي',
         amount: 18.00,
         state: DeliveryState.delivered,
         driver: 'مروان ر.',

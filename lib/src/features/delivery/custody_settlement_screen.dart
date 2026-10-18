@@ -173,7 +173,8 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
             final deliveredStops = myDeliveries
                 .where((d) =>
                     d.state == DeliveryState.delivered &&
-                    d.settlementStatus != SettlementStatus.settled)
+                    d.settlementStatus != SettlementStatus.settled &&
+                    !d.address.contains('استلام من الفرع'))
                 .toList();
 
             final totalCustody =
@@ -213,12 +214,27 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(color: PieColors.driverBorder),
                             ),
-                            child: Text(
-                              'كود التوريد: $_handoverCode',
-                              style: PieTypography.monoCaption.copyWith(
-                                color: PieColors.driverAccent,
-                                fontWeight: FontWeight.w700,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'كود التوريد: ',
+                                  style: PieTypography.caption.copyWith(
+                                    color: PieColors.driverAccent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Directionality(
+                                  textDirection: TextDirection.ltr,
+                                  child: Text(
+                                    _handoverCode,
+                                    style: PieTypography.monoCaption.copyWith(
+                                      color: PieColors.driverAccent,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],

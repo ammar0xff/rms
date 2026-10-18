@@ -10,6 +10,7 @@ import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../core/sound/pie_sound_service.dart';
 import 'driver_fail_dialog.dart';
 import 'driver_identity_service.dart';
 import 'driver_nav_sheet.dart';
@@ -220,10 +221,10 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
   Widget _buildFourPhaseProgress(bool isOnRoute) {
     final phases = [
-      ('1. بالفرع', true),
-      ('2. استلام', true),
-      ('3. في الطريق', isOnRoute),
-      ('4. تسليم', false),
+      ('بالفرع', true),
+      ('استلام', true),
+      ('في الطريق', isOnRoute),
+      ('تسليم', false),
     ];
 
     return Container(
@@ -235,20 +236,34 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: phases.map((phase) {
+        children: List.generate(phases.length, (index) {
+          final phase = phases[index];
           final isPassed = phase.$2;
 
           return Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 8,
-                height: 8,
+                width: 18,
+                height: 18,
                 decoration: BoxDecoration(
-                  color: isPassed ? PieColors.driverAccent : PieColors.border,
+                  color: isPassed ? PieColors.driverAccent : PieColors.surface2,
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isPassed ? PieColors.driverAccent : PieColors.border,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isPassed ? Colors.black : PieColors.inkMuted,
+                  ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Text(
                 phase.$1,
                 style: PieTypography.caption.copyWith(
@@ -258,7 +273,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               ),
             ],
           );
-        }).toList(),
+        }),
       ),
     );
   }
@@ -353,7 +368,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               children: [
                 const Icon(Icons.phone_in_talk_rounded, size: 16, color: PieColors.driverAccent),
                 const SizedBox(width: 8),
-                Text('العميل: 01012345678', style: PieTypography.monoBody),
+                Text('العميل: ', style: PieTypography.caption.copyWith(color: PieColors.inkSecondary)),
+                Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Text(
+                    '01012345678',
+                    style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
                 const Spacer(),
                 PieButton.ghost(
                   onPressed: () => _callPhone('01012345678'),
@@ -365,51 +387,66 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Per-Stop Action Buttons
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            // Per-Stop Action Buttons (Ergonomic 2x2 layout)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                PieButton.secondary(
-                  onPressed: () => DriverReceiptSheet.show(context, delivery: delivery),
-                  label: 'عرض البون',
-                  icon: Icons.receipt_long_rounded,
-                  height: 40,
+                Row(
+                  children: [
+                    Expanded(
+                      child: PieButton.primary(
+                        onPressed: () => DriverNavSheet.show(context, delivery: delivery),
+                        label: 'الملاحة وخريطة السير',
+                        icon: Icons.navigation_rounded,
+                        accentColor: PieColors.driverAccent,
+                        height: 40,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PieButton.secondary(
+                      onPressed: () => DriverReceiptSheet.show(context, delivery: delivery),
+                      label: 'عرض البون',
+                      icon: Icons.receipt_long_rounded,
+                      height: 40,
+                    ),
+                  ],
                 ),
-                PieButton.primary(
-                  onPressed: () => DriverNavSheet.show(context, delivery: delivery),
-                  label: 'الملاحة وخريطة السير',
-                  icon: Icons.navigation_rounded,
-                  accentColor: PieColors.driverAccent,
-                  height: 40,
-                ),
-                PieButton.primary(
-                  onPressed: () async {
-                    await services.deliveries?.updateState(delivery.id, DeliveryState.delivered);
-                    await services.deliveries?.recordCollection(
-                      deliveryId: delivery.id,
-                      amount: delivery.amount,
-                      createdOffline: services.sync?.isOnline != true,
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: PieColors.surface2,
-                          content: Text('تم تسليم الأوردر بنجاح وإيداع الكاش بالعهدة'),
-                        ),
-                      );
-                    }
-                  },
-                  label: 'تم التسليم',
-                  icon: Icons.check_rounded,
-                  accentColor: const Color(0xFF10B981),
-                  height: 40,
-                ),
-                PieButton.destructive(
-                  onPressed: () => DriverFailDialog.show(context, delivery: delivery),
-                  label: 'تعذر التسليم',
-                  icon: Icons.cancel_outlined,
-                  height: 40,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: PieButton.primary(
+                        onPressed: () async {
+                          await services.deliveries?.updateState(delivery.id, DeliveryState.delivered);
+                          await services.deliveries?.recordCollection(
+                            deliveryId: delivery.id,
+                            amount: delivery.amount,
+                            createdOffline: services.sync?.isOnline != true,
+                          );
+                          PieSoundService.instance.chime();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم تسليم الأوردر بنجاح وإيداع الكاش بالعهدة'),
+                              ),
+                            );
+                          }
+                        },
+                        label: 'تم التسليم بنجاح',
+                        icon: Icons.check_circle_outline_rounded,
+                        accentColor: const Color(0xFF10B981),
+                        height: 42,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PieButton.destructive(
+                      onPressed: () => DriverFailDialog.show(context, delivery: delivery),
+                      label: 'تعذر التسليم',
+                      icon: Icons.cancel_outlined,
+                      height: 42,
+                    ),
+                  ],
                 ),
               ],
             ),
