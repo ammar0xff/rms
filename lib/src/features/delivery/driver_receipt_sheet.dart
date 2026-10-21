@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_card.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/order.dart';
@@ -24,6 +26,7 @@ class DriverReceiptSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: PieColors.surfaceOverlay,
+      shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (context) => DriverReceiptSheet(delivery: delivery),
     );
   }
@@ -38,10 +41,15 @@ class DriverReceiptSheet extends StatelessWidget {
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
-        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: PieColors.surfaceOverlay,
+          borderRadius: PieRadius.topLg,
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const PieGrabHandle(margin: EdgeInsets.only(top: 8, bottom: 12)),
             // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -130,7 +138,7 @@ class DriverReceiptSheet extends StatelessWidget {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: PieColors.surface2,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: PieRadius.borderMd,
                           border: Border.all(color: PieColors.border),
                         ),
                         child: Column(
@@ -203,7 +211,7 @@ class DriverReceiptSheet extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: PieColors.driverSurface,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: PieRadius.borderMd,
                 border: Border.all(color: PieColors.driverBorder),
               ),
               child: Row(

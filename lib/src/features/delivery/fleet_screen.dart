@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
@@ -38,9 +39,9 @@ class _FleetScreenState extends State<FleetScreen> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: PieColors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: PieColors.border),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
           ),
           title: Row(
             children: [
@@ -49,7 +50,7 @@ class _FleetScreenState extends State<FleetScreen> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: PieColors.driverSurface,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: PieRadius.borderMd,
                 ),
                 child: const Icon(Icons.person_add_alt_1_outlined,
                     color: PieColors.driverAccent, size: 20),
@@ -145,9 +146,9 @@ class _FleetScreenState extends State<FleetScreen> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: PieColors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: PieColors.border),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
           ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +173,7 @@ class _FleetScreenState extends State<FleetScreen> {
                       final d = drivers[idx];
                       return InkWell(
                         onTap: () => Navigator.of(dialogCtx).pop(d),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: PieRadius.borderMd,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 12),
@@ -180,7 +181,7 @@ class _FleetScreenState extends State<FleetScreen> {
                             color: d.available
                                 ? PieColors.surface2
                                 : PieColors.surface3,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: PieRadius.borderMd,
                             border: Border.all(
                               color: d.available
                                   ? PieColors.driverAccent.withValues(alpha: 0.3)
@@ -207,7 +208,7 @@ class _FleetScreenState extends State<FleetScreen> {
                                   color: d.available
                                       ? const Color(0xFF052E16)
                                       : PieColors.surface2,
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: PieRadius.borderSm,
                                   border: Border.all(
                                     color: d.available
                                         ? const Color(0xFF4ADE80)
@@ -286,9 +287,9 @@ class _FleetScreenState extends State<FleetScreen> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: PieColors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: PieColors.border),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
           ),
           title: Row(
             children: [
@@ -297,7 +298,7 @@ class _FleetScreenState extends State<FleetScreen> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: PieColors.cashierSurface,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: PieRadius.borderMd,
                 ),
                 child: const Icon(Icons.point_of_sale_rounded,
                     color: PieColors.cashierAccent, size: 20),
@@ -320,7 +321,7 @@ class _FleetScreenState extends State<FleetScreen> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: PieColors.surface2,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: PieRadius.borderMd,
                   border: Border.all(color: PieColors.cashierAccent),
                 ),
                 child: Column(
@@ -427,36 +428,8 @@ class _FleetScreenState extends State<FleetScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Row(
-            children: [
-              const Icon(Icons.two_wheeler_rounded,
-                  color: PieColors.driverAccent, size: 24),
-              const SizedBox(width: 10),
-              Text('طيارين الفرع وإدارة التوصيل', style: PieTypography.heading),
-            ],
-          ),
-          backgroundColor: PieColors.surface,
-          elevation: 0,
-          actions: [
-            IconButton(
-              tooltip: 'إضافة كابتن توصيل',
-              icon: const Icon(Icons.person_add_alt_1_outlined,
-                  color: PieColors.driverAccent),
-              onPressed: () => _showAddDriverDialog(services),
-            ),
-            IconButton(
-              tooltip: 'تحديث البيانات',
-              icon: const Icon(Icons.refresh_rounded, color: PieColors.inkSecondary),
-              onPressed: () => setState(() {}),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: FutureBuilder<List<DriverModel>>(
-          future: deliveryRepo?.listDrivers(),
+      child: FutureBuilder<List<DriverModel>>(
+        future: deliveryRepo?.listDrivers(),
           builder: (context, driverSnapshot) {
             final drivers = driverSnapshot.data ?? [];
 
@@ -496,6 +469,34 @@ class _FleetScreenState extends State<FleetScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    // Action Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'كباتن الأسطول والتوصيل',
+                          style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'تحديث البيانات',
+                              icon: const Icon(Icons.refresh_rounded, color: PieColors.inkSecondary),
+                              onPressed: () => setState(() {}),
+                            ),
+                            const SizedBox(width: 8),
+                            PieButton.primary(
+                              icon: Icons.person_add_alt_1_outlined,
+                              label: 'إضافة كابتن توصيل',
+                              onPressed: () => _showAddDriverDialog(services),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
                     // Overview KPI Grid
                     LayoutBuilder(
                       builder: (context, kpiConstraints) {
@@ -713,7 +714,7 @@ class _FleetScreenState extends State<FleetScreen> {
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
                                   color: PieColors.surface1,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: PieRadius.borderMd,
                                   border: Border.all(color: PieColors.border),
                                 ),
                                 child: Row(
@@ -723,7 +724,7 @@ class _FleetScreenState extends State<FleetScreen> {
                                           horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: PieColors.driverSurface,
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: PieRadius.borderSm,
                                       ),
                                       child: Text(
                                         d.orderRef,
@@ -827,7 +828,6 @@ class _FleetScreenState extends State<FleetScreen> {
             );
           },
         ),
-      ),
     );
   }
 
@@ -873,7 +873,7 @@ class _FleetScreenState extends State<FleetScreen> {
                       : (driver.available
                           ? const Color(0xFF052E16)
                           : PieColors.surface2),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: PieRadius.borderMd,
                   border: Border.all(
                     color: isOnRoute
                         ? PieColors.driverAccent
@@ -912,7 +912,7 @@ class _FleetScreenState extends State<FleetScreen> {
                                 : (driver.available
                                     ? const Color(0xFF052E16)
                                     : PieColors.surface3),
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: PieRadius.borderSm,
                             border: Border.all(
                               color: isOnRoute
                                   ? PieColors.driverAccent
@@ -987,7 +987,7 @@ class _FleetScreenState extends State<FleetScreen> {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: PieColors.surface2,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: PieRadius.borderMd,
                 border: Border.all(color: PieColors.border),
               ),
               child: Column(
@@ -1002,7 +1002,7 @@ class _FleetScreenState extends State<FleetScreen> {
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: PieColors.surface3,
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: PieRadius.borderSm,
                             ),
                             child: Text(
                               job.orderRef,

@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../data/local/outbox/outbox_entry.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../domain/models/app_role.dart';
@@ -84,18 +86,20 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: Container(
           height: MediaQuery.of(context).size.height * 0.75,
           decoration: const BoxDecoration(
             color: PieColors.surface2,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: PieRadius.topLg,
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const PieGrabHandle(margin: EdgeInsets.only(bottom: 12)),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -120,7 +124,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: PieColors.stateError.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: PieRadius.borderMd,
                     border: Border.all(color: PieColors.stateError.withValues(alpha: 0.4)),
                   ),
                   child: Row(
@@ -146,7 +150,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: PieColors.well,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: PieRadius.borderMd,
                     border: Border.all(color: PieColors.borderMuted),
                   ),
                   child: SingleChildScrollView(
@@ -182,92 +186,76 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          backgroundColor: PieColors.surface1,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          title: const FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: Text(
-              'تشخيص محرك المزامنة',
-              style: PieTypography.heading,
+      child: Column(
+        children: [
+          // Engine Overview Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: PieColors.surface2,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'معرف الجهاز / العقدة',
+                        style: PieTypography.caption.copyWith(color: PieColors.textMuted),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        services.config.projectId.isNotEmpty
+                            ? 'NODE-${services.config.projectId.substring(0, 8).toUpperCase()}'
+                            : 'NODE-LOCAL-DEMO',
+                        style: PieTypography.body.copyWith(
+                          color: PieColors.roleSystem,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: services.firebaseReady
+                        ? PieColors.stateSynced.withValues(alpha: 0.15)
+                        : PieColors.statePending.withValues(alpha: 0.15),
+                    borderRadius: PieRadius.borderSm,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        services.firebaseReady ? Icons.cloud_done : Icons.cloud_off,
+                        size: 16,
+                        color: services.firebaseReady ? PieColors.stateSynced : PieColors.statePending,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        services.firebaseReady ? 'متصل بالسحابة' : 'وضع محلي مستقل',
+                        style: PieTypography.caption.copyWith(
+                          color: services.firebaseReady ? PieColors.stateSynced : PieColors.statePending,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: PieColors.textSecondary, size: 20),
+                  tooltip: 'تحديث القائمة',
+                  onPressed: _loadEntries,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.cleaning_services_outlined, color: PieColors.textSecondary, size: 20),
+                  tooltip: 'تنظيف العمليات المتزامنة',
+                  onPressed: _pruneSynced,
+                ),
+              ],
             ),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
-              tooltip: 'تحديث القائمة',
-              onPressed: _loadEntries,
-            ),
-            IconButton(
-              icon: const Icon(Icons.cleaning_services_outlined, color: PieColors.textSecondary),
-              tooltip: 'تنظيف العمليات المتزامنة',
-              onPressed: _pruneSynced,
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: Column(
-          children: [
-            // Engine Overview Bar
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: PieColors.surface2,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'معرف الجهاز / العقدة',
-                          style: PieTypography.caption.copyWith(color: PieColors.textMuted),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          services.config.projectId.isNotEmpty
-                              ? 'NODE-${services.config.projectId.substring(0, 8).toUpperCase()}'
-                              : 'NODE-LOCAL-DEMO',
-                          style: PieTypography.body.copyWith(
-                            color: PieColors.roleSystem,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: services.firebaseReady
-                          ? PieColors.stateSynced.withValues(alpha: 0.15)
-                          : PieColors.statePending.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          services.firebaseReady ? Icons.cloud_done : Icons.cloud_off,
-                          size: 16,
-                          color: services.firebaseReady ? PieColors.stateSynced : PieColors.statePending,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          services.firebaseReady ? 'متصل بالسحابة' : 'وضع محلي مستقل',
-                          style: PieTypography.caption.copyWith(
-                            color: services.firebaseReady ? PieColors.stateSynced : PieColors.statePending,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
             // Filter Tabs
             Container(
@@ -345,7 +333,6 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -369,7 +356,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: PieColors.roleSystem.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: PieRadius.borderSm,
                         ),
                         child: Text(
                           _localizeOperation(entry.operationType),
@@ -426,7 +413,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: PieColors.stateError.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: PieRadius.borderSm,
                   border: Border.all(color: PieColors.stateError.withValues(alpha: 0.3)),
                 ),
                 child: Text(

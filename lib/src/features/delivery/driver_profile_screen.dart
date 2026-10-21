@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -96,14 +97,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: const Text('ملفي وحالتي التشغيلية', style: PieTypography.heading),
-          backgroundColor: PieColors.surface,
-          elevation: 0,
-        ),
-        body: FutureBuilder<List<DriverModel>>(
+      child: FutureBuilder<List<DriverModel>>(
           future: deliveryRepo?.listDrivers(),
           builder: (context, driverSnap) {
             final allDrivers = driverSnap.data ?? [];
@@ -175,7 +169,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                                     height: 56,
                                     decoration: BoxDecoration(
                                       color: PieColors.driverSurface,
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: PieRadius.borderLg,
                                       border: Border.all(
                                         color: PieColors.driverAccent,
                                         width: 1.5,
@@ -212,7 +206,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                                                 color: isAvailable
                                                     ? const Color(0xFF052E16)
                                                     : PieColors.surface3,
-                                                borderRadius: BorderRadius.circular(6),
+                                                borderRadius: PieRadius.borderSm,
                                                 border: Border.all(
                                                   color: isAvailable
                                                       ? const Color(0xFF4ADE80)
@@ -411,7 +405,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                                   color: totalCustodyInHand > 0
                                       ? PieColors.cashierSurface
                                       : PieColors.surface2,
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: PieRadius.borderMd,
                                   border: Border.all(
                                     color: totalCustodyInHand > 0
                                         ? PieColors.cashierAccent
@@ -509,7 +503,6 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             );
           },
         ),
-      ),
     );
   }
 }

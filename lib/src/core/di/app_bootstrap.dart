@@ -14,6 +14,7 @@ import '../../data/local/migrations/local_migration_registry.dart';
 import '../../data/local/migrations/local_migration_runner.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../data/local/outbox/outbox_store.dart';
+import '../../data/sync/inbound_sync_service.dart';
 import '../../data/local/release_audit_log.dart';
 import '../../data/local/update_acknowledgement_store.dart';
 import '../../data/local/update_status_store.dart';
@@ -328,6 +329,14 @@ Future<AppServices> _resolveAuth(
         approvals, menu, kitchen, inventory, suppliers, purchases, customers,
         tables, transfers);
     if (sync != null) unawaited(sync.start());
+    InboundSyncService? inboundSync;
+    if (database != null && outbox != null) {
+      inboundSync = InboundSyncService(
+        database: database,
+        outbox: outbox,
+      );
+      inboundSync.start();
+    }
     try {
       SyncMonitor.instance.attach(sync: sync, outbox: outbox);
     } catch (_) {}
@@ -338,6 +347,7 @@ Future<AppServices> _resolveAuth(
       database: database,
       orders: orders,
       sync: sync,
+      inboundSync: inboundSync,
       menu: menu,
       kitchen: kitchen,
       payments: payments,
@@ -446,6 +456,7 @@ SyncService? _buildSync(
   return SyncService(
     coordinator: SyncCoordinator(engine: engine),
     connectivity: ConnectivityMonitor(),
+    outbox: outbox,
     onSynced: (_) {
       try {
         SyncMonitor.instance.refresh();

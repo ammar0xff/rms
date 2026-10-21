@@ -116,6 +116,9 @@ class SyncMonitor extends ChangeNotifier {
       } else {
         _lastSyncAt = null;
       }
+      if (_pending > 0 && online && _sync != null) {
+        unawaited(_sync!.requestSync());
+      }
     }
     notifyListeners();
   }

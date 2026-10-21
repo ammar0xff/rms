@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../domain/models/app_role.dart';
 import 'pie_colors.dart';
+import 'pie_radius.dart';
 import 'pie_typography.dart';
+
+export 'pie_radius.dart';
 
 /// PIE Theme Definition
 ///
@@ -47,7 +50,7 @@ abstract final class PieTheme {
         backgroundColor: PieColors.surfaceOverlay,
         elevation: 6,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: PieRadius.borderMd,
           side: const BorderSide(color: PieColors.border, width: 1),
         ),
         contentTextStyle: PieTypography.body.copyWith(
@@ -58,15 +61,15 @@ abstract final class PieTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: PieColors.surfaceOverlay,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: PieRadius.borderLg,
           side: const BorderSide(color: PieColors.border, width: 1),
         ),
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: PieColors.surfaceOverlay,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          side: BorderSide(color: PieColors.border, width: 1),
+          borderRadius: PieRadius.topLg,
+          side: const BorderSide(color: PieColors.border, width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -74,15 +77,15 @@ abstract final class PieTheme {
         fillColor: PieColors.well,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: PieRadius.borderMd,
           borderSide: const BorderSide(color: PieColors.border, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: PieRadius.borderMd,
           borderSide: const BorderSide(color: PieColors.border, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: PieRadius.borderMd,
           borderSide: BorderSide(color: roleAccent, width: 1.5),
         ),
         hintStyle: PieTypography.body.copyWith(color: PieColors.inkMuted),

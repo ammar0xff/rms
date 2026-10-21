@@ -26,6 +26,7 @@ import '../../data/repositories/reports_repository.dart';
 import '../../data/repositories/customer_repository.dart';
 import '../../data/repositories/supplier_repository.dart';
 import '../../data/repositories/update_repository.dart';
+import '../../data/sync/inbound_sync_service.dart';
 import '../../data/sync/sync_service.dart';
 import '../../data/services/print_service.dart';
 
@@ -43,6 +44,7 @@ class AppServices {
     this.deliveries,
     this.outbox,
     this.sync,
+    this.inboundSync,
     this.print,
     this.audit,
     this.cashSessions,
@@ -94,6 +96,9 @@ class AppServices {
 
   /// Connectivity-driven sync loop, or null when there is no backend/store.
   final SyncService? sync;
+
+  /// Real-time inbound cloud synchronizer across devices.
+  final InboundSyncService? inboundSync;
 
   /// Local print service (stub).
   final PrintService? print;

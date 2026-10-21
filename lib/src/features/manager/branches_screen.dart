@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -143,12 +144,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Text('الفروع والتحويل المخزني', style: PieTypography.heading),
-        ),
-        body: FutureBuilder(
+      child: FutureBuilder(
           future: Future.wait([
             branchRepo?.listBranches() ?? Future.value(<BranchModel>[]),
             transferRepo?.listTransfers() ?? Future.value(<StockTransfer>[]),
@@ -254,7 +250,6 @@ class _BranchesScreenState extends State<BranchesScreen> {
             );
           },
         ),
-      ),
     );
   }
 
@@ -360,7 +355,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: PieRadius.borderSm,
         border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Text(

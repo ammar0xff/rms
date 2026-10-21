@@ -33,6 +33,7 @@ google-services.json
 GoogleService-Info.plist
 firebase_options.dart
 .playwright-mcp/
+.firebase/
 
 # Android release signing material. The keystore is what identifies this app to
 # an installed device: committing it would let anyone publish an update that

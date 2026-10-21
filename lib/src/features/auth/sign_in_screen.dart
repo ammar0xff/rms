@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -86,7 +87,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         height: 56,
                         decoration: BoxDecoration(
                           color: PieColors.surface2,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: PieRadius.borderLg,
                           border: Border.all(color: PieColors.borderMuted),
                         ),
                         child: const Center(
@@ -199,7 +200,7 @@ class _SignInScreenState extends State<SignInScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: PieColors.stateError.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: PieRadius.borderMd,
                               border: Border.all(color: PieColors.stateError.withValues(alpha: 0.4)),
                             ),
                             child: Text(
@@ -266,12 +267,12 @@ class _SignInScreenState extends State<SignInScreen> {
   }) {
     return InkWell(
       onTap: _isLoading ? null : onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: PieRadius.borderLg,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: PieColors.surface2,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: PieRadius.borderLg,
           border: Border.all(color: accent.withValues(alpha: 0.3)),
         ),
         child: Column(

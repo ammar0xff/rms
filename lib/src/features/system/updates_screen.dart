@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/config/app_version.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
@@ -158,31 +159,33 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          backgroundColor: PieColors.surface1,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            'بوابة التحديثات الآمنة',
-            style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
-              tooltip: 'التحقق من وجود تحديثات',
-              onPressed: _isChecking ? null : _checkUpdate,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: PieColors.surface1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'بوابة التحديثات الآمنة',
+                  style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
+                  tooltip: 'التحقق من وجود تحديثات',
+                  onPressed: _isChecking ? null : _checkUpdate,
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: PieColors.roleSystem),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: PieColors.roleSystem),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -247,7 +250,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: PieColors.well,
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: PieRadius.borderMd,
                               ),
                               child: Text(
                                 _availableRelease!.releaseNotes,
@@ -360,7 +363,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                               backgroundColor: PieColors.well,
                               color: PieColors.roleSystem,
                               minHeight: 8,
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: PieRadius.borderSm,
                             ),
                           ],
                         ),
@@ -385,8 +388,10 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                       ),
                     ),
                   ],
-                ),
               ),
+            ),
+          ),
+        ],
       ),
     );
   }

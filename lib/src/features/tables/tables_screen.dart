@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
@@ -269,7 +270,7 @@ class _TablesScreenState extends State<TablesScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: PieColors.surface2,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: PieRadius.borderSm,
                       border: Border.all(color: PieColors.border),
                     ),
                     child: Text(

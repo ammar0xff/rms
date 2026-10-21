@@ -43,6 +43,7 @@ class FirestoreSyncTransport implements SyncTransport {
       'operationType': entry.operationType,
       'payload': entry.payload,
       'schemaVersion': entry.schemaVersion,
+      'idempotencyKey': entry.idempotencyKey,
       'createdAt': entry.createdAt.toIso8601String(),
       'clientPushedAt': FieldValue.serverTimestamp(),
     });

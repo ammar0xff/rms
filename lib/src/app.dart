@@ -169,6 +169,7 @@ class _RoleShellState extends State<_RoleShell> {
       role: widget.activeRole,
       items: items,
       currentIndex: safeIndex,
+      title: items[safeIndex].label,
       onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
       onRoleSwitch: widget.onRoleSwitch,
       actions: [
@@ -193,9 +194,9 @@ class _RoleShellState extends State<_RoleShell> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: PieColors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: PieColors.border),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
           ),
           title: const Row(
             children: [
@@ -218,7 +219,7 @@ class _RoleShellState extends State<_RoleShell> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: PieColors.cashierSurface,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: PieRadius.borderMd,
                     border: Border.all(color: PieColors.cashierAccent),
                   ),
                   child: Row(

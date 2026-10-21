@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
@@ -178,7 +179,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   height: 44,
                   decoration: BoxDecoration(
                     color: PieColors.driverSurface,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: PieRadius.borderMd,
                     border: Border.all(color: PieColors.driverBorder),
                   ),
                   child: const Icon(
@@ -241,7 +242,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: PieColors.surface1,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         border: Border.all(color: PieColors.border),
       ),
       child: SingleChildScrollView(

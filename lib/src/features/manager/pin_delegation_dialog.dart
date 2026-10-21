@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../data/services/pin_service.dart';
@@ -127,7 +128,7 @@ class _PinDelegationDialogState extends State<PinDelegationDialog> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: PieColors.surface2,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: PieRadius.borderMd,
                     border: Border.all(color: PieColors.border),
                   ),
                   child: Column(
@@ -205,13 +206,13 @@ class _PinDelegationDialogState extends State<PinDelegationDialog> {
   Widget _buildKeyButton(String label, VoidCallback onTap) {
     return Material(
       color: PieColors.surface2,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: PieRadius.borderMd,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: PieRadius.borderMd,
             border: Border.all(color: PieColors.border),
           ),
           alignment: Alignment.center,
@@ -230,13 +231,13 @@ class _PinDelegationDialogState extends State<PinDelegationDialog> {
   Widget _buildIconButton(IconData icon, VoidCallback onTap) {
     return Material(
       color: PieColors.surface1,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: PieRadius.borderMd,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: PieRadius.borderMd,
             border: Border.all(color: PieColors.border),
           ),
           alignment: Alignment.center,

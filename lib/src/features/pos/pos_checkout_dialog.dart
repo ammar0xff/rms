@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_numeral.dart';
@@ -233,7 +234,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: PieColors.cashierSurface,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: PieRadius.borderMd,
                           ),
                           child: Icon(
                             _isDelivery ? Icons.two_wheeler_rounded : Icons.shopping_bag_outlined,
@@ -321,7 +322,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
 
     return Material(
       color: isSelected ? PieColors.cashierSurface : PieColors.surface2,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: PieRadius.borderMd,
       child: InkWell(
         onTap: () {
           PieSoundService.instance.click();
@@ -332,11 +333,11 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
             }
           });
         },
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: PieRadius.borderMd,
             border: Border.all(
               color: isSelected ? PieColors.cashierAccent : PieColors.border,
               width: isSelected ? 1.5 : 1,
@@ -373,7 +374,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: PieColors.surface1,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         border: Border.all(
           color: (_attemptedSettle && !_isCustomerValid)
               ? PieColors.stateError.withOpacity(0.6)
@@ -407,7 +408,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: PieColors.stateErrorBg,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: PieRadius.borderSm,
                   ),
                   child: Text(
                     'مطلوب',
@@ -503,7 +504,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           height: 38,
           decoration: BoxDecoration(
             color: PieColors.surface2,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: PieRadius.borderMd,
             border: Border.all(
               color: isError ? PieColors.stateError : PieColors.border,
             ),
@@ -573,7 +574,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: PieColors.surface1,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: PieRadius.borderMd,
                       border: Border.all(color: PieColors.border),
                     ),
                     child: Column(
@@ -621,7 +622,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: PieColors.surface1,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         border: Border.all(color: PieColors.border),
       ),
       child: Column(
@@ -664,7 +665,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: PieColors.surface2,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         border: Border.all(color: PieColors.border),
       ),
       child: Column(
@@ -772,13 +773,13 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
             for (final k in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'C'])
               Material(
                 color: k == 'C' ? PieColors.stateErrorBg : PieColors.surface2,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: PieRadius.borderMd,
                 child: InkWell(
                   onTap: () => _onKeypadTap(k),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: PieRadius.borderMd,
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: PieRadius.borderMd,
                       border: Border.all(
                         color: k == 'C' ? PieColors.stateError.withOpacity(0.5) : PieColors.border,
                       ),

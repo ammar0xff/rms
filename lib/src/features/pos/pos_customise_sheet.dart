@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
@@ -32,6 +34,7 @@ class PosCustomiseSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: PieColors.surfaceOverlay,
+      shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (context) => PosCustomiseSheet(item: item, onAdd: onAdd),
     );
   }
@@ -102,16 +105,17 @@ class _PosCustomiseSheetState extends State<PosCustomiseSheet> {
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: PieColors.surfaceOverlay,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: PieRadius.topLg,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const PieGrabHandle(),
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Row(
                   children: [
                     Expanded(
@@ -161,7 +165,7 @@ class _PosCustomiseSheetState extends State<PosCustomiseSheet> {
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: PieColors.cashierSurface,
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: PieRadius.borderSm,
                               ),
                               child: Text(
                                 'مطلوب',
@@ -215,7 +219,7 @@ class _PosCustomiseSheetState extends State<PosCustomiseSheet> {
                       Container(
                         decoration: BoxDecoration(
                           color: PieColors.surface2,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: PieRadius.borderMd,
                           border: Border.all(color: PieColors.border),
                         ),
                         child: Row(

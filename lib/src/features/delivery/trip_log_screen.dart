@@ -32,12 +32,7 @@ class _TripLogScreenState extends State<TripLogScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Text('سجل التوصيل اليومي', style: PieTypography.heading),
-        ),
-        body: FutureBuilder<List<dynamic>>(
+      child: FutureBuilder<List<dynamic>>(
           future: Future.wait([
             deliveryRepo?.listDrivers() ?? Future.value(<DriverModel>[]),
             deliveryRepo?.listDeliveries() ?? Future.value(<DeliveryModel>[]),
@@ -179,7 +174,6 @@ class _TripLogScreenState extends State<TripLogScreen> {
             );
           },
         ),
-      ),
     );
   }
 

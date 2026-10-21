@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/app_role.dart';
 import '../../domain/models/inventory_item.dart';
@@ -81,6 +83,7 @@ class _InventoryScreenState extends State<InventoryScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (sheetContext) => _PhysicalCountSheet(
         item: item,
         onCountApplied: () {
@@ -108,54 +111,58 @@ class _InventoryScreenState extends State<InventoryScreen>
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          backgroundColor: PieColors.surface1,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            'إدارة المخزون والمستودع',
-            style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
-              tooltip: 'تحديث البيانات',
-              onPressed: _loadData,
+      child: Column(
+        children: [
+          Container(
+            color: PieColors.surface1,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: TabBar(
+                      controller: _tabController,
+                      indicatorColor: PieColors.roleManager,
+                      indicatorWeight: 3,
+                      labelColor: PieColors.roleManager,
+                      unselectedLabelColor: PieColors.textMuted,
+                      labelStyle: PieTypography.label.copyWith(fontWeight: FontWeight.bold),
+                      tabs: [
+                        Tab(
+                          text: 'أرصدة الأصناف (${_items.length})',
+                          icon: const Icon(Icons.inventory_2_outlined, size: 20),
+                        ),
+                        Tab(
+                          text: 'سجل الحركات (${_movements.length})',
+                          icon: const Icon(Icons.receipt_long_outlined, size: 20),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
+                  tooltip: 'تحديث البيانات',
+                  onPressed: _loadData,
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
-            const SizedBox(width: 8),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            indicatorColor: PieColors.roleManager,
-            indicatorWeight: 3,
-            labelColor: PieColors.roleManager,
-            unselectedLabelColor: PieColors.textMuted,
-            labelStyle: PieTypography.label.copyWith(fontWeight: FontWeight.bold),
-            tabs: [
-              Tab(
-                text: 'أرصدة الأصناف (${_items.length})',
-                icon: const Icon(Icons.inventory_2_outlined, size: 20),
-              ),
-              Tab(
-                text: 'سجل الحركات (${_movements.length})',
-                icon: const Icon(Icons.receipt_long_outlined, size: 20),
-              ),
-            ],
           ),
-        ),
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: PieColors.roleManager),
-              )
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildItemsTab(),
-                  _buildMovementsTab(),
-                ],
-              ),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: PieColors.roleManager),
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildItemsTab(),
+                      _buildMovementsTab(),
+                    ],
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -187,7 +194,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                       fillColor: PieColors.well,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: PieRadius.borderMd,
                         borderSide: BorderSide.none,
                       ),
                     ),
@@ -324,7 +331,7 @@ class _InventoryScreenState extends State<InventoryScreen>
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: PieColors.well,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: PieRadius.borderMd,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -505,7 +512,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                 color: m.isIncrease
                     ? PieColors.stateSynced.withValues(alpha: 0.15)
                     : PieColors.stateError.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: PieRadius.borderMd,
               ),
               child: Icon(
                 m.isIncrease ? Icons.arrow_upward : Icons.arrow_downward,
@@ -532,7 +539,7 @@ class _InventoryScreenState extends State<InventoryScreen>
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: PieColors.well,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: PieRadius.borderSm,
                         ),
                         child: Text(
                           m.reason.label,
@@ -702,13 +709,13 @@ class _PhysicalCountSheetState extends State<_PhysicalCountSheet> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: PieColors.surface2,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: PieRadius.topLg,
         ),
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          top: 24,
+          top: 10,
           left: 20,
           right: 20,
         ),
@@ -716,6 +723,7 @@ class _PhysicalCountSheetState extends State<_PhysicalCountSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const PieGrabHandle(margin: EdgeInsets.only(bottom: 14)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -741,7 +749,7 @@ class _PhysicalCountSheetState extends State<_PhysicalCountSheet> {
                 decoration: BoxDecoration(
                   color: PieColors.stateError.withValues(alpha: 0.15),
                   border: Border.all(color: PieColors.stateError),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: PieRadius.borderMd,
                 ),
                 child: Row(
                   children: [
@@ -762,7 +770,7 @@ class _PhysicalCountSheetState extends State<_PhysicalCountSheet> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: PieColors.well,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: PieRadius.borderLg,
               ),
               child: Column(
                 children: [
@@ -811,7 +819,7 @@ class _PhysicalCountSheetState extends State<_PhysicalCountSheet> {
                             fillColor: PieColors.surface3,
                             contentPadding: EdgeInsets.zero,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: PieRadius.borderMd,
                               borderSide: const BorderSide(color: PieColors.roleManager),
                             ),
                           ),

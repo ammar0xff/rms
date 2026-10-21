@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:sembast/sembast.dart';
 
 import '../local_database.dart';
@@ -15,8 +16,13 @@ class OutboxStore implements OutboxAccess {
 
   final LocalDatabase _db;
 
-  Future<void> append(Transaction txn, OutboxEntry entry) =>
-      LocalStores.outbox.record(entry.operationId).put(txn, entry.toRecord());
+  /// Callback notified whenever a new entry is appended or saved to outbox.
+  void Function()? onEntryAdded;
+
+  Future<void> append(Transaction txn, OutboxEntry entry) async {
+    await LocalStores.outbox.record(entry.operationId).put(txn, entry.toRecord());
+    scheduleMicrotask(() => onEntryAdded?.call());
+  }
 
   @override
   Future<List<OutboxEntry>> all() async {
@@ -45,8 +51,10 @@ class OutboxStore implements OutboxAccess {
   }
 
   @override
-  Future<void> save(OutboxEntry entry) =>
-      LocalStores.outbox.record(entry.operationId).put(_db.db, entry.toRecord());
+  Future<void> save(OutboxEntry entry) async {
+    await LocalStores.outbox.record(entry.operationId).put(_db.db, entry.toRecord());
+    scheduleMicrotask(() => onEntryAdded?.call());
+  }
 
   Future<void> markInProgress(String operationId) => _update(
         operationId,

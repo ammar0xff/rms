@@ -3,6 +3,7 @@ import '../../domain/models/dining_table.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/models/delivery.dart';
 import '../theme/pie_colors.dart';
+import '../theme/pie_radius.dart';
 import '../theme/pie_typography.dart';
 
 enum PieBadgeVariant {
@@ -207,7 +208,7 @@ class PieBadge extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: PieRadius.borderSm,
         border: Border.all(color: fg.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(

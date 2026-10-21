@@ -5,6 +5,7 @@ import 'package:rms/src/core/di/app_bootstrap.dart';
 import 'package:rms/src/core/di/app_services.dart';
 import 'package:rms/src/core/state/sync_monitor.dart';
 import 'package:rms/src/data/local/local_database.dart';
+import 'package:rms/src/data/sync/sync_service.dart';
 import 'package:rms/src/domain/models/app_role.dart';
 import 'package:rms/src/features/shift/shift_screen.dart';
 
@@ -22,6 +23,7 @@ Future<AppServices> createTestServices({
     disableSembastCooperator();
     SyncMonitor.enablePolling = false;
     SyncMonitor.enableConnectivity = false;
+    SyncService.enablePeriodicHeartbeat = false;
     ShiftScreen.enableTicker = false;
     final dbName = 'test_mem_db_${++_testDbCounter}_${DateTime.now().microsecondsSinceEpoch}';
     final db = await LocalDatabase.memory(dbName);

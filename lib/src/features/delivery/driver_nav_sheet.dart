@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import 'driver_fail_dialog.dart';
@@ -25,6 +27,7 @@ class DriverNavSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: PieColors.surfaceOverlay,
+      shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (context) => DriverNavSheet(delivery: delivery),
     );
   }
@@ -36,11 +39,16 @@ class DriverNavSheet extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: PieColors.surfaceOverlay,
+          borderRadius: PieRadius.topLg,
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const PieGrabHandle(margin: EdgeInsets.only(top: 8, bottom: 12)),
             // Top handle & Title
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -80,7 +88,7 @@ class DriverNavSheet extends StatelessWidget {
                     height: 48,
                     decoration: BoxDecoration(
                       color: PieColors.driverSurface,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: PieRadius.borderMd,
                       border: Border.all(color: PieColors.driverBorder),
                     ),
                     child: const Icon(
@@ -113,7 +121,7 @@ class DriverNavSheet extends StatelessWidget {
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: PieColors.driverSurface,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: PieRadius.borderMd,
                 border: Border.all(color: PieColors.driverBorder, width: 1.5),
               ),
               child: Column(

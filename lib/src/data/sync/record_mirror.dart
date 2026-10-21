@@ -57,6 +57,7 @@ String? mirrorCollectionFor(String entityType) => switch (entityType) {
       'approval' => 'approvals',
       'customer' => 'customers',
       'menuItem' => 'menu',
+      'table' => 'tables',
       _ => null,
     };
 

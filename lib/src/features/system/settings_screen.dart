@@ -228,35 +228,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          backgroundColor: PieColors.surface1,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            'هوية الجهاز وإعدادات المنشأة',
-            style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: PieButton(
-                label: _isSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات',
-                icon: Icons.save_outlined,
-                role: AppRole.developer,
-                onPressed: _isSaving ? null : _saveSettings,
-              ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: PieColors.surface1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'هوية الجهاز وإعدادات المنشأة',
+                  style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
+                ),
+                PieButton(
+                  label: _isSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات',
+                  icon: Icons.save_outlined,
+                  role: AppRole.developer,
+                  onPressed: _isSaving ? null : _saveSettings,
+                ),
+              ],
             ),
-          ],
-        ),
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: PieColors.roleSystem),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Form(
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: PieColors.roleSystem),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,8 +639,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
-                ),
               ),
+            ),
+          ),
+        ],
       ),
     );
   }

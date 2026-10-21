@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/models/app_role.dart';
 import '../theme/pie_colors.dart';
+import '../theme/pie_radius.dart';
 
 /// PIE Card Primitive
 ///
@@ -17,7 +18,7 @@ class PieCard extends StatelessWidget {
     this.borderColor,
     this.padding = const EdgeInsets.all(16),
     this.margin,
-    this.borderRadius = 12,
+    this.borderRadius = PieRadius.lg,
     this.onTap,
     this.isActive = false,
     Color? activeColor,

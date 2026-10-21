@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_numeral.dart';
@@ -28,12 +29,7 @@ class DashboardScreen extends StatelessWidget {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Text('لوحة قيادة العمليات', style: PieTypography.heading),
-        ),
-        body: FutureBuilder(
+      child: FutureBuilder(
           future: Future.wait([
             services.orders?.listOrders() ?? Future.value(<Order>[]),
             services.deliveries?.listDeliveries() ?? Future.value(<DeliveryModel>[]),
@@ -115,7 +111,6 @@ class DashboardScreen extends StatelessWidget {
             );
           },
         ),
-      ),
     );
   }
 
@@ -135,16 +130,16 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isOpen ? const Color(0xFF052E16) : PieColors.stateErrorBg,
-                  borderRadius: BorderRadius.circular(6),
+                  color: isOpen ? PieColors.stateSyncedBg : PieColors.stateErrorBg,
+                  borderRadius: PieRadius.borderSm,
                   border: Border.all(
-                    color: isOpen ? const Color(0xFF4ADE80) : PieColors.stateError,
+                    color: isOpen ? PieColors.stateSynced : PieColors.stateError,
                   ),
                 ),
                 child: Text(
                   isOpen ? 'الوردية نشطة' : 'الوردية مغلقة',
                   style: PieTypography.caption.copyWith(
-                    color: isOpen ? const Color(0xFF4ADE80) : PieColors.stateError,
+                    color: isOpen ? PieColors.stateSynced : PieColors.stateError,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -217,7 +212,7 @@ class DashboardScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
@@ -318,7 +313,7 @@ class DashboardScreen extends StatelessWidget {
           const SizedBox(height: 14),
           // Proportion Bar
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: PieRadius.borderSm,
             child: SizedBox(
               height: 12,
               child: Row(
@@ -406,7 +401,7 @@ class DashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: PieColors.surface2,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: PieRadius.borderSm,
                 ),
                 child: Text(
                   'ذروة النشاط: $peakHour:00 ($maxCount أوردر)',
@@ -460,7 +455,7 @@ class DashboardScreen extends StatelessWidget {
               height: 60 * heightFactor,
               decoration: BoxDecoration(
                 color: isPeak ? PieColors.managerAccent : PieColors.surface3,
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.vertical(top: const Radius.circular(PieRadius.sm)),
               ),
             ),
             const SizedBox(height: 6),

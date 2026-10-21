@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/models/app_role.dart';
 import '../theme/pie_colors.dart';
+import '../theme/pie_radius.dart';
 import '../theme/pie_typography.dart';
 
 enum PieButtonVariant {
@@ -182,15 +183,15 @@ class PieButton extends StatelessWidget {
       ),
       child: Material(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         child: InkWell(
           onTap: isLoading ? null : onPressed,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: PieRadius.borderMd,
           child: Container(
             height: height,
             padding: padding,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: PieRadius.borderMd,
               border: border,
             ),
             child: buttonContent,

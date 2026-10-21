@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -108,56 +109,50 @@ class _ZReportScreenState extends State<ZReportScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Text('جرد الكاش وتقفيل الوردية Z-Report', style: PieTypography.heading),
-        ),
-        body: FutureBuilder<CashSession?>(
-          future: services.cashSessions?.currentSession(),
-          builder: (context, snapshot) {
-            final session = snapshot.data;
-            final expectedCash = session?.expectedCash ?? 500.0;
-            final countedCash = _totalCounted;
-            final variance = countedCash - expectedCash;
+      child: FutureBuilder<CashSession?>(
+        future: services.cashSessions?.currentSession(),
+        builder: (context, snapshot) {
+          final session = snapshot.data;
+          final expectedCash = session?.expectedCash ?? 500.0;
+          final countedCash = _totalCounted;
+          final variance = countedCash - expectedCash;
 
-            if (isDesktop) {
-              return Row(
-                children: [
-                  // Denomination Steppers List (Right side)
-                  Expanded(
-                    flex: 6,
-                    child: _buildDenominationsList(),
-                  ),
-                  // Summary & Z-Report Panel (Left side)
-                  Container(
-                    width: 420,
-                    decoration: const BoxDecoration(
-                      color: PieColors.surface1,
-                      border: Border(right: BorderSide(color: PieColors.border, width: 1)),
-                    ),
-                    padding: const EdgeInsets.all(24),
-                    child: _buildSummaryColumn(session, expectedCash, countedCash, variance),
-                  ),
-                ],
-              );
-            }
-
-            return ListView(
-              padding: const EdgeInsets.all(16),
+          if (isDesktop) {
+            return Row(
               children: [
-                _buildSummaryColumn(session, expectedCash, countedCash, variance),
-                const SizedBox(height: 20),
-                Text(
-                  'فئات النقدية بالدرج',
-                  style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                // Denomination Steppers List (Right side)
+                Expanded(
+                  flex: 6,
+                  child: _buildDenominationsList(),
                 ),
-                const SizedBox(height: 12),
-                _buildDenominationsList(),
+                // Summary & Z-Report Panel (Left side)
+                Container(
+                  width: 420,
+                  decoration: const BoxDecoration(
+                    color: PieColors.surface1,
+                    border: Border(right: BorderSide(color: PieColors.border, width: 1)),
+                  ),
+                  padding: const EdgeInsets.all(24),
+                  child: _buildSummaryColumn(session, expectedCash, countedCash, variance),
+                ),
               ],
             );
-          },
-        ),
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildSummaryColumn(session, expectedCash, countedCash, variance),
+              const SizedBox(height: 20),
+              Text(
+                'فئات النقدية بالدرج',
+                style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              _buildDenominationsList(),
+            ],
+          );
+        },
       ),
     );
   }
@@ -297,7 +292,7 @@ class _ZReportScreenState extends State<ZReportScreen> {
                 height: 44,
                 decoration: BoxDecoration(
                   color: PieColors.surface2,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: PieRadius.borderMd,
                   border: Border.all(color: PieColors.border),
                 ),
                 alignment: Alignment.center,
@@ -323,28 +318,41 @@ class _ZReportScreenState extends State<ZReportScreen> {
                   ],
                 ),
               ),
-              // Stepper
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline_rounded),
-                    color: PieColors.inkSecondary,
-                    onPressed: () => _decrement(denom),
-                  ),
-                  Container(
-                    width: 40,
-                    alignment: Alignment.center,
-                    child: PieNumeral.count(
-                      count,
-                      style: PieTypography.monoHeading.copyWith(fontWeight: FontWeight.w700),
+              // Stepper Capsule
+              Container(
+                decoration: BoxDecoration(
+                  color: PieColors.surface2,
+                  borderRadius: PieRadius.borderMd,
+                  border: Border.all(color: PieColors.border, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline_rounded),
+                      color: count > 0 ? PieColors.inkSecondary : PieColors.inkMuted,
+                      onPressed: count > 0 ? () => _decrement(denom) : null,
+                      visualDensity: VisualDensity.compact,
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline_rounded),
-                    color: PieColors.cashierAccent,
-                    onPressed: () => _increment(denom),
-                  ),
-                ],
+                    Container(
+                      width: 36,
+                      alignment: Alignment.center,
+                      child: PieNumeral.count(
+                        count,
+                        style: PieTypography.monoHeading.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: count > 0 ? PieColors.cashierAccent : PieColors.inkSecondary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline_rounded),
+                      color: PieColors.cashierAccent,
+                      onPressed: () => _increment(denom),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../data/local/outbox/outbox_entry.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../domain/models/app_role.dart';
@@ -88,30 +90,32 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          backgroundColor: PieColors.surface1,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            'تسوية تعارضات البيانات (3-Way Merge)',
-            style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
-              tooltip: 'تحديث التعارضات',
-              onPressed: _loadConflicts,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: PieColors.surface1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'تسوية تعارضات البيانات (3-Way Merge)',
+                  style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
+                  tooltip: 'تحديث التعارضات',
+                  onPressed: _loadConflicts,
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: PieColors.roleSystem),
-              )
-            : _conflicts.isEmpty
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: PieColors.roleSystem),
+                  )
+                : _conflicts.isEmpty
                 ? const PieEmptyState(
                     icon: Icons.check_circle_outline,
                     title: 'لا توجد تعارضات معلقة في البيانات',
@@ -157,6 +161,8 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
                           onTap: () => _openConflictSheet(_conflicts[i]),
                         ),
                       ),
+          ),
+        ],
       ),
     );
   }
@@ -211,16 +217,22 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: Container(
           height: MediaQuery.of(context).size.height * 0.85,
           decoration: const BoxDecoration(
             color: PieColors.surface2,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: PieRadius.topLg,
           ),
-          padding: const EdgeInsets.all(20),
-          child: _buildResolutionView(entry, inSheet: true),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          child: Column(
+            children: [
+              const PieGrabHandle(margin: EdgeInsets.only(bottom: 12)),
+              Expanded(child: _buildResolutionView(entry, inSheet: true)),
+            ],
+          ),
         ),
       ),
     );
@@ -332,7 +344,7 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: PieColors.well,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: PieRadius.borderMd,
         border: Border.all(color: PieColors.borderMuted),
       ),
       child: Column(
@@ -352,7 +364,7 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: badgeColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: PieRadius.borderSm,
                 ),
                 child: Text(
                   badge,
@@ -368,7 +380,7 @@ class _ConflictsScreenState extends State<ConflictsScreen> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: PieColors.canvas,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: PieRadius.borderSm,
             ),
             child: SingleChildScrollView(
               child: Text(

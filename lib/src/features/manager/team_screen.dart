@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -202,52 +203,54 @@ class _TeamScreenState extends State<TeamScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          backgroundColor: PieColors.surface1,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            'فريق العمل والصلاحيات',
-            style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
+      child: Column(
+        children: [
+          // Header Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: PieColors.surface1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'فريق العمل والصلاحيات',
+                  style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: PieColors.roleManager.withValues(alpha: 0.15),
+                    borderRadius: PieRadius.borderSm,
+                    border: Border.all(color: PieColors.roleManager.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.circle, color: PieColors.roleManager, size: 8),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$activeShiftCount في الوردية الآن',
+                        style: PieTypography.caption.copyWith(
+                          color: PieColors.roleManager,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          actions: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              margin: const EdgeInsets.only(left: 16),
-              decoration: BoxDecoration(
-                color: PieColors.roleManager.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: PieColors.roleManager.withValues(alpha: 0.4)),
-              ),
+
+          // Filter Pills Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: PieColors.surface2,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  const Icon(Icons.circle, color: PieColors.roleManager, size: 8),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$activeShiftCount في الوردية الآن',
-                    style: PieTypography.caption.copyWith(
-                      color: PieColors.roleManager,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            // Filter Pills
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: PieColors.surface2,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    FilterChip(
+                  FilterChip(
                       label: Text('الكل (${_members.length})'),
                       selected: _selectedRoleFilter == null,
                       selectedColor: PieColors.roleManager.withValues(alpha: 0.2),
@@ -348,7 +351,6 @@ class _TeamScreenState extends State<TeamScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -394,7 +396,7 @@ class _TeamScreenState extends State<TeamScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: PieColors.stateSynced.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: PieRadius.borderSm,
                               ),
                               child: Text(
                                 'وردية جارية',
@@ -406,7 +408,7 @@ class _TeamScreenState extends State<TeamScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: PieColors.well,
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: PieRadius.borderSm,
                               ),
                               child: Text(
                                 'خارج الوردية',
@@ -427,7 +429,7 @@ class _TeamScreenState extends State<TeamScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: roleColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: PieRadius.borderSm,
                     border: Border.all(color: roleColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
@@ -445,7 +447,7 @@ class _TeamScreenState extends State<TeamScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: PieColors.well,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: PieRadius.borderMd,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

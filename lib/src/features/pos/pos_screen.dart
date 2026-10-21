@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_empty_state.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../domain/models/delivery.dart';
@@ -297,13 +299,13 @@ class _PosScreenState extends State<PosScreen> {
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'نوع الطلب:',
-              style: PieTypography.label.copyWith(color: PieColors.inkSecondary),
+              style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
             ),
             const SizedBox(width: 10),
             _buildChannelChip(OrderType.takeaway, 'تيك أواي (استلام)', Icons.shopping_bag_outlined),
@@ -318,31 +320,45 @@ class _PosScreenState extends State<PosScreen> {
   Widget _buildChannelChip(OrderType type, String label, IconData icon) {
     final isSelected = _selectedChannel == type;
 
-    return ChoiceChip(
-      avatar: Icon(
-        icon,
-        size: 15,
-        color: isSelected ? const Color(0xFF0F1117) : PieColors.inkSecondary,
-      ),
-      label: Text(
-        label,
-        style: PieTypography.label.copyWith(
-          color: isSelected ? const Color(0xFF0F1117) : PieColors.ink,
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-        ),
-      ),
-      selected: isSelected,
-      selectedColor: PieColors.cashierAccent,
-      backgroundColor: PieColors.surface2,
-      side: BorderSide(
-        color: isSelected ? PieColors.cashierAccent : PieColors.border,
-      ),
-      onSelected: (selected) {
-        if (selected) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
           PieSoundService.instance.click();
           setState(() => _selectedChannel = type);
-        }
-      },
+        },
+        borderRadius: PieRadius.borderMd,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected ? PieColors.cashierAccent : PieColors.surface2,
+            borderRadius: PieRadius.borderMd,
+            border: Border.all(
+              color: isSelected ? PieColors.cashierAccent : PieColors.border,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? PieColors.canvas : PieColors.inkSecondary,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: PieTypography.label.copyWith(
+                  color: isSelected ? PieColors.canvas : PieColors.ink,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -365,22 +381,36 @@ class _PosScreenState extends State<PosScreen> {
               final cat = categories[index];
               final isSelected = _selectedCategory == cat;
 
-              return ActionChip(
-                label: Text(
-                  cat,
-                  style: PieTypography.caption.copyWith(
-                    color: isSelected ? PieColors.cashierAccent : PieColors.inkSecondary,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    PieSoundService.instance.click();
+                    setState(() => _selectedCategory = cat);
+                  },
+                  borderRadius: PieRadius.borderSm,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? PieColors.cashierSurface : PieColors.surface1,
+                      borderRadius: PieRadius.borderSm,
+                      border: Border.all(
+                        color: isSelected ? PieColors.cashierAccent : PieColors.border,
+                        width: 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        cat,
+                        style: PieTypography.caption.copyWith(
+                          color: isSelected ? PieColors.cashierAccent : PieColors.inkSecondary,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                backgroundColor: isSelected ? PieColors.cashierSurface : PieColors.surface1,
-                side: BorderSide(
-                  color: isSelected ? PieColors.cashierAccent : PieColors.border,
-                ),
-                onPressed: () {
-                  PieSoundService.instance.click();
-                  setState(() => _selectedCategory = cat);
-                },
               );
             },
           ),
@@ -426,7 +456,7 @@ class _PosScreenState extends State<PosScreen> {
         curve: Curves.easeOut,
         decoration: BoxDecoration(
           color: isSelected ? PieColors.cashierSurface : PieColors.surface1,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: PieRadius.borderLg,
           border: Border.all(
             color: isSelected ? PieColors.cashierAccent : PieColors.border,
             width: isSelected ? 1.5 : 1,
@@ -444,7 +474,7 @@ class _PosScreenState extends State<PosScreen> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: PieRadius.borderLg,
             onTap: item.available ? () => _addItem(item) : null,
             child: Padding(
               padding: const EdgeInsets.all(10),
@@ -459,7 +489,7 @@ class _PosScreenState extends State<PosScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: PieColors.surface2,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: PieRadius.borderSm,
                           border: Border.all(color: PieColors.border),
                         ),
                         child: Text(
@@ -475,7 +505,7 @@ class _PosScreenState extends State<PosScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: PieColors.stateErrorBg,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: PieRadius.borderSm,
                           ),
                           child: Text(
                             'نفد',
@@ -491,7 +521,7 @@ class _PosScreenState extends State<PosScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
                             color: PieColors.cashierAccent,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: PieRadius.borderSm,
                           ),
                           child: Text(
                             '$inCartCount×',
@@ -547,7 +577,7 @@ class _PosScreenState extends State<PosScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: PieColors.surface2,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: PieRadius.borderSm,
                               border: Border.all(
                                 color: isSelected ? PieColors.cashierAccent : PieColors.border,
                               ),
@@ -578,14 +608,14 @@ class _PosScreenState extends State<PosScreen> {
                             children: [
                               InkWell(
                                 onTap: () => _decrementItemByProductId(item.id),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: PieRadius.borderSm,
                                 child: Container(
                                   width: 28,
                                   height: 28,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: PieColors.surface2,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: PieRadius.borderSm,
                                     border: Border.all(color: PieColors.border),
                                   ),
                                   child: const Icon(Icons.remove, size: 14, color: PieColors.ink),
@@ -604,14 +634,14 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                               InkWell(
                                 onTap: () => _addItem(item),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: PieRadius.borderSm,
                                 child: Container(
                                   width: 28,
                                   height: 28,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: PieColors.cashierAccent,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: PieRadius.borderSm,
                                   ),
                                   child: const Icon(Icons.add, size: 14, color: Color(0xFF0F1117)),
                                 ),
@@ -625,7 +655,7 @@ class _PosScreenState extends State<PosScreen> {
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: PieColors.surface2,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: PieRadius.borderSm,
                               border: Border.all(color: PieColors.border),
                             ),
                             child: const Icon(Icons.add_rounded, size: 18, color: PieColors.cashierAccent),
@@ -833,7 +863,7 @@ class _PosScreenState extends State<PosScreen> {
             // Order summary tap to open review sheet
             InkWell(
               onTap: _showMobileReceiptSheet,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: PieRadius.borderMd,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 child: Row(
@@ -846,7 +876,7 @@ class _PosScreenState extends State<PosScreen> {
                           height: 40,
                           decoration: BoxDecoration(
                             color: PieColors.surface2,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: PieRadius.borderMd,
                             border: Border.all(color: PieColors.border),
                           ),
                           child: const Icon(
@@ -862,7 +892,7 @@ class _PosScreenState extends State<PosScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
                               color: PieColors.cashierAccent,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: PieRadius.borderSm,
                             ),
                             child: Text(
                               '$_cartItemCount',
@@ -931,8 +961,8 @@ class _PosScreenState extends State<PosScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: PieColors.surfaceOverlay,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: PieRadius.topLg,
       ),
       builder: (bottomSheetContext) {
         return StatefulBuilder(
@@ -948,17 +978,7 @@ class _PosScreenState extends State<PosScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Handle
-                      Center(
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 10, bottom: 8),
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: PieColors.border,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
+                      const PieGrabHandle(),
                       // Header
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1075,14 +1095,14 @@ class _PosScreenState extends State<PosScreen> {
                                                     Navigator.of(bottomSheetContext).pop();
                                                   }
                                                 },
-                                                borderRadius: BorderRadius.circular(4),
+                                                borderRadius: PieRadius.borderSm,
                                                 child: Container(
                                                   width: 28,
                                                   height: 28,
                                                   alignment: Alignment.center,
                                                   decoration: BoxDecoration(
                                                     color: PieColors.surface2,
-                                                    borderRadius: BorderRadius.circular(4),
+                                                    borderRadius: PieRadius.borderSm,
                                                     border: Border.all(color: PieColors.border),
                                                   ),
                                                   child: const Icon(Icons.remove, size: 14, color: PieColors.ink),
@@ -1102,14 +1122,14 @@ class _PosScreenState extends State<PosScreen> {
                                                   _incrementItem(index);
                                                   setSheetState(() {});
                                                 },
-                                                borderRadius: BorderRadius.circular(4),
+                                                borderRadius: PieRadius.borderSm,
                                                 child: Container(
                                                   width: 28,
                                                   height: 28,
                                                   alignment: Alignment.center,
                                                   decoration: BoxDecoration(
                                                     color: PieColors.cashierAccent,
-                                                    borderRadius: BorderRadius.circular(4),
+                                                    borderRadius: PieRadius.borderSm,
                                                   ),
                                                   child: const Icon(Icons.add, size: 14, color: Color(0xFF0F1117)),
                                                 ),
@@ -1260,7 +1280,7 @@ class _PosScreenState extends State<PosScreen> {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: PieColors.driverSurface,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: PieRadius.borderMd,
                             ),
                             child: const Icon(Icons.two_wheeler_rounded, color: PieColors.driverAccent, size: 22),
                           ),
@@ -1296,7 +1316,7 @@ class _PosScreenState extends State<PosScreen> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: PieColors.surface2,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: PieRadius.borderMd,
                           ),
                           child: Center(
                             child: Text(
@@ -1322,12 +1342,12 @@ class _PosScreenState extends State<PosScreen> {
                                   PieSoundService.instance.click();
                                   setDialogState(() => selectedDriverName = driver.name);
                                 },
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: PieRadius.borderMd,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                   decoration: BoxDecoration(
                                     color: isSelected ? PieColors.driverSurface : PieColors.surface2,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: PieRadius.borderMd,
                                     border: Border.all(
                                       color: isSelected ? PieColors.driverAccent : PieColors.border,
                                       width: isSelected ? 1.5 : 1,
@@ -1353,7 +1373,7 @@ class _PosScreenState extends State<PosScreen> {
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
                                           color: driver.available ? PieColors.managerSurface : PieColors.surface3,
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius: PieRadius.borderSm,
                                         ),
                                         child: Text(
                                           driver.available ? 'متاح ($count جارية)' : 'غير متاح',
@@ -1385,7 +1405,7 @@ class _PosScreenState extends State<PosScreen> {
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: PieColors.border),
                                 padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                shape: RoundedRectangleBorder(borderRadius: PieRadius.borderMd),
                               ),
                               child: Text(
                                 'تخطي والإسناد لاحقاً',

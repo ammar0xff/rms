@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -46,9 +47,9 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: PieColors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: PieColors.border),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
           ),
           title: Row(
             children: [
@@ -57,7 +58,7 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: PieColors.driverSurface,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: PieRadius.borderMd,
                 ),
                 child: const Icon(Icons.assignment_turned_in_rounded,
                     color: PieColors.driverAccent, size: 20),
@@ -149,14 +150,7 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: const Text('تسوية وتوريد عهدة الكاش', style: PieTypography.heading),
-          backgroundColor: PieColors.surface,
-          elevation: 0,
-        ),
-        body: FutureBuilder<List<dynamic>>(
+      child: FutureBuilder<List<dynamic>>(
           future: Future.wait([
             deliveryRepo?.listDrivers() ?? Future.value(<DriverModel>[]),
             deliveryRepo?.listDeliveries() ?? Future.value(<DeliveryModel>[]),
@@ -225,7 +219,7 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: PieColors.driverSurface,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: PieRadius.borderSm,
                               border: Border.all(color: PieColors.driverBorder),
                             ),
                             child: Row(
@@ -347,7 +341,6 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
             );
           },
         ),
-      ),
     );
   }
 }

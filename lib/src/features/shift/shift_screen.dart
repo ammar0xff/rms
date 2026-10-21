@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
@@ -234,7 +235,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: PieColors.well,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: PieRadius.borderSm,
                     border: Border.all(color: PieColors.border),
                   ),
                   child: Row(
@@ -328,7 +329,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
         child: AlertDialog(
           backgroundColor: PieColors.surfaceOverlay,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: PieRadius.borderLg,
             side: const BorderSide(color: PieColors.border),
           ),
           title: Row(

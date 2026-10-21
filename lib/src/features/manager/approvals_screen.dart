@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -134,12 +135,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Text('مركز الموافقات الإدارية', style: PieTypography.heading),
-        ),
-        body: FutureBuilder<List<ApprovalRequest>>(
+      child: FutureBuilder<List<ApprovalRequest>>(
           future: approvalsRepo?.listRequests(),
           builder: (context, snapshot) {
             final allRequests = snapshot.data ?? [];
@@ -177,7 +173,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                           color: pendingRequests.isEmpty
                               ? const Color(0xFF052E16)
                               : PieColors.managerSurface,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: PieRadius.borderSm,
                           border: Border.all(
                             color: pendingRequests.isEmpty
                                 ? const Color(0xFF4ADE80)
@@ -188,7 +184,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                           '${pendingRequests.length} طلبات',
                           style: PieTypography.bodyStrong.copyWith(
                             color: pendingRequests.isEmpty
-                                ? const Color(0xFF4ADE80)
+                                ? PieColors.stateSynced
                                 : PieColors.managerAccent,
                           ),
                         ),
@@ -235,7 +231,6 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
             );
           },
         ),
-      ),
     );
   }
 
@@ -273,7 +268,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: PieColors.surface2,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: PieRadius.borderSm,
                   border: Border.all(color: PieColors.border),
                 ),
                 child: Text(
@@ -326,7 +321,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: PieColors.well,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: PieRadius.borderSm,
               border: Border.all(color: PieColors.border),
             ),
             child: Text(

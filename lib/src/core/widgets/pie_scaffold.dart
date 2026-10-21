@@ -5,6 +5,7 @@ import '../di/app_services.dart';
 import '../sound/pie_sound_service.dart';
 import '../state/sync_monitor.dart';
 import '../theme/pie_colors.dart';
+import '../theme/pie_radius.dart';
 import '../theme/pie_typography.dart';
 import 'pie_badge.dart';
 
@@ -89,7 +90,7 @@ class PieScaffold extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: PieColors.surfaceFor(role),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: PieRadius.borderSm,
                     border: Border.all(color: PieColors.borderFor(role), width: 1),
                   ),
                   child: Row(
@@ -131,7 +132,7 @@ class PieScaffold extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: PieColors.surface2,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: PieRadius.borderSm,
                         border: Border.all(color: PieColors.borderMuted),
                       ),
                       child: Row(
@@ -160,12 +161,22 @@ class PieScaffold extends StatelessWidget {
                     );
                   },
                 ),
+              ],
+              if (title != null && title!.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                Expanded(
+                Text(
+                  '·',
+                  style: TextStyle(
+                    color: PieColors.border,
+                    fontSize: isDesktop ? 16 : 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
                   child: Text(
-                    title ?? 'فطيرة للتشغيل',
-                    style: PieTypography.subheading.copyWith(
-                      fontWeight: FontWeight.w600,
+                    title!,
+                    style: (isDesktop ? PieTypography.subheading : PieTypography.bodyStrong).copyWith(
                       color: PieColors.ink,
                     ),
                     maxLines: 1,
@@ -184,7 +195,7 @@ class PieScaffold extends StatelessWidget {
                 return Tooltip(
                   message: 'اضغط لعرض تفاصيل المزامنة وحالة الاتصال',
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: PieRadius.borderSm,
                     onTap: () => _showSyncStatusModal(context, monitor, services),
                     child: PieBadge.syncStatus(
                       isSynced: monitor.pending == 0 && monitor.conflicts == 0 && !isOffline,
@@ -205,9 +216,9 @@ class PieScaffold extends StatelessWidget {
                 tooltip: 'تبديل الدور الوظيفي',
                 icon: const Icon(Icons.swap_horiz_rounded, color: PieColors.inkSecondary),
                 color: PieColors.surfaceOverlay,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: PieColors.border),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: PieRadius.borderMd,
+                  side: BorderSide(color: PieColors.border),
                 ),
                 onSelected: onRoleSwitch,
                 itemBuilder: (context) => [
@@ -279,18 +290,18 @@ class PieScaffold extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Material(
                   color: isSelected ? roleAccent.withOpacity(0.12) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: PieRadius.borderMd,
                   child: InkWell(
                     onTap: () {
                       PieSoundService.instance.click();
                       onDestinationSelected(index);
                     },
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: PieRadius.borderMd,
                     child: Container(
                       height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: PieRadius.borderMd,
                         border: isSelected
                             ? Border.all(color: roleAccent.withOpacity(0.4), width: 1)
                             : null,
@@ -361,7 +372,7 @@ class PieScaffold extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
                           decoration: BoxDecoration(
                             color: isSelected ? roleAccent.withValues(alpha: 0.15) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: PieRadius.borderMd,
                           ),
                           child: Icon(
                             isSelected ? item.selectedIcon : item.icon,
@@ -405,9 +416,9 @@ class PieScaffold extends StatelessWidget {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: PieColors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: PieColors.border),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
           ),
           title: Row(
             children: [
@@ -427,7 +438,7 @@ class PieScaffold extends StatelessWidget {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isOffline ? PieColors.stateOfflineBg : PieColors.stateSyncedBg,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: PieRadius.borderMd,
                       border: Border.all(
                         color: isOffline ? PieColors.stateOffline : PieColors.stateSynced,
                       ),

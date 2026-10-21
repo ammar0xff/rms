@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -27,85 +28,79 @@ class _TriageScreenState extends State<TriageScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Text('مراقبة وإدارة كافة الفروع', style: PieTypography.heading),
-        ),
-        body: FutureBuilder<List<BranchModel>>(
-          future: branchRepo?.listBranches(),
-          builder: (context, snapshot) {
-            final branches = snapshot.data ?? [
-              BranchModel(
-                id: 'dokki',
-                name: 'فرع الدقي الرئيسي',
-                code: 'DKI',
-                city: 'الجيزة',
-                timezone: 'Africa/Cairo',
-                openedAt: DateTime(2023, 1, 1),
-                status: BranchStatus.active,
-              ),
-              BranchModel(
-                id: 'maadi',
-                name: 'فرع المعادي',
-                code: 'MAD',
-                city: 'القاهرة',
-                timezone: 'Africa/Cairo',
-                openedAt: DateTime(2023, 6, 1),
-                status: BranchStatus.active,
-              ),
-              BranchModel(
-                id: 'nasr_city',
-                name: 'فرع مدينة نصر',
-                code: 'NAS',
-                city: 'القاهرة',
-                timezone: 'Africa/Cairo',
-                openedAt: DateTime(2023, 9, 1),
-                status: BranchStatus.active,
-              ),
-              BranchModel(
-                id: 'alex',
-                name: 'فرع سموحة - الإسكندرية',
-                code: 'ALX',
-                city: 'الإسكندرية',
-                timezone: 'Africa/Cairo',
-                openedAt: DateTime(2024, 2, 1),
-                status: BranchStatus.active,
-              ),
-            ];
+      child: FutureBuilder<List<BranchModel>>(
+        future: branchRepo?.listBranches(),
+        builder: (context, snapshot) {
+          final branches = snapshot.data ?? [
+            BranchModel(
+              id: 'dokki',
+              name: 'فرع الدقي الرئيسي',
+              code: 'DKI',
+              city: 'الجيزة',
+              timezone: 'Africa/Cairo',
+              openedAt: DateTime(2023, 1, 1),
+              status: BranchStatus.active,
+            ),
+            BranchModel(
+              id: 'maadi',
+              name: 'فرع المعادي',
+              code: 'MAD',
+              city: 'القاهرة',
+              timezone: 'Africa/Cairo',
+              openedAt: DateTime(2023, 6, 1),
+              status: BranchStatus.active,
+            ),
+            BranchModel(
+              id: 'nasr_city',
+              name: 'فرع مدينة نصر',
+              code: 'NAS',
+              city: 'القاهرة',
+              timezone: 'Africa/Cairo',
+              openedAt: DateTime(2023, 9, 1),
+              status: BranchStatus.active,
+            ),
+            BranchModel(
+              id: 'alex',
+              name: 'فرع سموحة - الإسكندرية',
+              code: 'ALX',
+              city: 'الإسكندرية',
+              timezone: 'Africa/Cairo',
+              openedAt: DateTime(2024, 2, 1),
+              status: BranchStatus.active,
+            ),
+          ];
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Network Overview Card
-                PieCard(
-                  padding: const EdgeInsets.all(18),
-                  surfaceColor: PieColors.surface2,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildNetworkStat('الفروع المتصلة', '${branches.length}', const Color(0xFF4ADE80)),
-                      _buildNetworkStat('أوردرات جارية', '34', PieColors.managerAccent),
-                      _buildNetworkStat('تحذيرات التأخير', '2', PieColors.stateError),
-                    ],
-                  ),
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              // Network Overview Card
+              PieCard(
+                padding: const EdgeInsets.all(18),
+                surfaceColor: PieColors.surface2,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNetworkStat('الفروع المتصلة', '${branches.length}', PieColors.stateSynced),
+                    _buildNetworkStat('أوردرات جارية', '34', PieColors.managerAccent),
+                    _buildNetworkStat('تحذيرات التأخير', '2', PieColors.stateError),
+                  ],
                 ),
-                const SizedBox(height: 20),
+              ),
+              const SizedBox(height: 20),
 
-                Text(
-                  'شبكة الفروع المباشرة (${branches.length})',
-                  style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
-                ),
+              Text(
+                'شبكة الفروع المباشرة (${branches.length})',
+                style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+
+              for (final branch in branches) ...[
+                _buildBranchTriageCard(branch),
                 const SizedBox(height: 12),
-
-                for (final branch in branches) ...[
-                  _buildBranchTriageCard(branch),
-                  const SizedBox(height: 12),
-                ],
               ],
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -165,7 +160,7 @@ class _TriageScreenState extends State<TriageScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: PieColors.stateErrorBg,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: PieRadius.borderSm,
                     border: Border.all(color: PieColors.stateError),
                   ),
                   child: Text(
@@ -178,7 +173,7 @@ class _TriageScreenState extends State<TriageScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF052E16),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: PieRadius.borderSm,
                   ),
                   child: Text(
                     'تشغيل طبيعي',

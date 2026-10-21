@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
+import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_type.dart';
@@ -36,57 +38,51 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: PieColors.canvas,
-        appBar: AppBar(
-          title: Text('أرشيف الفواتير والمبيعات', style: PieTypography.heading),
-        ),
-        body: FutureBuilder<List<Order>>(
-          future: services.orders?.listOrders(),
-          builder: (context, snapshot) {
-            final allOrders = snapshot.data ?? [];
+      child: FutureBuilder<List<Order>>(
+        future: services.orders?.listOrders(),
+        builder: (context, snapshot) {
+          final allOrders = snapshot.data ?? [];
 
-            var filtered = allOrders;
-            if (_selectedChannelFilter != null) {
-              filtered = filtered.where((o) => o.orderType == _selectedChannelFilter).toList();
-            }
-            if (_searchQuery.isNotEmpty) {
-              filtered = filtered.where((o) {
-                final ref = o.canonicalOrderNumber ?? o.provisionalOrderNumber;
-                return ref.contains(_searchQuery);
-              }).toList();
-            }
+          var filtered = allOrders;
+          if (_selectedChannelFilter != null) {
+            filtered = filtered.where((o) => o.orderType == _selectedChannelFilter).toList();
+          }
+          if (_searchQuery.isNotEmpty) {
+            filtered = filtered.where((o) {
+              final ref = o.canonicalOrderNumber ?? o.provisionalOrderNumber;
+              return ref.contains(_searchQuery);
+            }).toList();
+          }
 
-            if (isDesktop) {
-              return Row(
-                children: [
-                  // List (Right side)
-                  Expanded(
-                    flex: 6,
-                    child: _buildListSection(filtered),
+          if (isDesktop) {
+            return Row(
+              children: [
+                // List (Right side)
+                Expanded(
+                  flex: 6,
+                  child: _buildListSection(filtered),
+                ),
+                // Receipt Detail Viewer (Left side)
+                Container(
+                  width: 420,
+                  decoration: const BoxDecoration(
+                    color: PieColors.surface1,
+                    border: Border(right: BorderSide(color: PieColors.border, width: 1)),
                   ),
-                  // Receipt Detail Viewer (Left side)
-                  Container(
-                    width: 420,
-                    decoration: const BoxDecoration(
-                      color: PieColors.surface1,
-                      border: Border(right: BorderSide(color: PieColors.border, width: 1)),
-                    ),
-                    child: _selectedOrder == null
-                        ? const PieEmptyState(
-                            title: 'اختار فاتورة لعرض التفاصيل',
-                            description: 'اضغط على أي فاتورة من القائمة علشان تشوف البون وتعيد طباعته.',
-                            icon: Icons.receipt_long_outlined,
-                          )
-                        : _buildReceiptViewer(_selectedOrder!),
-                  ),
-                ],
-              );
-            }
+                  child: _selectedOrder == null
+                      ? const PieEmptyState(
+                          title: 'اختار فاتورة لعرض التفاصيل',
+                          description: 'اضغط على أي فاتورة من القائمة علشان تشوف البون وتعيد طباعته.',
+                          icon: Icons.receipt_long_outlined,
+                        )
+                      : _buildReceiptViewer(_selectedOrder!),
+                ),
+              ],
+            );
+          }
 
-            return _buildListSection(filtered);
-          },
-        ),
+          return _buildListSection(filtered);
+        },
       ),
     );
   }
@@ -184,7 +180,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: PieColors.stateErrorBg,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: PieRadius.borderSm,
                                     border: Border.all(color: PieColors.stateError),
                                   ),
                                   child: Text(
@@ -381,11 +377,22 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: PieColors.surfaceOverlay,
+      shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
         child: Container(
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-          child: _buildReceiptViewer(order),
+          decoration: const BoxDecoration(
+            color: PieColors.surfaceOverlay,
+            borderRadius: PieRadius.topLg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const PieGrabHandle(),
+              Expanded(child: _buildReceiptViewer(order)),
+            ],
+          ),
         ),
       ),
     );

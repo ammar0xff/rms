@@ -7,15 +7,26 @@ class SyncCoordinator {
 
   final SyncEngine _engine;
   bool _running = false;
+  bool _rerunRequested = false;
 
   bool get isSyncing => _running;
 
   /// Runs one drain pass, or returns 0 if a pass is already in flight.
+  /// If another sync is requested while in flight, automatically performs
+  /// a follow-up drain pass so no queued item is ever delayed.
   Future<int> requestSync() async {
-    if (_running) return 0;
+    if (_running) {
+      _rerunRequested = true;
+      return 0;
+    }
     _running = true;
+    var totalApplied = 0;
     try {
-      return await _engine.drain();
+      do {
+        _rerunRequested = false;
+        totalApplied += await _engine.drain();
+      } while (_rerunRequested);
+      return totalApplied;
     } finally {
       _running = false;
     }
