@@ -109,6 +109,8 @@ class InboundSyncService {
             if (hasLocalPending) continue;
 
             final record = Map<String, Object?>.from(data)..remove('mirroredAt');
+            record.putIfAbsent('id', () => entityId);
+            record.putIfAbsent('localId', () => entityId);
 
             if (change.type == DocumentChangeType.removed) {
               await store.record(entityId).delete(_db.db);

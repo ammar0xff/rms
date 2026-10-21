@@ -63,17 +63,35 @@ class CashSession {
       };
 
   static CashSession fromRecord(Map<String, Object?> record) => CashSession(
-        id: record['id'] as String,
-        openedAt: DateTime.parse(record['openedAt'] as String),
-        openingFloat: (record['openingFloat'] as num).toDouble(),
+        id: (record['id'] ?? '') as String,
+        openedAt: record['openedAt'] != null
+            ? (DateTime.tryParse(record['openedAt'].toString()) ?? DateTime.now())
+            : DateTime.now(),
+        openingFloat: (record['openingFloat'] as num?)?.toDouble() ?? 500.0,
         closedAt: record['closedAt'] == null
             ? null
-            : DateTime.parse(record['closedAt'] as String),
+            : DateTime.tryParse(record['closedAt'].toString()),
         countedCash: (record['countedCash'] as num?)?.toDouble(),
         expectedCash: (record['expectedCash'] as num?)?.toDouble(),
-        status: CashSessionStatus.values.byName(record['status'] as String),
+        status: () {
+          final s = record['status'] as String?;
+          if (s == null) return CashSessionStatus.open;
+          try {
+            return CashSessionStatus.values.byName(s);
+          } catch (_) {
+            return CashSessionStatus.open;
+          }
+        }(),
         note: record['note'] as String?,
         createdOffline: record['createdOffline'] as bool? ?? false,
-        syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
+        syncStatus: () {
+          final s = record['syncStatus'] as String?;
+          if (s == null) return SyncStatus.pendingSync;
+          try {
+            return SyncStatus.values.byName(s);
+          } catch (_) {
+            return SyncStatus.pendingSync;
+          }
+        }(),
       );
 }

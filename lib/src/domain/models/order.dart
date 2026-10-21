@@ -77,18 +77,24 @@ class Order {
       };
 
   static Order fromRecord(Map<String, Object?> record) => Order(
-        localId: record['localId'] as String,
-        provisionalOrderNumber: record['provisionalOrderNumber'] as String,
-        items: (record['items'] as List)
+        localId: (record['localId'] ?? record['id'] ?? '') as String,
+        provisionalOrderNumber: (record['provisionalOrderNumber'] ?? '') as String,
+        items: ((record['items'] as List?) ?? [])
             .map((e) => OrderItem.fromRecord(Map<String, Object?>.from(e as Map)))
             .toList(),
-        createdOffline: record['createdOffline'] as bool,
+        createdOffline: record['createdOffline'] as bool? ?? false,
         createdAt: record['createdAt'] == null
             ? DateTime.fromMillisecondsSinceEpoch(0)
-            : DateTime.parse(record['createdAt'] as String),
-        orderType: OrderType.values.byName(
-          record['orderType'] as String? ?? OrderType.dineIn.name,
-        ),
+            : (DateTime.tryParse(record['createdAt'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0)),
+        orderType: () {
+          final s = record['orderType'] as String?;
+          if (s == null) return OrderType.dineIn;
+          try {
+            return OrderType.values.byName(s);
+          } catch (_) {
+            return OrderType.dineIn;
+          }
+        }(),
         taxAmount: (record['taxAmount'] as num?)?.toDouble() ?? 0.0,
         discountAmount: (record['discountAmount'] as num?)?.toDouble() ?? 0.0,
         serviceAmount: (record['serviceAmount'] as num?)?.toDouble() ?? 0.0,
@@ -98,7 +104,15 @@ class Order {
         voided: record['voided'] as bool? ?? false,
         voidReason: record['voidReason'] as String?,
         serverRevision: record['serverRevision'] as int?,
-        syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
+        syncStatus: () {
+          final s = record['syncStatus'] as String?;
+          if (s == null) return SyncStatus.pendingSync;
+          try {
+            return SyncStatus.values.byName(s);
+          } catch (_) {
+            return SyncStatus.pendingSync;
+          }
+        }(),
       );
 }
 
@@ -139,14 +153,14 @@ class OrderItem {
       };
 
   static OrderItem fromRecord(Map<String, Object?> record) => OrderItem(
-        productId: record['productId'] as String,
-        name: record['name'] as String,
-        unitPrice: (record['unitPrice'] as num).toDouble(),
-        quantity: record['quantity'] as int,
+        productId: (record['productId'] ?? '') as String,
+        name: (record['name'] ?? '') as String,
+        unitPrice: (record['unitPrice'] as num?)?.toDouble() ?? 0.0,
+        quantity: (record['quantity'] as num?)?.toInt() ?? 1,
         station: record['station'] as String? ?? '',
         note: record['note'] as String?,
         modifiers: ((record['modifiers'] as List?) ?? [])
-            .map((e) => e as String)
+            .map((e) => e.toString())
             .toList(),
       );
 }

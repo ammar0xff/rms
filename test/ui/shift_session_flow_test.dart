@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/app.dart';
 import 'package:rms/src/domain/models/app_role.dart';
 import 'package:rms/src/domain/models/cash_session.dart';
+import 'package:rms/src/domain/models/order.dart';
 import 'package:rms/src/features/accounting/z_report_screen.dart';
 import 'package:rms/src/features/shift/shift_screen.dart';
 
@@ -169,6 +170,69 @@ void main() {
         expect(current!.isOpen, isTrue);
         expect(current.openingFloat, 500.0);
       });
+    });
+
+    testWidgets('Shift Screen renders cleanly on mobile viewport', (WidgetTester tester) async {
+      tester.setMobileSize();
+      addTearDown(tester.resetTestSize);
+
+      final services = await createTestServices(tester: tester, initialRole: AppRole.cashier);
+
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Navigate to Shift Screen
+      final shiftNav = find.text('الوردية والخزينة');
+      expect(shiftNav, findsWidgets);
+      await tester.tap(shiftNav.first);
+      await tester.pumpFewFrames();
+
+      // Verify ShiftScreen is visible without errors
+      expect(find.byType(ShiftScreen), findsOneWidget);
+      expect(find.text('الوردية مفتوحة ومباشرة'), findsOneWidget);
+      expect(find.text('تذاكر الأوردرات اللحظية'), findsOneWidget);
+    });
+
+    testWidgets('Shift Screen renders cleanly on tablet viewport without unbounded flex errors', (WidgetTester tester) async {
+      tester.setTabletSize();
+      addTearDown(tester.resetTestSize);
+
+      final services = await createTestServices(tester: tester, initialRole: AppRole.cashier);
+
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Navigate to Shift Screen
+      final shiftNav = find.text('الوردية والخزينة');
+      expect(shiftNav, findsWidgets);
+      await tester.tap(shiftNav.first);
+      await tester.pumpFewFrames();
+
+      // Verify ShiftScreen is visible without errors
+      expect(find.byType(ShiftScreen), findsOneWidget);
+      expect(find.text('الوردية مفتوحة ومباشرة'), findsOneWidget);
+      expect(find.text('تذاكر الأوردرات اللحظية'), findsOneWidget);
+    });
+
+    test('CashSession.fromRecord handles null and missing fields defensively', () {
+      final session = CashSession.fromRecord({
+        'id': 'sess-123',
+      });
+      expect(session.id, 'sess-123');
+      expect(session.isOpen, isTrue);
+      expect(session.openingFloat, 500.0);
+      expect(session.status, CashSessionStatus.open);
+    });
+
+    test('Order.fromRecord handles null and missing fields defensively', () {
+      final order = Order.fromRecord({
+        'localId': 'ord-123',
+        'provisionalOrderNumber': '101',
+      });
+      expect(order.localId, 'ord-123');
+      expect(order.provisionalOrderNumber, '101');
+      expect(order.items, isEmpty);
+      expect(order.createdOffline, isFalse);
     });
   });
 }

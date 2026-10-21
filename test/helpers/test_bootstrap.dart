@@ -64,6 +64,11 @@ extension WidgetTesterExt on WidgetTester {
     view.devicePixelRatio = 1.0;
   }
 
+  void setTabletSize() {
+    view.physicalSize = const Size(768, 1024);
+    view.devicePixelRatio = 1.0;
+  }
+
   void resetTestSize() {
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();

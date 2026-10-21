@@ -57,28 +57,36 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   Future<void> _loadData() async {
-    final services = AppScope.of(context);
-    final cashSessionsRepo = services.cashSessions;
-    final ordersRepo = services.orders;
+    try {
+      final services = AppScope.of(context);
+      final cashSessionsRepo = services.cashSessions;
+      final ordersRepo = services.orders;
 
-    final session = await cashSessionsRepo?.currentSession();
-    double expected = session?.openingFloat ?? 500.0;
-    if (session != null && cashSessionsRepo != null) {
-      try {
-        expected = await cashSessionsRepo.expectedCash(session);
-      } catch (_) {
-        expected = session.expectedCash ?? session.openingFloat;
+      final session = await cashSessionsRepo?.currentSession();
+      double expected = session?.openingFloat ?? 500.0;
+      if (session != null && cashSessionsRepo != null) {
+        try {
+          expected = await cashSessionsRepo.expectedCash(session);
+        } catch (_) {
+          expected = session.expectedCash ?? session.openingFloat;
+        }
       }
-    }
-    final orders = await ordersRepo?.listOrders() ?? [];
+      final orders = await ordersRepo?.listOrders() ?? [];
 
-    if (mounted) {
-      setState(() {
-        _session = session;
-        _expectedCash = expected;
-        _orders = orders;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _session = session;
+          _expectedCash = expected;
+          _orders = orders;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -90,6 +98,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
 
   String _formatElapsed(DateTime openedAt) {
     final diff = DateTime.now().difference(openedAt);
+    if (diff.isNegative) return '00:00:00';
     final hours = diff.inHours.toString().padLeft(2, '0');
     final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
     final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
@@ -120,6 +129,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
                 final chips = SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildChannelFilterChip(null, 'الكل'),
                       const SizedBox(width: 6),
@@ -151,7 +161,8 @@ class _ShiftScreenState extends State<ShiftScreen> {
                       'تذاكر الأوردرات اللحظية',
                       style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
                     ),
-                    chips,
+                    const SizedBox(width: 12),
+                    Flexible(child: chips),
                   ],
                 );
               },
@@ -433,16 +444,22 @@ class _ShiftScreenState extends State<ShiftScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(
-                    'أوردر #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
-                    style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(width: 10),
-                  PieBadge.channel(order.orderType),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'أوردر #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
+                        style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    PieBadge.channel(order.orderType),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               PieBadge.syncStatus(
                 isSynced: order.syncStatus.name == 'synced',
                 isPending: order.syncStatus.name == 'pendingSync' || order.syncStatus.name == 'localOnly',
