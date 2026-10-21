@@ -33,68 +33,15 @@
   <link rel="manifest" href="manifest.json">
   <style>
     html, body {
-      background-color: #0F1117 !important;
+      background-color: #0F1117;
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
-      overflow: hidden;
     }
   </style>
 </head>
-<body style="background-color: #0F1117;">
-  <!-- WebGL Context Loss & Recovery Guard -->
-  <script>
-    (function() {
-      var contextLossCount = 0;
-      var lastLossTime = 0;
-
-      // Intercept WebGL context loss at the window capture phase to call preventDefault
-      // This tells the browser NOT to destroy the WebGL context permanently, allowing Skia/CanvasKit to restore.
-      window.addEventListener('webglcontextlost', function(event) {
-        event.preventDefault();
-        var now = Date.now();
-        if (now - lastLossTime < 10000) {
-          contextLossCount++;
-        } else {
-          contextLossCount = 1;
-        }
-        lastLossTime = now;
-        console.warn('[PIE Graphics] WebGL context lost (count: ' + contextLossCount + '). Handled gracefully with preventDefault.');
-
-        if (contextLossCount >= 4) {
-          var notice = document.getElementById('pie-webgl-recovery');
-          if (!notice) {
-            notice = document.createElement('div');
-            notice.id = 'pie-webgl-recovery';
-            notice.style.position = 'fixed';
-            notice.style.bottom = '16px';
-            notice.style.left = '50%';
-            notice.style.transform = 'translateX(-50%)';
-            notice.style.background = '#1A1D24';
-            notice.style.color = '#F3F4F6';
-            notice.style.border = '1px solid #DC2626';
-            notice.style.borderRadius = '8px';
-            notice.style.padding = '12px 20px';
-            notice.style.zIndex = '999999';
-            notice.style.fontFamily = 'system-ui, sans-serif';
-            notice.style.direction = 'rtl';
-            notice.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
-            notice.innerHTML = '<span style="font-weight:600">تنبيه بالرسومات:</span> واجه متصفحك ضغطاً في معالج الرسوميات (GPU). ' +
-              '<button onclick="window.location.reload()" style="margin-right:12px;background:#E5A93C;color:#090A0E;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:600">إعادة التحميل</button>';
-            document.body.appendChild(notice);
-          }
-        }
-      }, true);
-
-      window.addEventListener('webglcontextrestored', function(event) {
-        console.info('[PIE Graphics] WebGL context successfully restored.');
-        var notice = document.getElementById('pie-webgl-recovery');
-        if (notice) notice.remove();
-      }, true);
-    })();
-  </script>
-
-  <script src="flutter_bootstrap.js?v=2.0.2" async></script>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
