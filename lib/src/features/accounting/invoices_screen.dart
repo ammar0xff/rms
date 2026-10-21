@@ -30,17 +30,39 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   String _searchQuery = '';
   OrderType? _selectedChannelFilter;
   Order? _selectedOrder;
+  Future<List<Order>>? _ordersFuture;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _refreshOrders();
+  }
+
+  Future<void> _refreshOrders() async {
+    final services = AppScope.of(context);
+    setState(() {
+      _ordersFuture = services.orders?.listOrders() ?? Future.value(<Order>[]);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final services = AppScope.of(context);
     final isDesktop = MediaQuery.of(context).size.width >= 900;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: FutureBuilder<List<Order>>(
-        future: services.orders?.listOrders(),
+        future: _ordersFuture,
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting && snapshot.data == null) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(color: PieColors.cashierAccent),
+              ),
+            );
+          }
+
           final allOrders = snapshot.data ?? [];
 
           var filtered = allOrders;
@@ -56,6 +78,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
           if (isDesktop) {
             return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // List (Right side)
                 Expanded(
@@ -165,16 +188,22 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'أوردر #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
-                                    style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  PieBadge.channel(order.orderType),
-                                ],
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        'أوردر #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
+                                        style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    PieBadge.channel(order.orderType),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               if (order.voided)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -258,7 +287,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('تفاصيل الفاتورة', style: PieTypography.heading),
+              Expanded(
+                child: Text(
+                  'تفاصيل الفاتورة',
+                  style: PieTypography.heading,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               PieBadge.channel(order.orderType),
             ],
           ),
@@ -268,7 +304,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
           ),
           Text(
-            'تاريخ الإنشاء: ${order.createdAt.toIso8601String().substring(0, 16)}',
+            'تاريخ الإنشاء: ${order.createdAt.year}-${order.createdAt.month.toString().padLeft(2, '0')}-${order.createdAt.day.toString().padLeft(2, '0')} • ${order.createdAt.hour.toString().padLeft(2, '0')}:${order.createdAt.minute.toString().padLeft(2, '0')}',
             style: PieTypography.monoCaption,
           ),
           const Divider(color: PieColors.border, height: 24),
@@ -287,7 +323,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('${item.quantity}x ${item.name}', style: PieTypography.bodyStrong),
+                          Expanded(
+                            child: Text(
+                              '${item.quantity}x ${item.name}',
+                              style: PieTypography.bodyStrong,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           PieNumeral.money(item.unitPrice * item.quantity),
                         ],
                       ),
@@ -315,7 +358,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('الإجمالي النهائي', style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700)),
+              Expanded(
+                child: Text(
+                  'الإجمالي النهائي',
+                  style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               PieNumeral.money(
                 order.total,
                 style: PieTypography.monoHeading.copyWith(
@@ -365,7 +415,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: PieTypography.caption),
+          Expanded(
+            child: Text(
+              label,
+              style: PieTypography.caption,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
           PieNumeral.money(amount, style: PieTypography.monoCaption),
         ],
       ),
@@ -380,14 +437,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
-        child: Container(
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-          decoration: const BoxDecoration(
-            color: PieColors.surfaceOverlay,
-            borderRadius: PieRadius.topLg,
-          ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.85,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               const PieGrabHandle(),
               Expanded(child: _buildReceiptViewer(order)),

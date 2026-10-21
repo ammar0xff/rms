@@ -119,11 +119,15 @@ class _ZReportScreenState extends State<ZReportScreen> {
 
           if (isDesktop) {
             return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Denomination Steppers List (Right side)
                 Expanded(
                   flex: 6,
-                  child: _buildDenominationsList(),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: _buildDenominationsList(),
+                  ),
                 ),
                 // Summary & Z-Report Panel (Left side)
                 Container(
@@ -132,8 +136,10 @@ class _ZReportScreenState extends State<ZReportScreen> {
                     color: PieColors.surface1,
                     border: Border(right: BorderSide(color: PieColors.border, width: 1)),
                   ),
-                  padding: const EdgeInsets.all(24),
-                  child: _buildSummaryColumn(session, expectedCash, countedCash, variance),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildSummaryColumn(session, expectedCash, countedCash, variance),
+                  ),
                 ),
               ],
             );

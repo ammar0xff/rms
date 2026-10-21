@@ -49,9 +49,15 @@ class LocalCashSessionRepository implements CashSessionRepository {
   @override
   Future<List<CashSession>> listSessions() async {
     final snapshots = await LocalStores.cashSessions.find(_db.db);
-    final sessions =
-        snapshots.map((s) => CashSession.fromRecord(s.value)).toList()
-          ..sort((a, b) => a.openedAt.compareTo(b.openedAt));
+    final sessions = <CashSession>[];
+    for (final s in snapshots) {
+      try {
+        sessions.add(CashSession.fromRecord(s.value));
+      } catch (e) {
+        AppLogger.warn('Skipping corrupted cash session record ${s.key}: $e');
+      }
+    }
+    sessions.sort((a, b) => a.openedAt.compareTo(b.openedAt));
     return sessions;
   }
 
@@ -64,9 +70,16 @@ class LocalCashSessionRepository implements CashSessionRepository {
       ),
     );
     if (snapshots.isEmpty) return null;
-    final sessions =
-        snapshots.map((s) => CashSession.fromRecord(s.value)).toList()
-          ..sort((a, b) => b.openedAt.compareTo(a.openedAt));
+    final sessions = <CashSession>[];
+    for (final s in snapshots) {
+      try {
+        sessions.add(CashSession.fromRecord(s.value));
+      } catch (e) {
+        AppLogger.warn('Skipping corrupted cash session record ${s.key}: $e');
+      }
+    }
+    if (sessions.isEmpty) return null;
+    sessions.sort((a, b) => b.openedAt.compareTo(a.openedAt));
     return sessions.first;
   }
 

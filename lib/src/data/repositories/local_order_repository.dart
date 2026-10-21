@@ -83,9 +83,16 @@ class LocalOrderRepository implements OrderRepository {
   @override
   Future<List<Order>> listOrders() async {
     final snapshots = await LocalStores.orders.find(_db.db);
-    final orders = snapshots.map((s) => Order.fromRecord(s.value)).toList();
+    final orders = <Order>[];
+    for (final s in snapshots) {
+      try {
+        orders.add(Order.fromRecord(s.value));
+      } catch (e) {
+        AppLogger.warn('Skipping corrupted order record ${s.key}: $e');
+      }
+    }
     orders.sort(
-      (a, b) => a.provisionalOrderNumber.compareTo(b.provisionalOrderNumber),
+      (a, b) => b.createdAt.compareTo(a.createdAt),
     );
     return orders;
   }
