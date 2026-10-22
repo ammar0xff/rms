@@ -309,6 +309,13 @@ class ReceiptPrintService {
     <div class="divider"></div>
     <div class="footer">$footer</div>
   </div>
+  <script>
+    if (window.opener) {
+      setTimeout(function() {
+        try { window.print(); } catch(_) {}
+      }, 400);
+    }
+  </script>
 </body>
 </html>
 ''';

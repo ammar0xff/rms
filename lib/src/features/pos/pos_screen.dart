@@ -242,17 +242,15 @@ class _PosScreenState extends State<PosScreen> {
         _cartItems.clear();
       });
 
-      // Background print trigger for native ESC/POS thermal printers
-      if (!kIsWeb) {
-        ReceiptPrintService.printOrder(
-          order: createdOrder,
-          facility: facility,
-          printService: services.print,
-          paymentMethod: resolvedPaymentMethod,
-          paidAmount: resolvedTendered,
-          changeDue: resolvedChange,
-        );
-      }
+      // Immediate print trigger on checkout
+      ReceiptPrintService.printOrder(
+        order: createdOrder,
+        facility: facility,
+        printService: services.print,
+        paymentMethod: resolvedPaymentMethod,
+        paidAmount: resolvedTendered,
+        changeDue: resolvedChange,
+      );
 
       // Show immediate confirmation & print dialog
       if (mounted) {

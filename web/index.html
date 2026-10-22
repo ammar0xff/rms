@@ -230,32 +230,31 @@
 
           mount.innerHTML = styles + '<div class="receipt-print-wrapper" dir="rtl">' + cleanHtml + '</div>';
 
+          // Clean up only after print dialog closes, never with premature timer
+          var cleanup = function() {
+            window.removeEventListener('afterprint', cleanup);
+            var m = document.getElementById('pie-print-mount');
+            if (m) m.innerHTML = '';
+          };
+          window.addEventListener('afterprint', cleanup);
+
           // Trigger print directly on top-level window (100% supported on desktop & mobile)
           window.print();
           return true;
         } catch (e) {
           console.error('[PIE Printer] Print error:', e);
           return false;
-        } finally {
-          setTimeout(function() {
-            var m = document.getElementById('pie-print-mount');
-            if (m) m.innerHTML = '';
-          }, 1500);
         }
       };
 
-      // Direct new tab receipt opener for popup / standalone printing
+      // Direct new tab receipt opener via Blob URL for popup / standalone printing
       window.pieOpenReceiptTab = function(htmlContent) {
         try {
-          var w = window.open('', '_blank');
+          var blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+          var blobUrl = URL.createObjectURL(blob);
+          var w = window.open(blobUrl, '_blank');
           if (w) {
-            w.document.open();
-            w.document.write(htmlContent);
-            w.document.close();
             w.focus();
-            setTimeout(function() {
-              try { w.print(); } catch (_) {}
-            }, 300);
             return true;
           }
         } catch (e) {
