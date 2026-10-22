@@ -7,6 +7,8 @@ import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/cash_session.dart';
+import '../../domain/models/facility_settings.dart';
+import '../../domain/services/receipt_print_service.dart';
 
 /// Screen 6: Cash Count & Z-Close Report (جرد الكاش وتقفيل الوردية)
 ///
@@ -52,6 +54,50 @@ class _ZReportScreenState extends State<ZReportScreen> {
     }
   }
 
+  Future<void> _printZReport(
+    CashSession session,
+    double expectedCash,
+    double countedCash,
+    double variance, {
+    bool inTab = false,
+  }) async {
+    final services = AppScope.of(context);
+    final facility = await services.facility?.load() ?? const FacilitySettings();
+    final user = services.auth?.currentUser;
+    final cashierName = user?.displayName ?? user?.email ?? 'الكاشير';
+
+    if (inTab) {
+      ReceiptPrintService.openZReportInTab(
+        session: session,
+        facility: facility,
+        expectedCash: expectedCash,
+        countedCash: countedCash,
+        variance: variance,
+        counts: _counts,
+        cashierName: cashierName,
+      );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: PieColors.surface2,
+            content: Text('جاري إرسال أمر طباعة تقرير تقفيل الوردية Z...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      await ReceiptPrintService.printZReport(
+        session: session,
+        facility: facility,
+        expectedCash: expectedCash,
+        countedCash: countedCash,
+        variance: variance,
+        counts: _counts,
+        cashierName: cashierName,
+      );
+    }
+  }
+
   Future<void> _performZClose(CashSession session) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -81,16 +127,23 @@ class _ZReportScreenState extends State<ZReportScreen> {
 
     if (confirmed == true && mounted) {
       final services = AppScope.of(context);
+      final countedCash = _totalCounted;
+      final expectedCash = session.expectedCash ?? 500.0;
+      final variance = countedCash - expectedCash;
+
       await services.cashSessions?.closeSession(
         session.id,
-        countedCash: _totalCounted,
+        countedCash: countedCash,
       );
+
+      // Print Z-report slip immediately
+      await _printZReport(session, expectedCash, countedCash, variance);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: PieColors.surface2,
-            content: Text('تم تقفيل الوردية وتسجيل تقرير Z بنجاح'),
+            content: Text('تم تقفيل الوردية وتسجيل تقرير Z وطباعته بنجاح'),
           ),
         );
         if (Navigator.of(context).canPop()) {
@@ -262,7 +315,39 @@ class _ZReportScreenState extends State<ZReportScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: PieButton.secondary(
+                onPressed: session == null
+                    ? null
+                    : () => _printZReport(session, expectedCash, countedCash, variance),
+                label: 'طباعة تقرير Z',
+                icon: Icons.print_rounded,
+                height: 48,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(
+                color: PieColors.surface2,
+                borderRadius: PieRadius.borderMd,
+                border: Border.all(color: PieColors.border),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.open_in_new_rounded, color: PieColors.inkSecondary),
+                tooltip: 'فتح تقرير Z في نافذة مستقلة للطباعة',
+                onPressed: session == null
+                    ? null
+                    : () => _printZReport(session, expectedCash, countedCash, variance, inTab: true),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
         PieButton.primary(
           onPressed: session == null ? null : () => _performZClose(session),
           label: 'إتمام تقفيل الوردية Z-Close',

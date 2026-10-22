@@ -16,6 +16,7 @@ import '../../domain/models/order_draft.dart';
 import '../../core/logging/app_logger.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/models/payment.dart';
+import '../../domain/services/kitchen_ticket_factory.dart';
 import '../../domain/services/receipt_print_service.dart';
 import 'pos_checkout_dialog.dart';
 import 'pos_customise_sheet.dart';
@@ -251,6 +252,17 @@ class _PosScreenState extends State<PosScreen> {
         paidAmount: resolvedTendered,
         changeDue: resolvedChange,
       );
+
+      // Kitchen Ticket dispatch to KDS store and thermal printer
+      try {
+        final kitchenTickets = KitchenTicketFactory().fromOrder(createdOrder);
+        for (final ticket in kitchenTickets) {
+          services.kitchen?.upsertTicket(ticket);
+          services.print?.printKitchenTicket(ticket);
+        }
+      } catch (e) {
+        AppLogger.warn('Kitchen ticket dispatch error: $e');
+      }
 
       // Show immediate confirmation & print dialog
       if (mounted) {

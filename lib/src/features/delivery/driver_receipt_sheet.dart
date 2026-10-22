@@ -3,11 +3,14 @@ import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
+import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/models/facility_settings.dart';
 import '../../domain/models/order.dart';
+import '../../domain/services/receipt_print_service.dart';
 
 /// Screen 12: Delivery Receipt Sheet (تفاصيل بون التوصيل والفاتورة)
 ///
@@ -230,6 +233,83 @@ class DriverReceiptSheet extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+
+            // Print Driver Delivery Slip Actions
+            Row(
+              children: [
+                Expanded(
+                  child: PieButton.primary(
+                    onPressed: () async {
+                      final orders = await services.orders?.listOrders() ?? <Order>[];
+                      Order? matchedOrder;
+                      try {
+                        matchedOrder = orders.firstWhere(
+                          (o) =>
+                              o.canonicalOrderNumber == delivery.orderRef ||
+                              o.provisionalOrderNumber == delivery.orderRef ||
+                              o.localId == delivery.orderRef,
+                        );
+                      } catch (_) {}
+
+                      final facility = await services.facility?.load() ?? const FacilitySettings();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: PieColors.surface2,
+                            content: Text('جاري إرسال أمر طباعة بون السائق #${delivery.orderRef}...'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+
+                      await ReceiptPrintService.printDeliverySlip(
+                        delivery: delivery,
+                        facility: facility,
+                        order: matchedOrder,
+                      );
+                    },
+                    label: 'طباعة بون السائق',
+                    icon: Icons.print_rounded,
+                    accentColor: PieColors.driverAccent,
+                    height: 48,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  height: 48,
+                  width: 48,
+                  decoration: BoxDecoration(
+                    color: PieColors.surface2,
+                    borderRadius: PieRadius.borderMd,
+                    border: Border.all(color: PieColors.border),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.open_in_new_rounded, color: PieColors.inkSecondary),
+                    tooltip: 'فتح بون السائق في نافذة مستقلة للطباعة',
+                    onPressed: () async {
+                      final orders = await services.orders?.listOrders() ?? <Order>[];
+                      Order? matchedOrder;
+                      try {
+                        matchedOrder = orders.firstWhere(
+                          (o) =>
+                              o.canonicalOrderNumber == delivery.orderRef ||
+                              o.provisionalOrderNumber == delivery.orderRef ||
+                              o.localId == delivery.orderRef,
+                        );
+                      } catch (_) {}
+
+                      final facility = await services.facility?.load() ?? const FacilitySettings();
+                      ReceiptPrintService.openDeliverySlipInTab(
+                        delivery: delivery,
+                        facility: facility,
+                        order: matchedOrder,
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),

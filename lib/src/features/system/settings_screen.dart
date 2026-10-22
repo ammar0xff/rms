@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/state/sync_monitor.dart';
 import '../../core/theme/pie_colors.dart';
+import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
@@ -127,6 +129,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SnackBar(
           backgroundColor: PieColors.stateError,
           content: Text('اكتب عنوان IP الخاص بالطابعة أولاً'),
+        ),
+      );
+      return;
+    }
+
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: PieColors.surface2,
+          content: Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, color: PieColors.cashierAccent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'تنبيه الويب: الاتصال المباشر بمقابس الشبكة (TCP Port 9100) يتطلب تشغيل تطبيق سطح المكتب. على متصفح الويب، يتم إرسال الإيصالات تلقائياً عبر نافذة الطباعة الخاصة بالمتصفح.',
+                  style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 5),
         ),
       );
       return;
@@ -475,6 +499,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               onChanged: (val) => setState(() => _networkPrintingEnabled = val),
                             ),
                             if (_networkPrintingEnabled) ...[
+                              if (kIsWeb) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: PieColors.surface2,
+                                    borderRadius: PieRadius.borderMd,
+                                    border: Border.all(color: PieColors.border),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, size: 20, color: PieColors.cashierAccent),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'تنبيه الويب: طابعات الشبكة المباشرة (Port 9100) تعمل على نسخة سطح المكتب (Windows / Linux / Android). على متصفح الويب، يتم إرسال الإيصالات بسلاسة عبر نافذة الطباعة الافتراضية.',
+                                          style: PieTypography.caption.copyWith(color: PieColors.textPrimary),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               Row(
                                 children: [
