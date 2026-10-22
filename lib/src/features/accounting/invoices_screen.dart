@@ -63,6 +63,30 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             );
           }
 
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: PieColors.stateError, size: 40),
+                    const SizedBox(height: 12),
+                    Text('تعذر تحميل سجل الفواتير', style: PieTypography.heading),
+                    const SizedBox(height: 8),
+                    Text('${snapshot.error}', style: PieTypography.caption, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    PieButton.secondary(
+                      onPressed: _refreshOrders,
+                      label: 'إعادة المحاولة',
+                      icon: Icons.refresh_rounded,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           final allOrders = snapshot.data ?? [];
 
           var filtered = allOrders;
@@ -171,6 +195,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                     final order = orders[index];
                     final isSelected = _selectedOrder?.localId == order.localId;
 
+                    final ref = (order.canonicalOrderNumber?.isNotEmpty == true)
+                        ? order.canonicalOrderNumber!
+                        : (order.provisionalOrderNumber.isNotEmpty ? order.provisionalOrderNumber : order.localId);
+                    final safeTotal = order.total.isFinite ? order.total : 0.0;
+                    final itemsText = order.items.isEmpty
+                        ? 'أوردر بدون أصناف'
+                        : order.items.map((i) => '${i.quantity}x ${i.name}').join(', ');
+
                     return PieCard(
                       padding: const EdgeInsets.all(14),
                       isActive: isSelected,
@@ -193,7 +225,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                                   children: [
                                     Flexible(
                                       child: Text(
-                                        'أوردر #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
+                                        'أوردر #$ref',
                                         style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -227,7 +259,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            order.items.map((i) => '${i.quantity}x ${i.name}').join(', '),
+                            itemsText,
                             style: PieTypography.body.copyWith(color: PieColors.inkSecondary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -241,7 +273,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                                 style: PieTypography.monoCaption,
                               ),
                               PieNumeral.money(
-                                order.total,
+                                safeTotal,
                                 style: PieTypography.monoBody.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: order.voided ? PieColors.inkMuted : PieColors.cashierAccent,
@@ -279,6 +311,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   Widget _buildReceiptViewer(Order order) {
+    final ref = (order.canonicalOrderNumber?.isNotEmpty == true)
+        ? order.canonicalOrderNumber!
+        : (order.provisionalOrderNumber.isNotEmpty ? order.provisionalOrderNumber : order.localId);
+    final safeTotal = order.total.isFinite ? order.total : 0.0;
+    final safeSubtotal = order.subtotal.isFinite ? order.subtotal : 0.0;
+    final safeService = order.serviceAmount.isFinite ? order.serviceAmount : 0.0;
+    final safeTax = order.taxAmount.isFinite ? order.taxAmount : 0.0;
+
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -300,7 +340,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'رقم الفاتورة: #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
+            'رقم الفاتورة: #$ref',
             style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
           ),
           Text(
@@ -310,50 +350,57 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           const Divider(color: PieColors.border, height: 24),
           // Line items
           Expanded(
-            child: ListView.separated(
-              itemCount: order.items.length,
-              separatorBuilder: (_, __) => const Divider(color: PieColors.border, height: 1),
-              itemBuilder: (context, index) {
-                final item = order.items[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${item.quantity}x ${item.name}',
-                              style: PieTypography.bodyStrong,
-                              overflow: TextOverflow.ellipsis,
+            child: order.items.isEmpty
+                ? const Center(
+                    child: Text('لا توجد أصناف في هذه الفاتورة', style: PieTypography.caption),
+                  )
+                : ListView.separated(
+                    itemCount: order.items.length,
+                    separatorBuilder: (_, __) => const Divider(color: PieColors.border, height: 1),
+                    itemBuilder: (context, index) {
+                      final item = order.items[index];
+                      final lineTotal = (item.unitPrice * item.quantity).isFinite
+                          ? (item.unitPrice * item.quantity)
+                          : 0.0;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${item.quantity}x ${item.name}',
+                                    style: PieTypography.bodyStrong,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                PieNumeral.money(lineTotal),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          PieNumeral.money(item.unitPrice * item.quantity),
-                        ],
-                      ),
-                      if (item.modifiers.isNotEmpty)
-                        Text(
-                          item.modifiers.join(' • '),
-                          style: PieTypography.caption.copyWith(color: PieColors.cashierAccent),
+                            if (item.modifiers.isNotEmpty)
+                              Text(
+                                item.modifiers.join(' • '),
+                                style: PieTypography.caption.copyWith(color: PieColors.cashierAccent),
+                              ),
+                            if (item.note != null && item.note!.isNotEmpty)
+                              Text('ملاحظة: ${item.note}', style: PieTypography.caption),
+                          ],
                         ),
-                      if (item.note != null)
-                        Text('ملاحظة: ${item.note}', style: PieTypography.caption),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
           const Divider(color: PieColors.border, height: 20),
           // Breakdown
-          _buildReceiptRow('المجموع الجزئي', order.subtotal),
-          if (order.serviceAmount > 0)
-            _buildReceiptRow('خدمة الصالة', order.serviceAmount),
-          if (order.taxAmount > 0)
-            _buildReceiptRow('ضريبة القيمة المضافة', order.taxAmount),
+          _buildReceiptRow('المجموع الجزئي', safeSubtotal),
+          if (safeService > 0)
+            _buildReceiptRow('خدمة الصالة', safeService),
+          if (safeTax > 0)
+            _buildReceiptRow('ضريبة القيمة المضافة', safeTax),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -367,7 +414,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
               ),
               const SizedBox(width: 8),
               PieNumeral.money(
-                order.total,
+                safeTotal,
                 style: PieTypography.monoHeading.copyWith(
                   fontWeight: FontWeight.w700,
                   color: PieColors.cashierAccent,
@@ -410,6 +457,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   Widget _buildReceiptRow(String label, double amount) {
+    final safeAmount = amount.isFinite ? amount : 0.0;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -423,7 +471,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          PieNumeral.money(amount, style: PieTypography.monoCaption),
+          PieNumeral.money(safeAmount, style: PieTypography.monoCaption),
         ],
       ),
     );

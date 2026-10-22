@@ -97,12 +97,16 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   String _formatElapsed(DateTime openedAt) {
-    final diff = DateTime.now().difference(openedAt);
-    if (diff.isNegative) return '00:00:00';
-    final hours = diff.inHours.toString().padLeft(2, '0');
-    final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
-    final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
-    return '$hours:$minutes:$seconds';
+    try {
+      final diff = DateTime.now().difference(openedAt);
+      if (diff.isNegative) return '00:00:00';
+      final hours = diff.inHours.toString().padLeft(2, '0');
+      final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
+      final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
+      return '$hours:$minutes:$seconds';
+    } catch (_) {
+      return '00:00:00';
+    }
   }
 
   @override
@@ -206,8 +210,10 @@ class _ShiftScreenState extends State<ShiftScreen> {
   Widget _buildShiftHeaderCard(CashSession? session, double expectedCashAmount) {
     final isOpen = session?.isOpen ?? false;
     final openedAt = session?.openedAt ?? DateTime.now();
-    final openingFloat = session?.openingFloat ?? 500.0;
-    final expectedCash = session != null ? expectedCashAmount : openingFloat;
+    final rawFloat = session?.openingFloat ?? 500.0;
+    final openingFloat = rawFloat.isFinite ? rawFloat : 500.0;
+    final rawExpected = session != null ? expectedCashAmount : openingFloat;
+    final expectedCash = rawExpected.isFinite ? rawExpected : openingFloat;
 
     return PieCard(
       padding: const EdgeInsets.all(20),
@@ -407,7 +413,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       final float = double.tryParse(ctrl.text.trim()) ?? 500.0;
       final services = AppScope.of(context);
       await services.cashSessions?.openSession(openingFloat: float);
@@ -436,6 +442,16 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   Widget _buildTicketCard(Order order) {
+    final ref = (order.canonicalOrderNumber?.isNotEmpty == true)
+        ? order.canonicalOrderNumber!
+        : (order.provisionalOrderNumber.isNotEmpty ? order.provisionalOrderNumber : order.localId);
+    final safeTotal = order.total.isFinite ? order.total : 0.0;
+    final hour = order.createdAt.hour.toString().padLeft(2, '0');
+    final minute = order.createdAt.minute.toString().padLeft(2, '0');
+    final itemsText = order.items.isEmpty
+        ? 'أوردر بدون أصناف'
+        : order.items.map((i) => '${i.quantity}x ${i.name}').join(', ');
+
     return PieCard(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -449,7 +465,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        'أوردر #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
+                        'أوردر #$ref',
                         style: PieTypography.bodyStrong.copyWith(fontWeight: FontWeight.w700),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -468,7 +484,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            order.items.map((i) => '${i.quantity}x ${i.name}').join(', '),
+            itemsText,
             style: PieTypography.body.copyWith(color: PieColors.inkSecondary),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -478,11 +494,11 @@ class _ShiftScreenState extends State<ShiftScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${order.createdAt.hour.toString().padLeft(2, '0')}:${order.createdAt.minute.toString().padLeft(2, '0')}',
+                '$hour:$minute',
                 style: PieTypography.monoCaption,
               ),
               PieNumeral.money(
-                order.total,
+                safeTotal,
                 style: PieTypography.monoBody.copyWith(
                   fontWeight: FontWeight.w700,
                   color: PieColors.cashierAccent,

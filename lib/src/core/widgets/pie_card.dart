@@ -19,6 +19,7 @@ class PieCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.margin,
     this.borderRadius = PieRadius.lg,
+    this.clipBehavior = Clip.none,
     this.onTap,
     this.isActive = false,
     Color? activeColor,
@@ -34,6 +35,7 @@ class PieCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
   final double borderRadius;
+  final Clip clipBehavior;
   final VoidCallback? onTap;
   final bool isActive;
   final Color? activeColor;
@@ -57,7 +59,7 @@ class PieCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(borderRadius),
           side: effectiveBorderSide,
         ),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: clipBehavior,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(borderRadius),
@@ -78,7 +80,7 @@ class PieCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(borderRadius),
           side: effectiveBorderSide,
         ),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: clipBehavior,
         child: Container(
           width: width,
           height: height,
