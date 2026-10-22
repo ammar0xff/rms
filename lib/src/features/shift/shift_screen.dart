@@ -45,7 +45,9 @@ class _ShiftScreenState extends State<ShiftScreen> {
     // Live elapsed timer ticker (1 second) - disabled in test environments
     if (ShiftScreen.enableTicker) {
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() {});
+        if (mounted && (_session?.isOpen ?? false)) {
+          setState(() {});
+        }
       });
     }
   }

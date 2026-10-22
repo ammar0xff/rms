@@ -42,6 +42,124 @@
   </style>
 </head>
 <body>
+  <script>
+    (function() {
+      // 1. Hardware capability probe for WebGL2 Skia shaders and stencil buffers
+      function testWebGL2Capability() {
+        try {
+          var testCanvas = document.createElement('canvas');
+          testCanvas.width = 16;
+          testCanvas.height = 16;
+          var gl = testCanvas.getContext('webgl2', { stencil: true, depth: true, antialias: false });
+          if (!gl) return false;
+
+          // Verify GLSL 3.0 ES vertex compilation
+          var vs = gl.createShader(gl.VERTEX_SHADER);
+          gl.shaderSource(vs, '#version 300 es\nin vec4 pos;\nvoid main() { gl_Position = pos; }');
+          gl.compileShader(vs);
+          if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) return false;
+
+          // Verify Skia GLSL 3.0 ES fragment compilation with texture bias and sk_FragColor
+          var fs = gl.createShader(gl.FRAGMENT_SHADER);
+          gl.shaderSource(fs, '#version 300 es\nprecision mediump float;\nprecision mediump sampler2D;\nout mediump vec4 sk_FragColor;\nuniform sampler2D uSampler;\nin highp vec2 vTex;\nvoid main() { sk_FragColor = texture(uSampler, vTex, -0.475); }');
+          gl.compileShader(fs);
+          if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) return false;
+
+          // Verify program link
+          var prog = gl.createProgram();
+          gl.attachShader(prog, vs);
+          gl.attachShader(prog, fs);
+          gl.linkProgram(prog);
+          if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false;
+
+          // Verify stencil buffer attachment in framebuffer
+          var fb = gl.createFramebuffer();
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+          var rb = gl.createRenderbuffer();
+          gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+          gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, 16, 16);
+          gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, rb);
+          var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+          if (status !== gl.FRAMEBUFFER_COMPLETE) return false;
+
+          // Cleanup test WebGL objects
+          gl.deleteFramebuffer(fb);
+          gl.deleteRenderbuffer(rb);
+          gl.deleteProgram(prog);
+          gl.deleteShader(vs);
+          gl.deleteShader(fs);
+
+          var loseExt = gl.getExtension('WEBGL_lose_context');
+          if (loseExt) loseExt.loseContext();
+
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      var forceWebGL1 = window.location.search.indexOf('webgl=1') !== -1 ||
+                        window.location.search.indexOf('gl=1') !== -1 ||
+                        sessionStorage.getItem('pie_webgl_mode') === 'webgl1';
+
+      var webGL2Safe = !forceWebGL1 && testWebGL2Capability();
+
+      if (!webGL2Safe) {
+        console.warn('[PIE Graphics Engine] WebGL2 shader/stencil is incompatible with current GPU/driver. Activating rock-solid WebGL 1 fallback mode.');
+        sessionStorage.setItem('pie_webgl_mode', 'webgl1');
+
+        try {
+          delete window.WebGL2RenderingContext;
+        } catch (_) {
+          window.WebGL2RenderingContext = undefined;
+        }
+
+        var origCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+          if (type === 'webgl2') {
+            return null;
+          }
+          if (type === 'webgl' || type === 'experimental-webgl') {
+            attributes = attributes || {};
+            attributes.stencil = true;
+            attributes.depth = true;
+          }
+          return origCanvasGetContext.call(this, type, attributes);
+        };
+
+        if (typeof OffscreenCanvas !== 'undefined') {
+          var origOffscreenGetContext = OffscreenCanvas.prototype.getContext;
+          OffscreenCanvas.prototype.getContext = function(type, attributes) {
+            if (type === 'webgl2') {
+              return null;
+            }
+            if (type === 'webgl' || type === 'experimental-webgl') {
+              attributes = attributes || {};
+              attributes.stencil = true;
+              attributes.depth = true;
+            }
+            return origOffscreenGetContext.call(this, type, attributes);
+          };
+        }
+      } else {
+        console.info('[PIE Graphics Engine] WebGL2 hardware verification passed.');
+      }
+
+      // Auto-recover if WebGL context is lost unexpectedly
+      window.addEventListener('webglcontextlost', function(event) {
+        console.warn('[PIE Graphics Engine] WebGL Context Lost encountered.', event);
+        var losses = parseInt(sessionStorage.getItem('pie_webgl_losses') || '0', 10) + 1;
+        sessionStorage.setItem('pie_webgl_losses', losses.toString());
+        if (losses >= 1 && sessionStorage.getItem('pie_webgl_mode') !== 'webgl1') {
+          console.warn('[PIE Graphics Engine] Fallback to WebGL 1 scheduled for recovery.');
+          sessionStorage.setItem('pie_webgl_mode', 'webgl1');
+          setTimeout(function() {
+            window.location.reload();
+          }, 150);
+        }
+      }, true);
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
