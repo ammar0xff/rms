@@ -14,6 +14,7 @@ import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/models/payment.dart';
+import '../../domain/services/receipt_print_service.dart';
 import 'pos_checkout_dialog.dart';
 import 'pos_customise_sheet.dart';
 
@@ -205,19 +206,56 @@ class _PosScreenState extends State<PosScreen> {
               await _showManualDriverAssignDialog(context, delivery.id, orderRef);
             }
           }
+          // Print receipt automatically
+          try {
+            final facility = await services.facility?.load();
+            await ReceiptPrintService.printOrder(
+              order: createdOrder,
+              facility: facility,
+              printService: services.print,
+              paymentMethod: paymentMethod == PaymentMethod.card ? 'فيزا / بطاقة' : 'نقدي',
+              paidAmount: _totalAmount,
+            );
+          } catch (_) {}
         }
 
         if (mounted) {
+          final orderRef = createdOrder != null
+              ? (createdOrder.canonicalOrderNumber ?? createdOrder.provisionalOrderNumber)
+              : '';
           setState(() {
             _cartItems.clear();
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: PieColors.surface2,
-              content: Text(
-                'اتعمل الأوردر تمام وتم تسجيل الدفع',
-                style: PieTypography.body.copyWith(color: PieColors.stateSynced),
+              duration: const Duration(seconds: 4),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: PieColors.stateSynced, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'تم إنشاء الفاتورة #$orderRef بنجاح وجاري الطباعة',
+                      style: PieTypography.body.copyWith(color: PieColors.stateSynced),
+                    ),
+                  ),
+                ],
               ),
+              action: createdOrder != null
+                  ? SnackBarAction(
+                      label: 'إعادة طباعة',
+                      textColor: PieColors.cashierAccent,
+                      onPressed: () async {
+                        final facility = await services.facility?.load();
+                        await ReceiptPrintService.printOrder(
+                          order: createdOrder,
+                          facility: facility,
+                          printService: services.print,
+                        );
+                      },
+                    )
+                  : null,
             ),
           );
         }

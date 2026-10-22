@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rms/src/app.dart';
 import 'package:rms/src/domain/models/app_role.dart';
@@ -55,6 +54,11 @@ void main() {
       expect(find.text('تفاصيل الفاتورة'), findsOneWidget);
       expect(find.text('2x فطيرة كاسترد وسكر'), findsWidgets);
       expect(find.text('إعادة طباعة'), findsOneWidget);
+
+      // Tap reprint button
+      await tester.tap(find.text('إعادة طباعة'));
+      await tester.pumpFewFrames();
+      expect(find.textContaining('جاري إرسال أمر طباعة الفاتورة'), findsOneWidget);
     });
 
     testWidgets('Invoices screen renders cleanly on mobile and opens mobile receipt sheet', (WidgetTester tester) async {

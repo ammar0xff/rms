@@ -88,6 +88,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
   @override
   void initState() {
     super.initState();
+    _tenderedInput = widget.totalAmount.toStringAsFixed(0);
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
@@ -123,8 +124,8 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
   bool get _isCustomerValid => _isNameValid && _isPhoneValid && _isAddressValid;
 
   double get _tenderedAmount {
-    if (_tenderedInput.isEmpty) return 0.0;
-    return double.tryParse(_tenderedInput) ?? 0.0;
+    if (_tenderedInput.isEmpty) return widget.totalAmount;
+    return double.tryParse(_tenderedInput) ?? widget.totalAmount;
   }
 
   double get _changeDue {
@@ -180,6 +181,15 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
 
     if (!_canSettle) {
       PieSoundService.instance.beep();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: PieColors.stateErrorBg,
+          content: Text(
+            'المبلغ المستلم (${PieTypography.formatEgp(_tenderedAmount)}) أقل من إجمالي الفاتورة (${PieTypography.formatEgp(widget.totalAmount)})',
+            style: PieTypography.body.copyWith(color: PieColors.stateError),
+          ),
+        ),
+      );
       return;
     }
 

@@ -11,6 +11,7 @@ import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_type.dart';
+import '../../domain/services/receipt_print_service.dart';
 
 /// Screen 8: Invoices Archive (أرشيف الفواتير وإعادة الطباعة والإلغاء)
 ///
@@ -428,12 +429,27 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
             children: [
               Expanded(
                 child: PieButton.secondary(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        backgroundColor: PieColors.surface2,
-                        content: Text('جاري إرسال أمر الطباعة للطابعة المحلية...'),
-                      ),
+                  onPressed: () async {
+                    final services = AppScope.of(context);
+                    final facility = await services.facility?.load();
+                    final ref = (order.canonicalOrderNumber?.isNotEmpty == true)
+                        ? order.canonicalOrderNumber!
+                        : (order.provisionalOrderNumber.isNotEmpty ? order.provisionalOrderNumber : order.localId);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: PieColors.surface2,
+                          content: Text('جاري إرسال أمر طباعة الفاتورة #$ref...'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+
+                    await ReceiptPrintService.printOrder(
+                      order: order,
+                      facility: facility,
+                      printService: services.print,
                     );
                   },
                   label: 'إعادة طباعة',
