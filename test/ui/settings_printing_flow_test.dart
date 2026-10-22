@@ -16,7 +16,7 @@ void main() {
 
       final services = await createTestServices(
         tester: tester,
-        initialRole: AppRole.cashier,
+        initialRole: AppRole.manager,
       );
 
       await tester.pumpWidget(RmsApp(services: services));
@@ -129,5 +129,23 @@ void main() {
       // Verify dialog dismissed
       expect(find.text('حالة الاتصال والمزامنة'), findsNothing);
     });
+
+    testWidgets('Security Gate: cashier does not have Settings in navigation destinations',
+        (WidgetTester tester) async {
+      tester.setDesktopSize();
+      addTearDown(tester.resetTestSize);
+
+      final services = await createTestServices(
+        tester: tester,
+        initialRole: AppRole.cashier,
+      );
+
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Verify Settings tab does NOT exist for cashier
+      expect(find.text('الإعدادات'), findsNothing);
+    });
   });
 }
+

@@ -25,6 +25,7 @@ import 'features/manager/team_screen.dart';
 import 'features/manager/triage_screen.dart';
 import 'features/pos/pos_screen.dart';
 import 'features/shift/shift_screen.dart';
+import 'features/splash/splash_screen.dart';
 import 'features/system/conflicts_screen.dart';
 import 'features/system/diagnostics_screen.dart';
 import 'features/system/settings_screen.dart';
@@ -55,10 +56,33 @@ class _AppRoot extends StatefulWidget {
 class _AppRootState extends State<_AppRoot> {
   AppRole? _selectedRoleOverride;
   String? _lastUserUid;
+  bool _splashCompleted = false;
 
   @override
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
+
+    // In production without an active session, render the animated splash screen on startup
+    if (!services.isDemo && !_splashCompleted && services.auth.currentUser == null) {
+      return MaterialApp(
+        key: const ValueKey('splash_screen_app'),
+        title: 'PIE Operations',
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('ar'),
+        supportedLocales: const [Locale('ar')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        theme: PieTheme.themeFor(AppRole.cashier),
+        home: SplashScreen(
+          onLoaded: () {
+            if (mounted) setState(() => _splashCompleted = true);
+          },
+        ),
+      );
+    }
 
     return StreamBuilder<AppUser?>(
       stream: services.auth.authStateChanges(),
@@ -291,11 +315,6 @@ class _RoleShellState extends State<_RoleShell> {
               icon: Icons.summarize_outlined,
               selectedIcon: Icons.summarize,
             ),
-            PieNavItem(
-              label: 'الإعدادات',
-              icon: Icons.tune_outlined,
-              selectedIcon: Icons.tune,
-            ),
           ],
           const [
             PosScreen(),
@@ -303,7 +322,6 @@ class _RoleShellState extends State<_RoleShell> {
             ShiftScreen(),
             InvoicesScreen(),
             ZReportScreen(),
-            SettingsScreen(),
           ],
         );
 
@@ -372,6 +390,11 @@ class _RoleShellState extends State<_RoleShell> {
               icon: Icons.crisis_alert_outlined,
               selectedIcon: Icons.crisis_alert,
             ),
+            PieNavItem(
+              label: 'الإعدادات',
+              icon: Icons.tune_outlined,
+              selectedIcon: Icons.tune,
+            ),
           ],
           const [
             DashboardScreen(),
@@ -380,6 +403,7 @@ class _RoleShellState extends State<_RoleShell> {
             TeamScreen(),
             BranchesScreen(),
             TriageScreen(),
+            SettingsScreen(),
           ],
         );
 

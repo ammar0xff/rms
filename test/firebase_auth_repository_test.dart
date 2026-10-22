@@ -33,6 +33,18 @@ class _Backend implements AuthBackend {
   }
 
   @override
+  Future<AppUser?> signUp({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    calls.add('signUp:$email:$password');
+    final code = failure;
+    if (code != null) throw AuthBackendFailure(code);
+    return signedIn;
+  }
+
+  @override
   Future<void> signOut() async {
     calls.add('signOut');
     signedIn = null;

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:sembast/sembast.dart';
 
 import '../config/app_version.dart';
 import '../config/app_version_reader.dart';
@@ -232,17 +233,24 @@ Future<AppServices> _resolveAuth(
   final facility =
       database == null ? null : LocalFacilityRepository(database);
   await _primeMenuCache(menu);
-  await _primeKitchenCache(kitchen);
-  await _primeDeliveryData(deliveries);
-  await _primePaymentData(payments);
-  await _primeCashData(cashSessions);
-  await _primeApprovalData(approvals);
-  await _primeFeatureFlags(features);
-  await _primeInventoryData(inventory);
-  await _primePurchasingData(suppliers, purchases);
-  await _primeBranchData(branches);
   await _primeTables(tables);
+  await _primeFeatureFlags(features);
   await _primeUpdateManifest(updates);
+
+  if (!config.isConfigured) {
+    // Demo / test mode only: seed mock operational records for offline verification
+    await _primeKitchenCache(kitchen);
+    await _primeDeliveryData(deliveries);
+    await _primePaymentData(payments);
+    await _primeCashData(cashSessions);
+    await _primeApprovalData(approvals);
+    await _primeInventoryData(inventory);
+    await _primePurchasingData(suppliers, purchases);
+    await _primeBranchData(branches);
+  } else {
+    // Production / real mode: purge any legacy demo data from local store
+    await _purgeLegacyDemoData(database);
+  }
 
   // Built here rather than alongside the other repositories: it needs
   // `branches` for the rollout cohort seed. The remote manifest source needs
@@ -1050,3 +1058,45 @@ Future<void> _primeUpdateManifest(LocalUpdateRepository? updates) async {
     AppLogger.error('Failed to prime update manifest', error, stackTrace);
   }
 }
+
+/// Purges any residual mock/demo records from local storage when operating in production mode.
+Future<void> _purgeLegacyDemoData(LocalDatabase? database) async {
+  if (database == null) return;
+  try {
+    final stores = [
+      'deliveries',
+      'collections',
+      'kitchen_tickets',
+      'payments',
+      'cash_sessions',
+      'approval_requests',
+      'inventory',
+      'stock_movements',
+      'purchase_orders',
+      'suppliers',
+    ];
+    for (final name in stores) {
+      final store = stringMapStoreFactory.store(name);
+      final records = await store.find(database.db);
+      for (final rec in records) {
+        final id = rec.key;
+        if (id.startsWith('DL-009') ||
+            id.startsWith('COL-009') ||
+            id.startsWith('KT-22') ||
+            id.startsWith('seed-') ||
+            id == 'CS-0001' ||
+            id == 'AP-0001' ||
+            id.startsWith('INV-00') ||
+            id.startsWith('MV-00') ||
+            id.startsWith('PO-2024-') ||
+            id.startsWith('SP-00')) {
+          await store.record(id).delete(database.db);
+        }
+      }
+    }
+    AppLogger.info('Production mode: legacy demo data purged successfully.');
+  } catch (error) {
+    AppLogger.warn('Error purging legacy demo data: $error');
+  }
+}
+

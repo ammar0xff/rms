@@ -54,7 +54,7 @@ class _PosScreenState extends State<PosScreen> {
   double get _totalAmount => _subtotal + _serviceAmount + _taxAmount;
 
   void _addItem(MenuItemModel item) {
-    PieSoundService.instance.pop();
+    PieSoundService.instance.beep();
     if (item.modifierGroups.isNotEmpty) {
       PosCustomiseSheet.show(
         context,

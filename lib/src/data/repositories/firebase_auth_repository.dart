@@ -31,6 +31,11 @@ abstract interface class AuthBackend {
   AppUser? get currentUser;
   Stream<AppUser?> authStateChanges();
   Future<AppUser?> signIn({required String email, required String password});
+  Future<AppUser?> signUp({
+    required String email,
+    required String password,
+    String? displayName,
+  });
   Future<void> signOut();
 }
 
@@ -125,6 +130,27 @@ class _FirebaseAuthBackend implements AuthBackend {
   }
 
   @override
+  Future<AppUser?> signUp({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final user = credential.user;
+      if (user != null && displayName != null && displayName.isNotEmpty) {
+        await user.updateDisplayName(displayName);
+      }
+      return user == null ? null : _map(user);
+    } on FirebaseAuthException catch (e) {
+      throw AuthBackendFailure(e.code);
+    }
+  }
+
+  @override
   Future<void> signOut() {
     roles.clear();
     return _auth.signOut();
@@ -188,6 +214,44 @@ class FirebaseAuthRepository implements AuthRepository {
     }
     final role = await roleFor(user);
     return user.copyWith(role: role);
+  }
+
+  @override
+  Future<AppUser> signUpWithEmail({
+    required String email,
+    required String password,
+    String? displayName,
+    AppRole? role,
+  }) async {
+    final AppUser? user;
+    try {
+      user = await _backend.signUp(
+        email: email.trim(),
+        password: password,
+        displayName: displayName,
+      );
+    } on AuthBackendFailure catch (e) {
+      throw AuthException(authFailureMessage(e.code));
+    }
+    if (user == null) {
+      throw const AuthException('تعذّر إنشاء الحساب.');
+    }
+    final resolvedRole = role ?? inferRoleFromEmail(user.email);
+    try {
+      final db = _firestore ?? FirebaseFirestore.instance;
+      await db.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'email': user.email ?? email.trim(),
+        'displayName': displayName ?? user.displayName ?? '',
+        'role': resolvedRole.name,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
+
+    final backend = _backend;
+    if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = resolvedRole;
+    return user.copyWith(role: resolvedRole);
   }
 
   @override

@@ -15,6 +15,14 @@ abstract class AuthRepository {
     required String password,
   });
 
+  /// Registers a new real user account.
+  Future<AppUser> signUpWithEmail({
+    required String email,
+    required String password,
+    String? displayName,
+    AppRole? role,
+  });
+
   Future<void> signOut();
 
   /// Resolves the operator's role. Never throws: unknown or unreadable roles

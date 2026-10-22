@@ -89,12 +89,96 @@
         box-sizing: border-box !important;
       }
     }
+
+    #pie-web-splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #0F1117;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", "Arial", sans-serif;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+      color: #FFFFFF;
+      user-select: none;
+    }
+    #pie-web-splash.pie-fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .pie-splash-logo {
+      width: 88px;
+      height: 88px;
+      border-radius: 24px;
+      background: #181B23;
+      border: 2px solid #E11D48;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 50px;
+      font-weight: 800;
+      color: #E11D48;
+      box-shadow: 0 0 35px rgba(225, 29, 72, 0.35);
+      animation: piePulse 2s ease-in-out infinite;
+    }
+    @keyframes piePulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 35px rgba(225, 29, 72, 0.35); }
+      50% { transform: scale(1.05); box-shadow: 0 0 55px rgba(225, 29, 72, 0.6); }
+    }
+    .pie-splash-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 22px;
+      letter-spacing: 1.5px;
+      color: #F8FAFC;
+    }
+    .pie-splash-subtitle {
+      font-size: 13px;
+      color: #94A3B8;
+      margin-top: 6px;
+      direction: rtl;
+    }
+    .pie-splash-loader {
+      margin-top: 32px;
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(225, 29, 72, 0.15);
+      border-top-color: #E11D48;
+      border-radius: 50%;
+      animation: pieSpin 0.85s linear infinite;
+    }
+    @keyframes pieSpin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
+  <div id="pie-web-splash">
+    <div class="pie-splash-logo">π</div>
+    <div class="pie-splash-title">PIE OPERATIONS</div>
+    <div class="pie-splash-subtitle">نظام تشغيل وإدارة المطاعم الميداني</div>
+    <div class="pie-splash-loader"></div>
+  </div>
   <div id="pie-print-mount"></div>
   <script>
     (function() {
+      // Dismiss HTML splash when Flutter renders first frame
+      window.hidePieWebSplash = function() {
+        var splash = document.getElementById('pie-web-splash');
+        if (splash) {
+          splash.classList.add('pie-fade-out');
+          setTimeout(function() {
+            if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+          }, 500);
+        }
+      };
+      window.addEventListener('flutter-first-frame', window.hidePieWebSplash);
       // 1. Hardware capability probe for WebGL2 Skia shaders and stencil buffers
       function testWebGL2Capability() {
         try {
@@ -261,6 +345,101 @@
           console.warn('[PIE Printer] Open receipt tab error:', e);
         }
         return false;
+      };
+
+      // POS Sound Effects Engine via Web Audio API Synthesis
+      window.piePlaySound = function(type) {
+        try {
+          var AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return false;
+          if (!window._pieAudioCtx) {
+            window._pieAudioCtx = new AudioCtx();
+          }
+          var ctx = window._pieAudioCtx;
+          if (ctx.state === 'suspended') {
+            ctx.resume();
+          }
+          var now = ctx.currentTime;
+          
+          if (type === 'click') {
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(350, now + 0.035);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.035);
+            return true;
+          }
+          if (type === 'pop') {
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(500, now);
+            osc.frequency.exponentialRampToValueAtTime(850, now + 0.05);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.05);
+            return true;
+          }
+          if (type === 'beep') { // POS item scan / add to cart
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1350, now);
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.07);
+            return true;
+          }
+          if (type === 'chime') { // Cash drawer / Payment / Checkout success
+            var freqs = [523.25, 659.25, 783.99, 1046.50];
+            freqs.forEach(function(freq, idx) {
+              var t = now + idx * 0.06;
+              var osc = ctx.createOscillator();
+              var gain = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(freq, t);
+              gain.gain.setValueAtTime(0.15, t);
+              gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start(t);
+              osc.stop(t + 0.42);
+            });
+            return true;
+          }
+          if (type === 'alert') { // Warning / Void / Rejection
+            var alertFreqs = [320, 240];
+            alertFreqs.forEach(function(freq, idx) {
+              var t = now + idx * 0.12;
+              var osc = ctx.createOscillator();
+              var gain = ctx.createGain();
+              osc.type = 'sawtooth';
+              osc.frequency.setValueAtTime(freq, t);
+              gain.gain.setValueAtTime(0.15, t);
+              gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.start(t);
+              osc.stop(t + 0.11);
+            });
+            return true;
+          }
+          return false;
+        } catch (e) {
+          return false;
+        }
       };
     })();
   </script>

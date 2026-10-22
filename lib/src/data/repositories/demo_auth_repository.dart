@@ -50,6 +50,29 @@ class DemoAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AppUser> signUpWithEmail({
+    required String email,
+    required String password,
+    String? displayName,
+    AppRole? role,
+  }) async {
+    if (email.trim().isEmpty || password.isEmpty) {
+      throw const AuthException('أدخل البريد الإلكتروني وكلمة المرور.');
+    }
+    final address = email.trim();
+    final user = AppUser(
+      uid: 'demo-${address.hashCode.toUnsigned(20)}',
+      email: address,
+      displayName: displayName?.isNotEmpty == true ? displayName : address.split('@').first,
+      isDemo: true,
+      role: role ?? _inferRole(address),
+    );
+    _current = user;
+    _controller.add(user);
+    return user;
+  }
+
+  @override
   Future<void> signOut() async {
     _current = null;
     _controller.add(null);

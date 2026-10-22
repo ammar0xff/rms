@@ -249,6 +249,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
+    final userRole = services.auth.currentUser?.role;
+    final isAuthorized = userRole == AppRole.manager || userRole == AppRole.developer;
+
+    if (!isAuthorized) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 420),
+            decoration: BoxDecoration(
+              color: PieColors.surface2,
+              borderRadius: PieRadius.borderLg,
+              border: Border.all(color: PieColors.stateError.withValues(alpha: 0.4)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_person_outlined, color: PieColors.stateError, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'غير مصرح بالدخول',
+                  style: PieTypography.heading,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'إعدادات المنشأة والنظام مخصصة فقط لمدير المطعم ومسؤول النظام.',
+                  style: PieTypography.body.copyWith(color: PieColors.inkSecondary),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Directionality(
       textDirection: TextDirection.rtl,

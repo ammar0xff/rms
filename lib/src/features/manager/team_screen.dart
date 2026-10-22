@@ -98,6 +98,10 @@ class _TeamScreenState extends State<TeamScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final services = AppScope.of(context);
+    if (services.firebaseReady) {
+      _members.clear();
+    }
     _listenToLiveUsers();
   }
 
@@ -108,7 +112,7 @@ class _TeamScreenState extends State<TeamScreen> {
     _usersSub?.cancel();
     _usersSub = FirebaseFirestore.instance.collection('users').snapshots().listen(
       (snapshot) {
-        if (!mounted || snapshot.docs.isEmpty) return;
+        if (!mounted) return;
         final List<_TeamMember> live = [];
         for (final doc in snapshot.docs) {
           final data = doc.data();
@@ -143,20 +147,135 @@ class _TeamScreenState extends State<TeamScreen> {
           );
         }
 
-        if (live.isNotEmpty) {
-          setState(() {
-            _members.clear();
-            _members.addAll(live);
-            if (_selectedMember != null) {
-              _selectedMember = _members.firstWhere(
-                (m) => m.user.uid == _selectedMember!.user.uid,
-                orElse: () => _members.first,
-              );
-            }
-          });
-        }
+        setState(() {
+          _members.clear();
+          _members.addAll(live);
+          if (_selectedMember != null) {
+            final match = _members.where((m) => m.user.uid == _selectedMember!.user.uid);
+            _selectedMember = match.isNotEmpty ? match.first : null;
+          }
+        });
       },
       onError: (_) {},
+    );
+  }
+
+  Future<void> _showAddMemberDialog(BuildContext context) async {
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    AppRole chosenRole = AppRole.cashier;
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: PieColors.surfaceOverlay,
+            shape: const RoundedRectangleBorder(
+              borderRadius: PieRadius.borderLg,
+              side: BorderSide(color: PieColors.border),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.person_add_rounded, color: PieColors.roleManager, size: 24),
+                SizedBox(width: 10),
+                Text('إضافة موظف جديد للفريق', style: PieTypography.heading),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: 'اسم الموظف بالكامل',
+                      filled: true,
+                      fillColor: PieColors.well,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: PieTypography.body.copyWith(color: PieColors.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: 'البريد الإلكتروني للموظف',
+                      filled: true,
+                      fillColor: PieColors.well,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('الدور الوظيفي:', style: PieTypography.caption),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: AppRole.values.map((r) {
+                      return ChoiceChip(
+                        label: Text(r.label),
+                        selected: chosenRole == r,
+                        selectedColor: PieColors.roleManager.withValues(alpha: 0.25),
+                        onSelected: (_) => setDialogState(() => chosenRole = r),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: const Text('إلغاء', style: TextStyle(color: PieColors.inkSecondary)),
+              ),
+              PieButton.primary(
+                label: isSaving ? 'جاري الحفظ...' : 'حفظ الموظف',
+                accentColor: PieColors.roleManager,
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final name = nameCtrl.text.trim();
+                        final email = emailCtrl.text.trim();
+                        if (name.isEmpty || email.isEmpty) return;
+                        setDialogState(() => isSaving = true);
+                        try {
+                          final uid = 'usr_${email.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
+                          final services = AppScope.of(context);
+                          if (services.firebaseReady) {
+                            await FirebaseFirestore.instance.collection('users').doc(uid).set({
+                              'uid': uid,
+                              'displayName': name,
+                              'email': email,
+                              'role': chosenRole.name,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                              'createdAt': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true));
+                          } else {
+                            setState(() {
+                              _members.add(_TeamMember(
+                                user: AppUser(uid: uid, displayName: name, email: email, role: chosenRole),
+                                shiftActive: true,
+                                permissions: chosenRole == AppRole.manager || chosenRole == AppRole.developer
+                                    ? Set.of(Permissions.all)
+                                    : <String>{Permissions.orderVoid, Permissions.paymentReprint},
+                              ));
+                            });
+                          }
+                          if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                        } catch (e) {
+                          setDialogState(() => isSaving = false);
+                        }
+                      },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -216,27 +335,39 @@ class _TeamScreenState extends State<TeamScreen> {
                   'فريق العمل والصلاحيات',
                   style: PieTypography.h2.copyWith(color: PieColors.textPrimary),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: PieColors.roleManager.withValues(alpha: 0.15),
-                    borderRadius: PieRadius.borderSm,
-                    border: Border.all(color: PieColors.roleManager.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.circle, color: PieColors.roleManager, size: 8),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$activeShiftCount في الوردية الآن',
-                        style: PieTypography.caption.copyWith(
-                          color: PieColors.roleManager,
-                          fontWeight: FontWeight.bold,
-                        ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: PieColors.roleManager.withValues(alpha: 0.15),
+                        borderRadius: PieRadius.borderSm,
+                        border: Border.all(color: PieColors.roleManager.withValues(alpha: 0.4)),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.circle, color: PieColors.roleManager, size: 8),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$activeShiftCount في الوردية الآن',
+                            style: PieTypography.caption.copyWith(
+                              color: PieColors.roleManager,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    PieButton.primary(
+                      onPressed: () => _showAddMemberDialog(context),
+                      label: 'إضافة موظف',
+                      icon: Icons.person_add_rounded,
+                      accentColor: PieColors.roleManager,
+                      height: 36,
+                    ),
+                  ],
                 ),
               ],
             ),
