@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
@@ -241,15 +242,17 @@ class _PosScreenState extends State<PosScreen> {
         _cartItems.clear();
       });
 
-      // Background print trigger
-      ReceiptPrintService.printOrder(
-        order: createdOrder,
-        facility: facility,
-        printService: services.print,
-        paymentMethod: resolvedPaymentMethod,
-        paidAmount: resolvedTendered,
-        changeDue: resolvedChange,
-      );
+      // Background print trigger for native ESC/POS thermal printers
+      if (!kIsWeb) {
+        ReceiptPrintService.printOrder(
+          order: createdOrder,
+          facility: facility,
+          printService: services.print,
+          paymentMethod: resolvedPaymentMethod,
+          paidAmount: resolvedTendered,
+          changeDue: resolvedChange,
+        );
+      }
 
       // Show immediate confirmation & print dialog
       if (mounted) {
@@ -261,11 +264,19 @@ class _PosScreenState extends State<PosScreen> {
           paidAmount: resolvedTendered,
           changeDue: resolvedChange,
           onPrint: () async {
-            final fac = await services.facility?.load();
             await ReceiptPrintService.printOrder(
               order: createdOrder,
-              facility: fac,
+              facility: facility,
               printService: services.print,
+              paymentMethod: resolvedPaymentMethod,
+              paidAmount: resolvedTendered,
+              changeDue: resolvedChange,
+            );
+          },
+          onOpenTab: () {
+            ReceiptPrintService.openOrderInTab(
+              order: createdOrder,
+              facility: facility,
               paymentMethod: resolvedPaymentMethod,
               paidAmount: resolvedTendered,
               changeDue: resolvedChange,

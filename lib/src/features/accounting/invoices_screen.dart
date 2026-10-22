@@ -11,6 +11,7 @@ import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
+import '../../domain/models/facility_settings.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/services/receipt_print_service.dart';
@@ -38,6 +39,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   bool _isLoading = true;
   Object? _loadError;
   StreamSubscription<List<Order>>? _orderSub;
+  FacilitySettings? _facility;
 
   @override
   void didChangeDependencies() {
@@ -48,6 +50,11 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   void _subscribeOrders() {
     _orderSub?.cancel();
     final services = AppScope.of(context);
+
+    // Cache facility settings for immediate synchronous printing
+    services.facility?.load().then((f) {
+      if (mounted) setState(() => _facility = f);
+    });
 
     // Immediate initial fetch
     _refreshOrders();
@@ -527,7 +534,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 child: PieButton.secondary(
                   onPressed: () async {
                     final services = AppScope.of(context);
-                    final facility = await services.facility?.load();
                     final ref = (order.canonicalOrderNumber?.isNotEmpty == true)
                         ? order.canonicalOrderNumber!
                         : (order.provisionalOrderNumber.isNotEmpty ? order.provisionalOrderNumber : order.localId);
@@ -544,7 +550,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
                     await ReceiptPrintService.printOrder(
                       order: order,
-                      facility: facility,
+                      facility: _facility,
                       printService: services.print,
                     );
                   },
@@ -552,7 +558,18 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                   icon: Icons.print_rounded,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.open_in_new_rounded, color: PieColors.inkSecondary),
+                tooltip: 'فتح الفاتورة في نافذة مستقلة للطباعة',
+                onPressed: () {
+                  ReceiptPrintService.openOrderInTab(
+                    order: order,
+                    facility: _facility,
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
               if (!order.voided)
                 Expanded(
                   child: PieButton.destructive(

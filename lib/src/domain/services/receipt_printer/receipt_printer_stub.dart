@@ -5,4 +5,8 @@ ReceiptPrinterTransport createReceiptPrinterTransport() => _StubReceiptPrinterTr
 class _StubReceiptPrinterTransport implements ReceiptPrinterTransport {
   @override
   bool printHtml(String html) => false;
+
+  @override
+  bool openHtmlInTab(String html) => false;
 }
+

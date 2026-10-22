@@ -39,9 +39,60 @@
       width: 100%;
       height: 100%;
     }
+
+    #pie-print-mount {
+      display: none !important;
+    }
+
+    @media print {
+      body > *:not(#pie-print-mount) {
+        display: none !important;
+      }
+      flutter-view, flt-glass-pane, flt-scene, flt-semantics-host {
+        display: none !important;
+      }
+
+      html, body {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+
+      @page {
+        margin: 0;
+        size: 80mm auto;
+      }
+
+      #pie-print-mount {
+        display: block !important;
+        position: static !important;
+        width: 72mm !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 4mm 2mm !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", "Arial", sans-serif !important;
+        font-size: 12px !important;
+        line-height: 1.35 !important;
+        direction: rtl !important;
+        box-sizing: border-box !important;
+      }
+
+      #pie-print-mount * {
+        color: #000000 !important;
+        box-sizing: border-box !important;
+      }
+    }
   </style>
 </head>
 <body>
+  <div id="pie-print-mount"></div>
   <script>
     (function() {
       // 1. Hardware capability probe for WebGL2 Skia shaders and stencil buffers
@@ -159,70 +210,58 @@
         }
       }, true);
 
-      // Cross-platform Web Receipt Printer via off-screen iframe + popup fallback
+      // Cross-platform Web Receipt Printer via @media print isolation
       window.piePrintReceiptHtml = function(htmlContent) {
         try {
-          var iframe = document.getElementById('pie-receipt-print-frame');
-          if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'pie-receipt-print-frame';
-            iframe.style.position = 'fixed';
-            iframe.style.top = '-10000px';
-            iframe.style.left = '-10000px';
-            iframe.style.width = '320px';
-            iframe.style.height = '600px';
-            iframe.style.border = '0';
-            document.body.appendChild(iframe);
-          }
-          var doc = iframe.contentWindow.document;
-          doc.open();
-          doc.write(htmlContent);
-          doc.close();
-
-          var printAttempted = false;
-          function doPrint() {
-            if (printAttempted) return;
-            printAttempted = true;
-            try {
-              iframe.contentWindow.focus();
-              iframe.contentWindow.print();
-            } catch (err) {
-              console.warn('[PIE Printer] iframe print failed, trying window.open fallback', err);
-              try {
-                var w = window.open('', '_blank', 'width=420,height=650');
-                if (w) {
-                  w.document.open();
-                  w.document.write(htmlContent);
-                  w.document.close();
-                  w.focus();
-                  w.print();
-                }
-              } catch (_) {}
-            }
+          var mount = document.getElementById('pie-print-mount');
+          if (!mount) {
+            mount = document.createElement('div');
+            mount.id = 'pie-print-mount';
+            document.body.appendChild(mount);
           }
 
-          if (iframe.contentWindow.document.readyState === 'complete') {
-            setTimeout(doPrint, 50);
-          } else {
-            iframe.onload = doPrint;
-            setTimeout(doPrint, 150);
+          var cleanHtml = htmlContent;
+          var bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+          if (bodyMatch) {
+            cleanHtml = bodyMatch[1];
           }
+          var styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*)<\/style>/i);
+          var styles = styleMatch ? styleMatch[0] : '';
+
+          mount.innerHTML = styles + '<div class="receipt-print-wrapper" dir="rtl">' + cleanHtml + '</div>';
+
+          // Trigger print directly on top-level window (100% supported on desktop & mobile)
+          window.print();
           return true;
         } catch (e) {
-          console.error('[PIE Printer] Error creating print frame:', e);
-          try {
-            var w = window.open('', '_blank', 'width=420,height=650');
-            if (w) {
-              w.document.open();
-              w.document.write(htmlContent);
-              w.document.close();
-              w.focus();
-              w.print();
-              return true;
-            }
-          } catch (_) {}
+          console.error('[PIE Printer] Print error:', e);
           return false;
+        } finally {
+          setTimeout(function() {
+            var m = document.getElementById('pie-print-mount');
+            if (m) m.innerHTML = '';
+          }, 1500);
         }
+      };
+
+      // Direct new tab receipt opener for popup / standalone printing
+      window.pieOpenReceiptTab = function(htmlContent) {
+        try {
+          var w = window.open('', '_blank');
+          if (w) {
+            w.document.open();
+            w.document.write(htmlContent);
+            w.document.close();
+            w.focus();
+            setTimeout(function() {
+              try { w.print(); } catch (_) {}
+            }, 300);
+            return true;
+          }
+        } catch (e) {
+          console.warn('[PIE Printer] Open receipt tab error:', e);
+        }
+        return false;
       };
     })();
   </script>

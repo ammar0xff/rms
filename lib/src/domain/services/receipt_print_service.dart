@@ -56,16 +56,8 @@ class ReceiptPrintService {
           .toList(),
     };
 
-    // 1. Native / Socket ESC/POS print if available
-    try {
-      if (printService != null) {
-        await printService.printReceipt(ref, payload);
-      }
-    } catch (e) {
-      AppLogger.warn('ESC/POS print queue warning: $e');
-    }
-
-    // 2. Web browser printable thermal receipt
+    // 1. Web browser printable thermal receipt (triggered immediately to preserve transient user activation)
+    bool didPrint = false;
     try {
       final html = buildReceiptHtml(
         order: order,
@@ -75,13 +67,46 @@ class ReceiptPrintService {
         changeDue: changeDue,
       );
 
-      final didPrint = _transport.printHtml(html);
-      return didPrint || kIsWeb;
+      didPrint = _transport.printHtml(html);
     } catch (e) {
       AppLogger.error('Receipt print failed', e);
+    }
+
+    // 2. Native / Socket ESC/POS print if available (async background queue)
+    try {
+      if (printService != null) {
+        await printService.printReceipt(ref, payload);
+      }
+    } catch (e) {
+      AppLogger.warn('ESC/POS print queue warning: $e');
+    }
+
+    return didPrint || kIsWeb;
+  }
+
+  /// Opens the receipt in a dedicated browser tab for standalone printing.
+  static bool openOrderInTab({
+    required Order order,
+    FacilitySettings? facility,
+    String? paymentMethod,
+    double? paidAmount,
+    double? changeDue,
+  }) {
+    try {
+      final html = buildReceiptHtml(
+        order: order,
+        facility: facility ?? const FacilitySettings(),
+        paymentMethod: paymentMethod,
+        paidAmount: paidAmount,
+        changeDue: changeDue,
+      );
+      return _transport.openHtmlInTab(html);
+    } catch (e) {
+      AppLogger.error('Open receipt tab failed', e);
       return false;
     }
   }
+
 
   /// Generates self-contained HTML for an 80mm/58mm thermal receipt.
   static String buildReceiptHtml({
@@ -157,15 +182,19 @@ class ReceiptPrintService {
         margin: 0;
         size: 80mm auto;
       }
-      body {
-        margin: 0;
-        padding: 6px 10px;
-        width: 72mm;
+      body, .receipt-root {
+        margin: 0 !important;
+        padding: 4px 8px !important;
+        width: 72mm !important;
+      }
+      .print-actions {
+        display: none !important;
       }
     }
-    body {
+    body, .receipt-root {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", "Arial", sans-serif;
       width: 72mm;
+      max-width: 100%;
       margin: 0 auto;
       padding: 10px;
       color: #000;
@@ -173,6 +202,24 @@ class ReceiptPrintService {
       font-size: 12.5px;
       line-height: 1.35;
       box-sizing: border-box;
+      direction: rtl;
+    }
+    .print-actions {
+      text-align: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+    .print-btn {
+      background: #0070F3;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
     }
     .header { text-align: center; margin-bottom: 8px; }
     .store-name { font-size: 18px; font-weight: 800; margin: 0; }
@@ -197,66 +244,71 @@ class ReceiptPrintService {
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="store-name">$title</div>
-    ${facility.activeBranchName.isNotEmpty ? '<div class="branch-name">فرع: ${facility.activeBranchName}</div>' : ''}
-    ${facility.taxId.isNotEmpty ? '<div class="tax-id">الرقم الضريبي: ${facility.taxId}</div>' : ''}
-    <div class="tax-id">فاتورة ضريبية مبسطة</div>
+  <div class="print-actions">
+    <button onclick="window.print()" class="print-btn">🖨️ طباعة الفاتورة الآن</button>
   </div>
+  <div class="receipt-root" dir="rtl">
+    <div class="header">
+      <div class="store-name">$title</div>
+      ${facility.activeBranchName.isNotEmpty ? '<div class="branch-name">فرع: ${facility.activeBranchName}</div>' : ''}
+      ${facility.taxId.isNotEmpty ? '<div class="tax-id">الرقم الضريبي: ${facility.taxId}</div>' : ''}
+      <div class="tax-id">فاتورة ضريبية مبسطة</div>
+    </div>
 
-  <div class="divider"></div>
+    <div class="divider"></div>
 
-  <div class="meta-row">
-    <span>رقم الفاتورة:</span>
-    <strong style="font-size: 13px;">#$ref</strong>
+    <div class="meta-row">
+      <span>رقم الفاتورة:</span>
+      <strong style="font-size: 13px;">#$ref</strong>
+    </div>
+    <div class="meta-row">
+      <span>نوع الطلب:</span>
+      <strong>$channelName</strong>
+    </div>
+    <div class="meta-row">
+      <span>التاريخ والوقت:</span>
+      <span>$dateStr • $timeStr</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="text-align: right;">الصنف</th>
+          <th style="text-align: center; width: 35px;">الكمية</th>
+          <th style="text-align: left; width: 55px;">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        $itemsRows
+      </tbody>
+    </table>
+
+    <div class="divider"></div>
+
+    <div class="total-row">
+      <span>المجموع الجزئي:</span>
+      <span>${safeSubtotal.toStringAsFixed(2)} $currency</span>
+    </div>
+    ${safeService > 0 ? '<div class="total-row"><span>خدمة الصالة:</span><span>' + safeService.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
+    ${safeTax > 0 ? '<div class="total-row"><span>ضريبة القيمة المضافة:</span><span>' + safeTax.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
+
+    <div class="grand-total">
+      <span>الإجمالي النهائي:</span>
+      <span>${safeTotal.toStringAsFixed(2)} $currency</span>
+    </div>
+
+    <div class="total-row">
+      <span>طريقة الدفع:</span>
+      <span>${paymentMethod ?? 'نقدي'}</span>
+    </div>
+    ${paidAmount != null && paidAmount > 0 ? '<div class="total-row"><span>المبلغ المستلم:</span><span>' + paidAmount.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
+    ${changeDue != null && changeDue > 0 ? '<div class="total-row" style="font-weight: 700;"><span>الباقي للعميل:</span><span>' + changeDue.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
+
+    <div class="divider"></div>
+    <div class="footer">$footer</div>
   </div>
-  <div class="meta-row">
-    <span>نوع الطلب:</span>
-    <strong>$channelName</strong>
-  </div>
-  <div class="meta-row">
-    <span>التاريخ والوقت:</span>
-    <span>$dateStr • $timeStr</span>
-  </div>
-
-  <div class="divider"></div>
-
-  <table class="table">
-    <thead>
-      <tr>
-        <th style="text-align: right;">الصنف</th>
-        <th style="text-align: center; width: 35px;">الكمية</th>
-        <th style="text-align: left; width: 55px;">الإجمالي</th>
-      </tr>
-    </thead>
-    <tbody>
-      $itemsRows
-    </tbody>
-  </table>
-
-  <div class="divider"></div>
-
-  <div class="total-row">
-    <span>المجموع الجزئي:</span>
-    <span>${safeSubtotal.toStringAsFixed(2)} $currency</span>
-  </div>
-  ${safeService > 0 ? '<div class="total-row"><span>خدمة الصالة:</span><span>' + safeService.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
-  ${safeTax > 0 ? '<div class="total-row"><span>ضريبة القيمة المضافة:</span><span>' + safeTax.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
-
-  <div class="grand-total">
-    <span>الإجمالي النهائي:</span>
-    <span>${safeTotal.toStringAsFixed(2)} $currency</span>
-  </div>
-
-  <div class="total-row">
-    <span>طريقة الدفع:</span>
-    <span>${paymentMethod ?? 'نقدي'}</span>
-  </div>
-  ${paidAmount != null && paidAmount > 0 ? '<div class="total-row"><span>المبلغ المستلم:</span><span>' + paidAmount.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
-  ${changeDue != null && changeDue > 0 ? '<div class="total-row" style="font-weight: 700;"><span>الباقي للعميل:</span><span>' + changeDue.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
-
-  <div class="divider"></div>
-  <div class="footer">$footer</div>
 </body>
 </html>
 ''';

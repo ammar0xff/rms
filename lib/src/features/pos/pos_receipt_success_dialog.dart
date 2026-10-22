@@ -25,6 +25,7 @@ class PosReceiptSuccessDialog extends StatefulWidget {
     this.paidAmount,
     this.changeDue,
     required this.onPrint,
+    this.onOpenTab,
   });
 
   final Order order;
@@ -33,6 +34,7 @@ class PosReceiptSuccessDialog extends StatefulWidget {
   final double? paidAmount;
   final double? changeDue;
   final Future<void> Function() onPrint;
+  final VoidCallback? onOpenTab;
 
   static Future<void> show(
     BuildContext context, {
@@ -42,6 +44,7 @@ class PosReceiptSuccessDialog extends StatefulWidget {
     double? paidAmount,
     double? changeDue,
     required Future<void> Function() onPrint,
+    VoidCallback? onOpenTab,
   }) {
     return showDialog<void>(
       context: context,
@@ -53,6 +56,7 @@ class PosReceiptSuccessDialog extends StatefulWidget {
         paidAmount: paidAmount,
         changeDue: changeDue,
         onPrint: onPrint,
+        onOpenTab: onOpenTab,
       ),
     );
   }
@@ -392,6 +396,23 @@ class _PosReceiptSuccessDialogState extends State<PosReceiptSuccessDialog> {
                 isFullWidth: true,
                 height: 50,
               ),
+              if (widget.onOpenTab != null) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onOpenTab,
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: const Text('فتح الفاتورة في نافذة مستقلة للطباعة'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: PieColors.textPrimary,
+                      side: const BorderSide(color: PieColors.border),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: const RoundedRectangleBorder(borderRadius: PieRadius.borderSm),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
