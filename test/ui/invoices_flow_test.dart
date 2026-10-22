@@ -105,5 +105,43 @@ void main() {
       expect(find.text('1x بيتزا سجق شرقي'), findsWidgets);
       expect(find.text('إعادة طباعة'), findsOneWidget);
     });
+
+    testWidgets('Invoices screen reactively reflects newly created orders without remounting', (WidgetTester tester) async {
+      tester.setDesktopSize();
+      addTearDown(tester.resetTestSize);
+
+      final services = await createTestServices(tester: tester, initialRole: AppRole.cashier);
+
+      // Start app with NO orders created yet
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Navigate to Invoices Screen
+      final invoiceNav = find.text('سجل الفواتير');
+      await tester.tap(invoiceNav.first);
+      await tester.pumpFewFrames();
+
+      // Should show empty state
+      expect(find.text('مفيش فواتير مطابقة'), findsOneWidget);
+      expect(find.text('تحديث السجل'), findsWidgets);
+
+      // Now an order is created asynchronously while the screen stays mounted in IndexedStack
+      final draft = OrderDraft(
+        orderType: OrderType.takeaway,
+        items: const [
+          OrderItem(productId: 'p99', name: 'حواوشي مخصوص', unitPrice: 85.0, quantity: 1),
+        ],
+        taxAmount: 11.9,
+      );
+      final created = await services.orders!.createOrder(draft);
+
+      // Pump frames so stream listener triggers setState
+      await tester.pumpFewFrames();
+
+      // The new order is immediately visible!
+      final ref = created.canonicalOrderNumber ?? created.provisionalOrderNumber;
+      expect(find.text('أوردر #$ref'), findsOneWidget);
+      expect(find.text('1x حواوشي مخصوص'), findsWidgets);
+    });
   });
 }

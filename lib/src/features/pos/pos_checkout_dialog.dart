@@ -13,6 +13,7 @@ typedef PosCheckoutCallback = Future<void> Function(
   String? customerName,
   String? customerPhone,
   String? deliveryAddress,
+  double? tenderedAmount,
 });
 
 /// Checkout & Tender Dialog (الدفع وإنهاء الفاتورة)
@@ -202,9 +203,22 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
         customerName: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
         customerPhone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         deliveryAddress: _isDelivery ? _addressController.text.trim() : null,
+        tenderedAmount: _tenderedAmount,
       );
       if (mounted) {
         Navigator.of(context).pop(true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: PieColors.stateErrorBg,
+            content: Text(
+              'تعذر إتمام الدفع: $e',
+              style: PieTypography.body.copyWith(color: PieColors.stateError),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) {

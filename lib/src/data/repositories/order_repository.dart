@@ -7,4 +7,6 @@ abstract class OrderRepository {
   Future<Order> createOrder(OrderDraft draft);
 
   Future<List<Order>> listOrders();
+
+  Stream<List<Order>> watchOrders() => Stream.fromFuture(listOrders());
 }

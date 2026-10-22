@@ -159,7 +159,7 @@
         }
       }, true);
 
-      // Cross-platform Web Receipt Printer via hidden iframe
+      // Cross-platform Web Receipt Printer via off-screen iframe + popup fallback
       window.piePrintReceiptHtml = function(htmlContent) {
         try {
           var iframe = document.getElementById('pie-receipt-print-frame');
@@ -167,30 +167,60 @@
             iframe = document.createElement('iframe');
             iframe.id = 'pie-receipt-print-frame';
             iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
+            iframe.style.top = '-10000px';
+            iframe.style.left = '-10000px';
+            iframe.style.width = '320px';
+            iframe.style.height = '600px';
             iframe.style.border = '0';
-            iframe.style.opacity = '0';
-            iframe.style.pointerEvents = 'none';
             document.body.appendChild(iframe);
           }
           var doc = iframe.contentWindow.document;
           doc.open();
           doc.write(htmlContent);
           doc.close();
-          setTimeout(function() {
+
+          var printAttempted = false;
+          function doPrint() {
+            if (printAttempted) return;
+            printAttempted = true;
             try {
               iframe.contentWindow.focus();
               iframe.contentWindow.print();
             } catch (err) {
-              console.error('[PIE Printer] Print trigger failed:', err);
+              console.warn('[PIE Printer] iframe print failed, trying window.open fallback', err);
+              try {
+                var w = window.open('', '_blank', 'width=420,height=650');
+                if (w) {
+                  w.document.open();
+                  w.document.write(htmlContent);
+                  w.document.close();
+                  w.focus();
+                  w.print();
+                }
+              } catch (_) {}
             }
-          }, 300);
+          }
+
+          if (iframe.contentWindow.document.readyState === 'complete') {
+            setTimeout(doPrint, 50);
+          } else {
+            iframe.onload = doPrint;
+            setTimeout(doPrint, 150);
+          }
           return true;
         } catch (e) {
           console.error('[PIE Printer] Error creating print frame:', e);
+          try {
+            var w = window.open('', '_blank', 'width=420,height=650');
+            if (w) {
+              w.document.open();
+              w.document.write(htmlContent);
+              w.document.close();
+              w.focus();
+              w.print();
+              return true;
+            }
+          } catch (_) {}
           return false;
         }
       };

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
+import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
@@ -16,6 +18,7 @@ import '../../domain/services/receipt_print_service.dart';
 /// Screen 8: Invoices Archive (أرشيف الفواتير وإعادة الطباعة والإلغاء)
 ///
 /// Functional contract:
+/// - Real-time reactive order list synchronized across the terminal
 /// - Filterable invoice list by channel and search query
 /// - Full receipt detail viewer
 /// - Reprint trigger
@@ -31,78 +34,150 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   String _searchQuery = '';
   OrderType? _selectedChannelFilter;
   Order? _selectedOrder;
-  Future<List<Order>>? _ordersFuture;
+  List<Order>? _orders;
+  bool _isLoading = true;
+  Object? _loadError;
+  StreamSubscription<List<Order>>? _orderSub;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _subscribeOrders();
+  }
+
+  void _subscribeOrders() {
+    _orderSub?.cancel();
+    final services = AppScope.of(context);
+
+    // Immediate initial fetch
     _refreshOrders();
+
+    final stream = services.orders?.watchOrders();
+    if (stream != null) {
+      _orderSub = stream.listen(
+        (updated) {
+          if (mounted) {
+            setState(() {
+              _orders = updated;
+              _isLoading = false;
+              _loadError = null;
+              if (_selectedOrder != null) {
+                final matchIndex = updated.indexWhere((o) => o.localId == _selectedOrder!.localId);
+                if (matchIndex >= 0) {
+                  _selectedOrder = updated[matchIndex];
+                }
+              }
+            });
+          }
+        },
+        onError: (e) {
+          if (mounted && _orders == null) {
+            setState(() {
+              _loadError = e;
+              _isLoading = false;
+            });
+          }
+        },
+      );
+    }
   }
 
   Future<void> _refreshOrders() async {
     final services = AppScope.of(context);
-    setState(() {
-      _ordersFuture = services.orders?.listOrders() ?? Future.value(<Order>[]);
-    });
+    try {
+      final orders = await services.orders?.listOrders() ?? <Order>[];
+      if (mounted) {
+        setState(() {
+          _orders = orders;
+          _isLoading = false;
+          _loadError = null;
+          if (_selectedOrder != null) {
+            final matchIndex = orders.indexWhere((o) => o.localId == _selectedOrder!.localId);
+            if (matchIndex >= 0) {
+              _selectedOrder = orders[matchIndex];
+            }
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted && _orders == null) {
+        setState(() {
+          _loadError = e;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _orderSub?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 900;
 
+    if (_isLoading && _orders == null) {
+      return const Directionality(
+        textDirection: TextDirection.rtl,
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: CircularProgressIndicator(color: PieColors.cashierAccent),
+          ),
+        ),
+      );
+    }
+
+    if (_loadError != null && _orders == null) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded, color: PieColors.stateError, size: 40),
+                const SizedBox(height: 12),
+                Text('تعذر تحميل سجل الفواتير', style: PieTypography.heading),
+                const SizedBox(height: 8),
+                Text('$_loadError', style: PieTypography.caption, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                PieButton.secondary(
+                  onPressed: () {
+                    PieSoundService.instance.click();
+                    _refreshOrders();
+                  },
+                  label: 'إعادة المحاولة',
+                  icon: Icons.refresh_rounded,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final allOrders = _orders ?? [];
+
+    var filtered = allOrders;
+    if (_selectedChannelFilter != null) {
+      filtered = filtered.where((o) => o.orderType == _selectedChannelFilter).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((o) {
+        final ref = o.canonicalOrderNumber ?? o.provisionalOrderNumber;
+        return ref.contains(_searchQuery);
+      }).toList();
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: FutureBuilder<List<Order>>(
-        future: _ordersFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && snapshot.data == null) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(color: PieColors.cashierAccent),
-              ),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline_rounded, color: PieColors.stateError, size: 40),
-                    const SizedBox(height: 12),
-                    Text('تعذر تحميل سجل الفواتير', style: PieTypography.heading),
-                    const SizedBox(height: 8),
-                    Text('${snapshot.error}', style: PieTypography.caption, textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
-                    PieButton.secondary(
-                      onPressed: _refreshOrders,
-                      label: 'إعادة المحاولة',
-                      icon: Icons.refresh_rounded,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final allOrders = snapshot.data ?? [];
-
-          var filtered = allOrders;
-          if (_selectedChannelFilter != null) {
-            filtered = filtered.where((o) => o.orderType == _selectedChannelFilter).toList();
-          }
-          if (_searchQuery.isNotEmpty) {
-            filtered = filtered.where((o) {
-              final ref = o.canonicalOrderNumber ?? o.provisionalOrderNumber;
-              return ref.contains(_searchQuery);
-            }).toList();
-          }
-
-          if (isDesktop) {
-            return Row(
+      child: isDesktop
+          ? Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // List (Right side)
@@ -126,12 +201,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                       : _buildReceiptViewer(_selectedOrder!),
                 ),
               ],
-            );
-          }
-
-          return _buildListSection(filtered);
-        },
-      ),
+            )
+          : _buildListSection(filtered),
     );
   }
 
@@ -147,19 +218,34 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           ),
           child: Column(
             children: [
-              TextField(
-                onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                decoration: InputDecoration(
-                  hintText: 'ابحث برقم الأوردر...',
-                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () => setState(() => _searchQuery = ''),
-                        )
-                      : null,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                      decoration: InputDecoration(
+                        hintText: 'ابحث برقم الأوردر...',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () => setState(() => _searchQuery = ''),
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, size: 22, color: PieColors.inkSecondary),
+                    tooltip: 'تحديث السجل',
+                    onPressed: () {
+                      PieSoundService.instance.click();
+                      _refreshOrders();
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               SingleChildScrollView(
@@ -183,12 +269,21 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         // List
         Expanded(
           child: orders.isEmpty
-              ? const PieEmptyState(
+              ? PieEmptyState(
                   title: 'مفيش فواتير مطابقة',
                   description: 'كل الفواتير المسجلة في السيستم هتظهر هنا.',
                   icon: Icons.receipt_outlined,
+                  actionLabel: 'تحديث السجل',
+                  onAction: () {
+                    PieSoundService.instance.click();
+                    _refreshOrders();
+                  },
                 )
-              : ListView.separated(
+              : RefreshIndicator(
+                  color: PieColors.cashierAccent,
+                  backgroundColor: PieColors.surfaceOverlay,
+                  onRefresh: _refreshOrders,
+                  child: ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: orders.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -287,6 +382,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                     );
                   },
                 ),
+              ),
         ),
       ],
     );
@@ -436,7 +532,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                         ? order.canonicalOrderNumber!
                         : (order.provisionalOrderNumber.isNotEmpty ? order.provisionalOrderNumber : order.localId);
 
-                    if (context.mounted) {
+                    if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           backgroundColor: PieColors.surface2,

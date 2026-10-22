@@ -97,6 +97,24 @@ class LocalOrderRepository implements OrderRepository {
     return orders;
   }
 
+  @override
+  Stream<List<Order>> watchOrders() {
+    return LocalStores.orders.query().onSnapshots(_db.db).map((snapshots) {
+      final orders = <Order>[];
+      for (final s in snapshots) {
+        try {
+          orders.add(Order.fromRecord(s.value));
+        } catch (e) {
+          AppLogger.warn('Skipping corrupted order record ${s.key}: $e');
+        }
+      }
+      orders.sort(
+        (a, b) => b.createdAt.compareTo(a.createdAt),
+      );
+      return orders;
+    });
+  }
+
   /// Applies a sync acknowledgement to the order an outbox entry refers to.
   /// Used as the [SyncEngine]'s `onApplied` callback.
   Future<void> applySynced(OutboxEntry entry) async {

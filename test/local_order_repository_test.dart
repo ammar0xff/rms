@@ -115,4 +115,18 @@ void main() {
     ));
     expect(await repo.listOrders(), isEmpty);
   });
+
+  test('watchOrders emits updates reactively when orders are created', () async {
+    final stream = repo.watchOrders();
+    final expectation = expectLater(
+      stream,
+      emitsInOrder([
+        isEmpty,
+        hasLength(1),
+      ]),
+    );
+
+    await repo.createOrder(const OrderDraft(items: _items));
+    await expectation;
+  });
 }

@@ -12,11 +12,13 @@ import '../../domain/models/delivery.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
+import '../../core/logging/app_logger.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/models/payment.dart';
 import '../../domain/services/receipt_print_service.dart';
 import 'pos_checkout_dialog.dart';
 import 'pos_customise_sheet.dart';
+import 'pos_receipt_success_dialog.dart';
 
 /// Screen 1: Point of Sale (نقطة البيع وبناء الطلب)
 ///
@@ -140,8 +142,12 @@ class _PosScreenState extends State<PosScreen> {
     if (_cartItems.isEmpty) return;
 
     final services = AppScope.of(context);
+    Order? createdOrderResult;
+    String? resolvedPaymentMethod;
+    double? resolvedTendered;
+    double? resolvedChange;
 
-    await PosCheckoutDialog.show(
+    final didCheckout = await PosCheckoutDialog.show(
       context,
       totalAmount: _totalAmount,
       subtotal: _subtotal,
@@ -149,7 +155,11 @@ class _PosScreenState extends State<PosScreen> {
       serviceAmount: _serviceAmount,
       discountAmount: 0.0,
       orderType: _selectedChannel,
-      onComplete: (paymentMethod, {customerName, customerPhone, deliveryAddress}) async {
+      onComplete: (paymentMethod, {customerName, customerPhone, deliveryAddress, tenderedAmount}) async {
+        if (services.orders == null) {
+          throw StateError('قاعدة البيانات غير متاحة حالياً، تعذر حفظ الفاتورة');
+        }
+
         // Write order locally first
         final draft = OrderDraft(
           items: List.of(_cartItems),
@@ -160,107 +170,146 @@ class _PosScreenState extends State<PosScreen> {
           createdOffline: services.sync?.isOnline != true,
         );
 
-        final createdOrder = await services.orders?.createOrder(draft);
+        final createdOrder = await services.orders!.createOrder(draft);
+        createdOrderResult = createdOrder;
+        resolvedPaymentMethod = paymentMethod == PaymentMethod.card ? 'فيزا / بطاقة' : 'نقدي';
+        resolvedTendered = tenderedAmount ?? _totalAmount;
+        resolvedChange = (paymentMethod == PaymentMethod.cash && (tenderedAmount ?? _totalAmount) > _totalAmount)
+            ? ((tenderedAmount ?? _totalAmount) - _totalAmount)
+            : 0.0;
+
+        final orderRef = createdOrder.canonicalOrderNumber ?? createdOrder.provisionalOrderNumber;
 
         // Record payment & delivery if successful
-        if (createdOrder != null) {
-          final orderRef = createdOrder.canonicalOrderNumber ?? createdOrder.provisionalOrderNumber;
-
-          await services.payments?.recordPayment(
-            PaymentDraft(
-              orderLocalId: createdOrder.localId,
-              orderRef: orderRef,
-              amount: _totalAmount,
-              method: paymentMethod,
-              createdOffline: services.sync?.isOnline != true,
-            ),
-          );
-
-          // Save customer info if provided
-          if (customerName != null || customerPhone != null) {
-            try {
-              await services.customers?.createCustomer(
-                name: customerName?.isNotEmpty == true ? customerName! : 'عميل',
-                phone: customerPhone ?? '',
-                notes: deliveryAddress ?? '',
-                createdOffline: services.sync?.isOnline != true,
-              );
-            } catch (_) {}
-          }
-
-          // Handle delivery channel: create job and auto-dispatch or manual assign
-          if (_selectedChannel == OrderType.delivery) {
-            final delivery = await services.deliveries?.createDelivery(
-              orderRef: orderRef,
-              address: deliveryAddress?.isNotEmpty == true ? deliveryAddress! : 'العنوان غير محدد',
-              amount: _totalAmount,
-              createdOffline: services.sync?.isOnline != true,
-            );
-
-            final facility = await services.facility?.load();
-            final autoDispatch = facility?.autoAssignDelivery ?? true;
-
-            if (autoDispatch) {
-              await services.deliveries?.autoAssignWaiting();
-            } else if (delivery != null && mounted) {
-              await _showManualDriverAssignDialog(context, delivery.id, orderRef);
-            }
-          }
-          // Print receipt automatically
+        if (services.payments != null) {
           try {
-            final facility = await services.facility?.load();
-            await ReceiptPrintService.printOrder(
-              order: createdOrder,
-              facility: facility,
-              printService: services.print,
-              paymentMethod: paymentMethod == PaymentMethod.card ? 'فيزا / بطاقة' : 'نقدي',
-              paidAmount: _totalAmount,
+            await services.payments!.recordPayment(
+              PaymentDraft(
+                orderLocalId: createdOrder.localId,
+                orderRef: orderRef,
+                amount: _totalAmount,
+                method: paymentMethod,
+                tendered: tenderedAmount,
+                createdOffline: services.sync?.isOnline != true,
+              ),
+            );
+          } catch (e) {
+            AppLogger.warn('Payment record warning: $e');
+          }
+        }
+
+        // Save customer info if provided
+        if (customerName != null || customerPhone != null) {
+          try {
+            await services.customers?.createCustomer(
+              name: customerName?.isNotEmpty == true ? customerName! : 'عميل',
+              phone: customerPhone ?? '',
+              notes: deliveryAddress ?? '',
+              createdOffline: services.sync?.isOnline != true,
             );
           } catch (_) {}
         }
 
-        if (mounted) {
-          final orderRef = createdOrder != null
-              ? (createdOrder.canonicalOrderNumber ?? createdOrder.provisionalOrderNumber)
-              : '';
-          setState(() {
-            _cartItems.clear();
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: PieColors.surface2,
-              duration: const Duration(seconds: 4),
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded, color: PieColors.stateSynced, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'تم إنشاء الفاتورة #$orderRef بنجاح وجاري الطباعة',
-                      style: PieTypography.body.copyWith(color: PieColors.stateSynced),
-                    ),
-                  ),
-                ],
-              ),
-              action: createdOrder != null
-                  ? SnackBarAction(
-                      label: 'إعادة طباعة',
-                      textColor: PieColors.cashierAccent,
-                      onPressed: () async {
-                        final facility = await services.facility?.load();
-                        await ReceiptPrintService.printOrder(
-                          order: createdOrder,
-                          facility: facility,
-                          printService: services.print,
-                        );
-                      },
-                    )
-                  : null,
-            ),
+        // Handle delivery channel: create job and auto-dispatch or manual assign
+        if (_selectedChannel == OrderType.delivery) {
+          final delivery = await services.deliveries?.createDelivery(
+            orderRef: orderRef,
+            address: deliveryAddress?.isNotEmpty == true ? deliveryAddress! : 'العنوان غير محدد',
+            amount: _totalAmount,
+            createdOffline: services.sync?.isOnline != true,
           );
+
+          final facility = await services.facility?.load();
+          final autoDispatch = facility?.autoAssignDelivery ?? true;
+
+          if (autoDispatch) {
+            await services.deliveries?.autoAssignWaiting();
+          } else if (delivery != null && mounted) {
+            await _showManualDriverAssignDialog(context, delivery.id, orderRef);
+          }
         }
       },
     );
+
+    if (didCheckout == true && createdOrderResult != null && mounted) {
+      final createdOrder = createdOrderResult!;
+      final orderRef = createdOrder.canonicalOrderNumber ?? createdOrder.provisionalOrderNumber;
+      final facility = await services.facility?.load();
+
+      // Clear the cart on successful checkout
+      setState(() {
+        _cartItems.clear();
+      });
+
+      // Background print trigger
+      ReceiptPrintService.printOrder(
+        order: createdOrder,
+        facility: facility,
+        printService: services.print,
+        paymentMethod: resolvedPaymentMethod,
+        paidAmount: resolvedTendered,
+        changeDue: resolvedChange,
+      );
+
+      // Show immediate confirmation & print dialog
+      if (mounted) {
+        await PosReceiptSuccessDialog.show(
+          context,
+          order: createdOrder,
+          facility: facility,
+          paymentMethod: resolvedPaymentMethod,
+          paidAmount: resolvedTendered,
+          changeDue: resolvedChange,
+          onPrint: () async {
+            final fac = await services.facility?.load();
+            await ReceiptPrintService.printOrder(
+              order: createdOrder,
+              facility: fac,
+              printService: services.print,
+              paymentMethod: resolvedPaymentMethod,
+              paidAmount: resolvedTendered,
+              changeDue: resolvedChange,
+            );
+          },
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: PieColors.surface2,
+            duration: const Duration(seconds: 4),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: PieColors.stateSynced, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'تم إنشاء الفاتورة #$orderRef بنجاح',
+                    style: PieTypography.body.copyWith(color: PieColors.stateSynced),
+                  ),
+                ),
+              ],
+            ),
+            action: SnackBarAction(
+              label: 'إعادة طباعة',
+              textColor: PieColors.cashierAccent,
+              onPressed: () async {
+                final fac = await services.facility?.load();
+                await ReceiptPrintService.printOrder(
+                  order: createdOrder,
+                  facility: fac,
+                  printService: services.print,
+                  paymentMethod: resolvedPaymentMethod,
+                  paidAmount: resolvedTendered,
+                  changeDue: resolvedChange,
+                );
+              },
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
