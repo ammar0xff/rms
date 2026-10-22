@@ -65,7 +65,7 @@ class _ShiftScreenState extends State<ShiftScreen> {
       final ordersRepo = services.orders;
 
       final session = await cashSessionsRepo?.currentSession();
-      double expected = session?.openingFloat ?? 500.0;
+      double expected = session?.openingFloat ?? 0.0;
       if (session != null && cashSessionsRepo != null) {
         try {
           expected = await cashSessionsRepo.expectedCash(session);
@@ -212,8 +212,8 @@ class _ShiftScreenState extends State<ShiftScreen> {
   Widget _buildShiftHeaderCard(CashSession? session, double expectedCashAmount) {
     final isOpen = session?.isOpen ?? false;
     final openedAt = session?.openedAt ?? DateTime.now();
-    final rawFloat = session?.openingFloat ?? 500.0;
-    final openingFloat = rawFloat.isFinite ? rawFloat : 500.0;
+    final rawFloat = session?.openingFloat ?? 0.0;
+    final openingFloat = rawFloat.isFinite ? rawFloat : 0.0;
     final rawExpected = session != null ? expectedCashAmount : openingFloat;
     final expectedCash = rawExpected.isFinite ? rawExpected : openingFloat;
 

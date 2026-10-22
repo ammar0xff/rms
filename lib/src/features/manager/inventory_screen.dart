@@ -107,6 +107,191 @@ class _InventoryScreenState extends State<InventoryScreen>
     );
   }
 
+  Future<void> _openAddItemDialog() async {
+    final nameCtrl = TextEditingController();
+    final skuCtrl = TextEditingController();
+    final unitCtrl = TextEditingController(text: 'كجم');
+    final onHandCtrl = TextEditingController(text: '10');
+    final minQtyCtrl = TextEditingController(text: '5');
+    final costCtrl = TextEditingController(text: '50');
+    final formKey = GlobalKey<FormState>();
+
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: PieColors.surfaceOverlay,
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: PieColors.managerSurface,
+                  borderRadius: PieRadius.borderMd,
+                ),
+                child: const Icon(Icons.add_box_outlined,
+                    color: PieColors.roleManager, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text('إضافة صنف مخزني جديد', style: PieTypography.heading),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    autofocus: true,
+                    style: PieTypography.body,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم الصنف أو الخامة',
+                      hintText: 'مثال: جبنة موزاريلا إيطالي',
+                    ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'اكتب اسم الصنف' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: skuCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'كود الصنف / SKU',
+                            hintText: 'مثال: RAW-01',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: unitCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'وحدة القياس',
+                            hintText: 'كجم / لتر / قطعة',
+                          ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty) ? 'حدد الوحدة' : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: onHandCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'الرصيد الافتتاحي',
+                            hintText: '0',
+                          ),
+                          validator: (v) =>
+                              (v == null || double.tryParse(v) == null) ? 'رقم صحيح' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: minQtyCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'حد إعادة الطلب',
+                            hintText: '5',
+                          ),
+                          validator: (v) =>
+                              (v == null || double.tryParse(v) == null) ? 'رقم صحيح' : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: costCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'تكلفة الوحدة (ج.م)',
+                      hintText: '50.0',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(false),
+              child: Text('إلغاء',
+                  style: PieTypography.body.copyWith(color: PieColors.inkSecondary)),
+            ),
+            PieButton.primary(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(dialogCtx).pop(true);
+                }
+              },
+              label: 'حفظ وإضافة للمخزون',
+              accentColor: PieColors.roleManager,
+              height: 40,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (created == true && mounted) {
+      final repo = AppScope.of(context).inventory;
+      if (repo == null) return;
+      final itemId = 'inv-${DateTime.now().millisecondsSinceEpoch}';
+      final onHand = double.tryParse(onHandCtrl.text.trim()) ?? 0.0;
+      final minQty = double.tryParse(minQtyCtrl.text.trim()) ?? 5.0;
+
+      final newItem = InventoryItemModel(
+        id: itemId,
+        name: nameCtrl.text.trim(),
+        unit: unitCtrl.text.trim(),
+        onHand: onHand,
+        reorderAt: minQty,
+      );
+
+      await repo.cacheItems([newItem], replace: false);
+      if (onHand > 0) {
+        try {
+          await repo.recordMovement(
+            itemId: itemId,
+            delta: onHand,
+            reason: StockMovementReason.receipt,
+            reference: 'افتتاحي يدوي',
+          );
+        } catch (_) {}
+      }
+
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: PieColors.surface2,
+            content: Text(
+              'تمت إضافة الصنف ${newItem.name} بنجاح',
+              style: PieTypography.body.copyWith(color: const Color(0xFF4ADE80)),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -144,6 +329,14 @@ class _InventoryScreenState extends State<InventoryScreen>
                   icon: const Icon(Icons.refresh, color: PieColors.textSecondary),
                   tooltip: 'تحديث البيانات',
                   onPressed: _loadData,
+                ),
+                const SizedBox(width: 4),
+                PieButton.primary(
+                  icon: Icons.add_rounded,
+                  label: 'إضافة صنف',
+                  accentColor: PieColors.roleManager,
+                  height: 36,
+                  onPressed: _openAddItemDialog,
                 ),
                 const SizedBox(width: 8),
               ],
@@ -225,10 +418,33 @@ class _InventoryScreenState extends State<InventoryScreen>
         // Items list & Desktop detail split
         Expanded(
           child: filtered.isEmpty
-              ? const PieEmptyState(
-                  icon: Icons.inventory_outlined,
-                  title: 'لا توجد أصناف تطابق البحث',
-                  subtitle: 'تأكد من كتابة الاسم بدقة أو ألغِ تفعيل فلتر النواقص.',
+              ? Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        PieEmptyState(
+                          icon: Icons.inventory_outlined,
+                          title: _items.isEmpty
+                              ? 'المخزن فارغ حالياً'
+                              : 'لا توجد أصناف تطابق البحث',
+                          subtitle: _items.isEmpty
+                              ? 'اضغط على زر «إضافة صنف» لتسجيل الخامات والمنتجات وأرصدتها.'
+                              : 'تأكد من كتابة الاسم بدقة أو ألغِ تفعيل فلتر النواقص.',
+                        ),
+                        if (_items.isEmpty) ...[
+                          const SizedBox(height: 16),
+                          PieButton.primary(
+                            icon: Icons.add_rounded,
+                            label: 'إضافة صنف مخزني جديد',
+                            accentColor: PieColors.roleManager,
+                            onPressed: _openAddItemDialog,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 )
               : isDesktop
                   ? Row(

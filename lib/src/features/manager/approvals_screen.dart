@@ -35,10 +35,15 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
     if (verified && mounted) {
       final services = AppScope.of(context);
+      final managerName = services.isDemo
+          ? 'المدير العام'
+          : (services.auth.currentUser?.displayName ??
+              services.auth.currentUser?.email?.split('@').first ??
+              'المدير العام');
       await services.approvals?.decide(
         req.id,
         approved: true,
-        decidedBy: 'المدير العام',
+        decidedBy: managerName,
         note: 'تم الاعتماد بنجاح',
       );
 
@@ -106,10 +111,13 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
     if (confirmed == true && mounted) {
       final services = AppScope.of(context);
+      final managerName = services.auth.currentUser?.displayName ??
+          services.auth.currentUser?.email?.split('@').first ??
+          'المدير العام';
       await services.approvals?.decide(
         req.id,
         approved: false,
-        decidedBy: 'المدير العام',
+        decidedBy: managerName,
         note: noteController.text.trim(),
       );
 

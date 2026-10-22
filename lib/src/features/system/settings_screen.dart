@@ -95,16 +95,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final activeBranch = await branchRepo?.activeBranch();
 
     if (mounted) {
+      final isDemo = services.isDemo;
       setState(() {
-        _nameArCtrl.text = settings.nameAr.isEmpty ? 'مطعم الفطيرة الذهبية' : settings.nameAr;
-        _nameEnCtrl.text = settings.nameEn.isEmpty ? 'The Golden Pie' : settings.nameEn;
-        _receiptNameCtrl.text = settings.receiptName.isEmpty ? 'الفطيرة الذهبية - فرع المعادي' : settings.receiptName;
-        _taxIdCtrl.text = settings.taxId.isEmpty ? '394-201-842' : settings.taxId;
-        _commRegCtrl.text = settings.commercialRegister.isEmpty ? '108429' : settings.commercialRegister;
+        _nameArCtrl.text = settings.nameAr.isEmpty ? (isDemo ? 'مطعم الفطيرة الذهبية' : '') : settings.nameAr;
+        _nameEnCtrl.text = settings.nameEn.isEmpty ? (isDemo ? 'The Golden Pie' : '') : settings.nameEn;
+        _receiptNameCtrl.text = settings.receiptName.isEmpty ? (isDemo ? 'الفطيرة الذهبية - فرع المعادي' : '') : settings.receiptName;
+        _taxIdCtrl.text = settings.taxId.isEmpty ? (isDemo ? '394-201-842' : '') : settings.taxId;
+        _commRegCtrl.text = settings.commercialRegister.isEmpty ? (isDemo ? '108429' : '') : settings.commercialRegister;
         _vatRateCtrl.text = (settings.vatRate * 100).toStringAsFixed(0);
         _serviceRateCtrl.text = (settings.serviceRate * 100).toStringAsFixed(0);
         _receiptFooterCtrl.text = settings.receiptFooter.isEmpty
-            ? 'شكراً لزيارتكم! الرقم الضريبي موثق.'
+            ? (isDemo ? 'شكراً لزيارتكم! الرقم الضريبي موثق.' : '')
             : settings.receiptFooter;
         _printerCodepage = settings.printerCodepage;
         _printerIpCtrl.text = settings.printerIp;
@@ -193,9 +194,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final selectedBranch = _branches.firstWhere(
       (b) => b.id == _activeBranchId,
       orElse: () => BranchModel(
-        id: _activeBranchId,
-        name: 'بوابة الشمال',
-        code: 'NS-01',
+        id: _activeBranchId.isNotEmpty ? _activeBranchId : 'main',
+        name: 'الفرع الرئيسي',
+        code: 'MAIN',
         city: 'القاهرة',
         timezone: 'Africa/Cairo',
         openedAt: DateTime.now(),

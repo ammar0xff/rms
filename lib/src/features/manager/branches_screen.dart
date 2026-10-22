@@ -23,14 +23,137 @@ class BranchesScreen extends StatefulWidget {
 }
 
 class _BranchesScreenState extends State<BranchesScreen> {
+  Future<void> _showAddBranchDialog(AppServices services) async {
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+    final cityCtrl = TextEditingController(text: 'القاهرة');
+    final formKey = GlobalKey<FormState>();
+
+    final added = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: PieColors.surfaceOverlay,
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: PieColors.managerSurface,
+                  borderRadius: PieRadius.borderMd,
+                ),
+                child: const Icon(Icons.add_business_outlined,
+                    color: PieColors.managerAccent, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text('إضافة فرع جديد للشبكة', style: PieTypography.heading),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الفرع',
+                    hintText: 'مثال: فرع التجمع الخامس',
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'اكتب اسم الفرع' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'كود الفرع (Code)',
+                    hintText: 'مثال: TAG-03',
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'اكتب كود الفرع' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: cityCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'المدينة / المحافظة',
+                    hintText: 'مثال: القاهرة أو الجيزة',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(false),
+              child: Text('إلغاء',
+                  style: PieTypography.body.copyWith(color: PieColors.inkSecondary)),
+            ),
+            PieButton.primary(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(dialogCtx).pop(true);
+                }
+              },
+              label: 'حفظ الفرع',
+              accentColor: PieColors.managerAccent,
+              height: 40,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (added == true && mounted) {
+      final branchRepo = services.branches;
+      if (branchRepo == null) return;
+      final newBranch = BranchModel(
+        id: 'branch-${DateTime.now().millisecondsSinceEpoch}',
+        name: nameCtrl.text.trim(),
+        code: codeCtrl.text.trim().toUpperCase(),
+        city: cityCtrl.text.trim().isEmpty ? 'القاهرة' : cityCtrl.text.trim(),
+        timezone: 'Africa/Cairo',
+        openedAt: DateTime.now(),
+        status: BranchStatus.active,
+      );
+      final existing = await branchRepo.listBranches();
+      await branchRepo.cacheBranches([...existing, newBranch], replace: true);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: PieColors.surface2,
+            content: Text(
+              'تمت إضافة ${newBranch.name} بنجاح إلى شبكة الفروع',
+              style: PieTypography.body.copyWith(color: const Color(0xFF4ADE80)),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showNewTransferDialog(List<BranchModel> branches) async {
-    final itemController = TextEditingController(text: 'لحم برجر مفروم');
-    final qtyController = TextEditingController(text: '10');
-    final unitController = TextEditingController(text: 'كجم');
+    final itemController = TextEditingController();
+    final qtyController = TextEditingController();
+    final unitController = TextEditingController();
     final noteController = TextEditingController();
 
-    String donorBranchId = branches.length > 1 ? branches[1].id : 'maadi';
-    String donorBranchName = branches.length > 1 ? branches[1].name : 'فرع المعادي';
+    String donorBranchId = branches.length > 1
+        ? branches[1].id
+        : (branches.isNotEmpty ? branches.first.id : '');
+    String donorBranchName = branches.length > 1
+        ? branches[1].name
+        : (branches.isNotEmpty ? branches.first.name : '');
 
     await showDialog(
       context: context,
@@ -46,7 +169,10 @@ class _BranchesScreenState extends State<BranchesScreen> {
               children: [
                 TextField(
                   controller: itemController,
-                  decoration: const InputDecoration(labelText: 'اسم الخامة / الصنف'),
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الخامة / الصنف',
+                    hintText: 'مثال: جبنة موتزاريلا أو لحم مفروم',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -56,7 +182,10 @@ class _BranchesScreenState extends State<BranchesScreen> {
                       child: TextField(
                         controller: qtyController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'الكمية'),
+                        decoration: const InputDecoration(
+                          labelText: 'الكمية',
+                          hintText: 'مثال: 10',
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -64,7 +193,10 @@ class _BranchesScreenState extends State<BranchesScreen> {
                       flex: 4,
                       child: TextField(
                         controller: unitController,
-                        decoration: const InputDecoration(labelText: 'الوحدة'),
+                        decoration: const InputDecoration(
+                          labelText: 'الوحدة',
+                          hintText: 'كجم / لتر / علبة',
+                        ),
                       ),
                     ),
                   ],
@@ -73,13 +205,16 @@ class _BranchesScreenState extends State<BranchesScreen> {
                 Text('الفرع المانح (المحول منه):', style: PieTypography.label),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
-                  value: donorBranchId,
+                  value: donorBranchId.isNotEmpty ? donorBranchId : null,
                   dropdownColor: PieColors.surface2,
-                  items: branches.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
+                  items: branches
+                      .map((b) => DropdownMenuItem(value: b.id, child: Text(b.name)))
+                      .toList(),
                   onChanged: (val) {
                     if (val != null) {
                       donorBranchId = val;
-                      donorBranchName = branches.firstWhere((b) => b.id == val).name;
+                      donorBranchName =
+                          branches.firstWhere((b) => b.id == val).name;
                     }
                   },
                 ),
@@ -97,22 +232,30 @@ class _BranchesScreenState extends State<BranchesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('إلغاء', style: PieTypography.body.copyWith(color: PieColors.inkSecondary)),
+              child: Text('إلغاء',
+                  style: PieTypography.body.copyWith(color: PieColors.inkSecondary)),
             ),
             PieButton.primary(
               onPressed: () async {
                 final qty = double.tryParse(qtyController.text) ?? 1.0;
                 final services = AppScope.of(context);
+                final activeBranch = await services.branches?.activeBranch();
+                final toBranchId = activeBranch?.id ?? 'main-branch';
+                final toBranchName = activeBranch?.name ?? 'الفرع الحالي';
 
                 await services.transfers?.requestTransfer(
                   itemId: 'raw_${DateTime.now().millisecondsSinceEpoch}',
-                  itemName: itemController.text.trim(),
+                  itemName: itemController.text.trim().isEmpty
+                      ? 'خامة غير محددة'
+                      : itemController.text.trim(),
                   quantity: qty,
-                  unit: unitController.text.trim(),
+                  unit: unitController.text.trim().isEmpty
+                      ? 'وحدة'
+                      : unitController.text.trim(),
                   fromBranchId: donorBranchId,
                   fromBranchName: donorBranchName,
-                  toBranchId: 'dokki',
-                  toBranchName: 'فرع الدقي الرئيسي',
+                  toBranchId: toBranchId,
+                  toBranchName: toBranchName,
                   note: noteController.text.trim(),
                 );
 
@@ -150,31 +293,67 @@ class _BranchesScreenState extends State<BranchesScreen> {
             transferRepo?.listTransfers() ?? Future.value(<StockTransfer>[]),
           ]),
           builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-            final branches = (snapshot.data?[0] as List?)?.cast<BranchModel>() ?? [
-              BranchModel(
-                id: 'dokki',
-                name: 'فرع الدقي الرئيسي',
-                code: 'DKI-01',
-                city: 'القاهرة',
-                timezone: 'Africa/Cairo',
-                openedAt: DateTime(2024, 1, 1),
-                status: BranchStatus.active,
-              ),
-              BranchModel(
-                id: 'maadi',
-                name: 'فرع المعادي',
-                code: 'MDI-02',
-                city: 'القاهرة',
-                timezone: 'Africa/Cairo',
-                openedAt: DateTime(2024, 3, 1),
-                status: BranchStatus.active,
-              ),
-            ];
-            final transfers = (snapshot.data?[1] as List?)?.cast<StockTransfer>() ?? [];
+            final rawBranches =
+                (snapshot.data?[0] as List?)?.cast<BranchModel>() ?? [];
+            final branches = rawBranches.isNotEmpty
+                ? rawBranches
+                : (services.isDemo
+                    ? [
+                        BranchModel(
+                          id: 'dokki',
+                          name: 'فرع الدقي الرئيسي',
+                          code: 'DKI-01',
+                          city: 'القاهرة',
+                          timezone: 'Africa/Cairo',
+                          openedAt: DateTime(2024, 1, 1),
+                          status: BranchStatus.active,
+                        ),
+                        BranchModel(
+                          id: 'maadi',
+                          name: 'فرع المعادي',
+                          code: 'MDI-02',
+                          city: 'القاهرة',
+                          timezone: 'Africa/Cairo',
+                          openedAt: DateTime(2024, 3, 1),
+                          status: BranchStatus.active,
+                        ),
+                      ]
+                    : <BranchModel>[]);
+            final transfers =
+                (snapshot.data?[1] as List?)?.cast<StockTransfer>() ?? [];
 
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Top Header Actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'شبكة الفروع والتحويل المخزني',
+                      style: PieTypography.subheading.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'تحديث البيانات',
+                          icon: const Icon(Icons.refresh_rounded, color: PieColors.inkSecondary),
+                          onPressed: () => setState(() {}),
+                        ),
+                        const SizedBox(width: 8),
+                        PieButton.primary(
+                          icon: Icons.add_business_outlined,
+                          label: 'إضافة فرع جديد',
+                          accentColor: PieColors.managerAccent,
+                          onPressed: () => _showAddBranchDialog(services),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
                 // Request Transfer CTA Card
                 PieCard(
                   padding: const EdgeInsets.all(18),
@@ -194,8 +373,10 @@ class _BranchesScreenState extends State<BranchesScreen> {
                         ],
                       );
                       final button = PieButton.primary(
-                        onPressed: () => _showNewTransferDialog(branches),
-                        label: 'طلب تحويل',
+                        onPressed: branches.isEmpty
+                            ? () => _showAddBranchDialog(services)
+                            : () => _showNewTransferDialog(branches),
+                        label: branches.isEmpty ? 'إضافة فرع أولاً' : 'طلب تحويل',
                         icon: Icons.add_rounded,
                         accentColor: PieColors.managerAccent,
                         height: 42,
@@ -223,6 +404,70 @@ class _BranchesScreenState extends State<BranchesScreen> {
                     },
                   ),
                 ),
+                const SizedBox(height: 20),
+
+                // Branches Directory Section
+                Text(
+                  'فروع الشبكة (${branches.length})',
+                  style: PieTypography.heading.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                if (branches.isEmpty)
+                  const PieCard(
+                    padding: EdgeInsets.all(24),
+                    child: PieEmptyState(
+                      title: 'لا توجد فروع مسجلة بالشبكة بعد',
+                      description: 'اضغط على زر «إضافة فرع جديد» بالأعلى لتسجيل الفروع ومستودعات التوزيع.',
+                      icon: Icons.storefront_outlined,
+                    ),
+                  )
+                else
+                  for (final b in branches) ...[
+                    PieCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: PieColors.managerSurface,
+                              borderRadius: PieRadius.borderMd,
+                            ),
+                            child: const Icon(Icons.storefront_outlined, color: PieColors.managerAccent, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(b.name, style: PieTypography.bodyStrong),
+                                Text('كود: ${b.code} • المدينة: ${b.city}',
+                                    style: PieTypography.caption.copyWith(color: PieColors.inkSecondary)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: b.isActive ? const Color(0xFF052E16) : PieColors.surface3,
+                              borderRadius: PieRadius.borderSm,
+                              border: Border.all(
+                                color: b.isActive ? const Color(0xFF4ADE80) : PieColors.border,
+                              ),
+                            ),
+                            child: Text(
+                              b.isActive ? 'نشط' : 'معطل',
+                              style: PieTypography.caption.copyWith(
+                                color: b.isActive ? const Color(0xFF4ADE80) : PieColors.inkMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 const SizedBox(height: 20),
 
                 // Active Transfers Section

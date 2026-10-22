@@ -26,10 +26,24 @@ class CustodySettlementScreen extends StatefulWidget {
 }
 
 class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
-  // Generate daily handover code
-  final String _handoverCode = 'HND-8429';
+  late String _handoverCode;
   bool _isSubmitting = false;
   final Set<String> _locallySettledStopIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final rand = (DateTime.now().millisecondsSinceEpoch % 9000) + 1000;
+    _handoverCode = 'HND-$rand';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppScope.of(context).isDemo) {
+      _handoverCode = 'HND-8429';
+    }
+  }
 
   Future<void> _submitHandover({
     required double totalAmount,

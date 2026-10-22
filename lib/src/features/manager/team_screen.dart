@@ -99,7 +99,7 @@ class _TeamScreenState extends State<TeamScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final services = AppScope.of(context);
-    if (services.firebaseReady) {
+    if (!services.isDemo) {
       _members.clear();
     }
     _listenToLiveUsers();
@@ -442,7 +442,8 @@ class _TeamScreenState extends State<TeamScreen> {
               child: _filteredMembers.isEmpty
                   ? const PieEmptyState(
                       icon: Icons.people_outline,
-                      title: 'لا يوجد أعضاء في هذا الدور',
+                      title: 'لا يوجد موظفون مسجلون في هذا القسم',
+                      subtitle: 'استخدم زر «إضافة موظف» بالأعلى لتسجيل كاشير أو طيار أو مدير جديد للفرع.',
                     )
                   : isDesktop
                       ? Row(

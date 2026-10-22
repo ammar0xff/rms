@@ -128,7 +128,7 @@ class _ZReportScreenState extends State<ZReportScreen> {
     if (confirmed == true && mounted) {
       final services = AppScope.of(context);
       final countedCash = _totalCounted;
-      final expectedCash = session.expectedCash ?? 500.0;
+      final expectedCash = session.expectedCash ?? session.openingFloat;
       final variance = countedCash - expectedCash;
 
       await services.cashSessions?.closeSession(
@@ -166,7 +166,7 @@ class _ZReportScreenState extends State<ZReportScreen> {
         future: services.cashSessions?.currentSession(),
         builder: (context, snapshot) {
           final session = snapshot.data;
-          final expectedCash = session?.expectedCash ?? 500.0;
+          final expectedCash = session?.expectedCash ?? session?.openingFloat ?? 0.0;
           final countedCash = _totalCounted;
           final variance = countedCash - expectedCash;
 

@@ -60,25 +60,27 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
       release = await services.updates!.cached();
     }
 
-    // If no manifest cached, create realistic mock update for preview
-    release ??= UpdateManifest(
-      releaseId: 'rel-1-2-4',
-      version: '1.2.4',
-      buildNumber: 24,
-      platform: UpdatePlatform.android,
-      channel: UpdateChannel.production,
-      status: ReleaseStatus.active,
-      rolloutPercent: 100,
-      severity: UpdateSeverity.recommended,
-      publishedAt: DateTime(2026, 10, 1),
-      artifact: const ReleaseArtifact(
-        reference: 'gs://pie-releases/pie-1.2.4.apk',
-        sizeBytes: 32000000,
-        sha256: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
-      ),
-      minSupportedVersion: '1.1.0',
-      releaseNotes: 'تحسينات في أداء المزامنة التلقائية ومعالجة أوامر التوصيل.',
-    );
+    // If running in demo mode and no manifest cached, create realistic mock update for preview
+    if (services.isDemo) {
+      release ??= UpdateManifest(
+        releaseId: 'rel-1-2-4',
+        version: '1.2.4',
+        buildNumber: 24,
+        platform: UpdatePlatform.android,
+        channel: UpdateChannel.production,
+        status: ReleaseStatus.active,
+        rolloutPercent: 100,
+        severity: UpdateSeverity.recommended,
+        publishedAt: DateTime(2026, 10, 1),
+        artifact: const ReleaseArtifact(
+          reference: 'gs://pie-releases/pie-1.2.4.apk',
+          sizeBytes: 32000000,
+          sha256: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+        ),
+        minSupportedVersion: '1.1.0',
+        releaseNotes: 'تحسينات في أداء المزامنة التلقائية ومعالجة أوامر التوصيل.',
+      );
+    }
 
     if (mounted) {
       setState(() {
@@ -240,7 +242,12 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                                 'حالة التحديث:',
                                 style: PieTypography.body.copyWith(color: PieColors.textSecondary),
                               ),
-                              _buildSeverityBadge(_availableRelease?.severity ?? UpdateSeverity.optional),
+                              _availableRelease == null
+                                  ? const PieBadge(
+                                      label: 'النظام محدث بالكامل',
+                                      variant: PieBadgeVariant.synced,
+                                    )
+                                  : _buildSeverityBadge(_availableRelease!.severity),
                             ],
                           ),
                           if (_availableRelease?.releaseNotes != null && _availableRelease!.releaseNotes.isNotEmpty) ...[
@@ -376,15 +383,21 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                       width: double.infinity,
                       height: 52,
                       child: PieButton(
-                        label: _isInstalling
-                            ? 'جاري التثبيت الآمن...'
-                            : 'تطبيق التحديث وإعادة التشغيل',
-                        icon: Icons.system_update_alt,
+                        label: _availableRelease == null
+                            ? 'التحقق من التحديثات'
+                            : (_isInstalling
+                                ? 'جاري التثبيت الآمن...'
+                                : 'تطبيق التحديث وإعادة التشغيل'),
+                        icon: _availableRelease == null
+                            ? Icons.refresh_rounded
+                            : Icons.system_update_alt,
                         role: AppRole.developer,
                         variant: PieButtonVariant.primary,
-                        onPressed: _isInstalling || (_unsyncedOutboxCount > 0 && !_acknowledgedRisk)
-                            ? null
-                            : _startUpdate,
+                        onPressed: _availableRelease == null
+                            ? _checkUpdate
+                            : (_isInstalling || (_unsyncedOutboxCount > 0 && !_acknowledgedRisk)
+                                ? null
+                                : _startUpdate),
                       ),
                     ),
                   ],

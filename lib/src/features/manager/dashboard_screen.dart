@@ -297,9 +297,10 @@ class DashboardScreen extends StatelessWidget {
     required double takeaway,
     required double delivery,
   }) {
-    final dineInPct = total > 0 ? (dineIn / total) : 0.33;
-    final takeawayPct = total > 0 ? (takeaway / total) : 0.33;
-    final deliveryPct = total > 0 ? (delivery / total) : 0.34;
+    final hasSales = total > 0;
+    final dineInPct = hasSales ? (dineIn / total) : 0.0;
+    final takeawayPct = hasSales ? (takeaway / total) : 0.0;
+    final deliveryPct = hasSales ? (delivery / total) : 0.0;
 
     return PieCard(
       padding: const EdgeInsets.all(18),
@@ -316,22 +317,27 @@ class DashboardScreen extends StatelessWidget {
             borderRadius: PieRadius.borderSm,
             child: SizedBox(
               height: 12,
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: (dineInPct * 100).toInt().clamp(1, 100),
-                    child: Container(color: const Color(0xFF60A5FA)),
-                  ),
-                  Expanded(
-                    flex: (takeawayPct * 100).toInt().clamp(1, 100),
-                    child: Container(color: const Color(0xFFFBBF24)),
-                  ),
-                  Expanded(
-                    flex: (deliveryPct * 100).toInt().clamp(1, 100),
-                    child: Container(color: PieColors.driverAccent),
-                  ),
-                ],
-              ),
+              child: hasSales
+                  ? Row(
+                      children: [
+                        if (dineInPct > 0)
+                          Expanded(
+                            flex: (dineInPct * 100).toInt().clamp(1, 100),
+                            child: Container(color: const Color(0xFF60A5FA)),
+                          ),
+                        if (takeawayPct > 0)
+                          Expanded(
+                            flex: (takeawayPct * 100).toInt().clamp(1, 100),
+                            child: Container(color: const Color(0xFFFBBF24)),
+                          ),
+                        if (deliveryPct > 0)
+                          Expanded(
+                            flex: (deliveryPct * 100).toInt().clamp(1, 100),
+                            child: Container(color: PieColors.driverAccent),
+                          ),
+                      ],
+                    )
+                  : Container(color: PieColors.surface3),
             ),
           ),
           const SizedBox(height: 16),
@@ -404,9 +410,11 @@ class DashboardScreen extends StatelessWidget {
                   borderRadius: PieRadius.borderSm,
                 ),
                 child: Text(
-                  'ذروة النشاط: $peakHour:00 ($maxCount أوردر)',
+                  maxCount > 0
+                      ? 'ذروة النشاط: $peakHour:00 ($maxCount أوردر)'
+                      : 'لا توجد طلبات مسجلة اليوم بعد',
                   style: PieTypography.caption.copyWith(
-                    color: PieColors.managerAccent,
+                    color: maxCount > 0 ? PieColors.managerAccent : PieColors.inkSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

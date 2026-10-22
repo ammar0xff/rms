@@ -49,6 +49,123 @@ class _TablesScreenState extends State<TablesScreen> {
         _isLoading = false;
       });
     }
+  Future<void> _showAddTableDialog() async {
+    final codeCtrl = TextEditingController(text: 'T-${_tables.length + 1}');
+    final zoneCtrl = TextEditingController(text: 'الصالة الرئيسية');
+    final capacityCtrl = TextEditingController(text: '4');
+    final formKey = GlobalKey<FormState>();
+
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: PieColors.surfaceOverlay,
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.border),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: PieColors.cashierSurface,
+                  borderRadius: PieRadius.borderMd,
+                ),
+                child: const Icon(Icons.table_restaurant_outlined,
+                    color: PieColors.cashierAccent, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text('إضافة طاولة جديدة', style: PieTypography.heading),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: codeCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'رقم أو كود الطاولة',
+                    hintText: 'مثال: T-1 أو طاولة 5',
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'اكتب كود الطاولة' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: zoneCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'المنطقة أو الصالة',
+                    hintText: 'مثال: الصالة الرئيسية أو التراس',
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'حدد المنطقة' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: capacityCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'سعة الأفراد',
+                    hintText: '4',
+                  ),
+                  validator: (v) =>
+                      (v == null || int.tryParse(v) == null) ? 'أدخل رقماً صحيحاً' : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(false),
+              child: Text('إلغاء',
+                  style: PieTypography.body.copyWith(color: PieColors.inkSecondary)),
+            ),
+            PieButton.primary(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(dialogCtx).pop(true);
+                }
+              },
+              label: 'حفظ وإضافة',
+              accentColor: PieColors.cashierAccent,
+              height: 40,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (created == true && mounted) {
+      final repo = AppScope.of(context).tables;
+      if (repo == null) return;
+      final newTable = DiningTable(
+        id: 'table-${DateTime.now().millisecondsSinceEpoch}',
+        code: codeCtrl.text.trim(),
+        zone: zoneCtrl.text.trim(),
+        capacity: int.tryParse(capacityCtrl.text.trim()) ?? 4,
+        status: TableStatus.vacant,
+      );
+      await repo.saveFloor([..._tables, newTable]);
+      await _loadTables();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: PieColors.surface2,
+            content: Text(
+              'تمت إضافة الطاولة ${newTable.code} بنجاح',
+              style: PieTypography.body.copyWith(color: const Color(0xFF4ADE80)),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -105,11 +222,21 @@ class _TablesScreenState extends State<TablesScreen> {
               // Table Grid
               Expanded(
                 child: displayedTables.isEmpty
-                    ? const PieEmptyState(
-                        title: 'مفيش طاولات مطابقة',
-                        description: 'جرب تختار فلتر تاني أو قسماً مختلفاً من الصالة.',
-                        icon: Icons.table_restaurant_outlined,
-                      )
+                    ? (allTables.isEmpty
+                        ? PieEmptyState(
+                            title: 'لا توجد طاولات مسجلة',
+                            description:
+                                'أضف طاولات الصالة أو التراس لبدء إدارة وتسكين الطلبات الحية.',
+                            icon: Icons.table_restaurant_outlined,
+                            actionLabel: 'إضافة طاولة جديدة',
+                            onAction: _showAddTableDialog,
+                            accentColor: PieColors.cashierAccent,
+                          )
+                        : const PieEmptyState(
+                            title: 'مفيش طاولات مطابقة',
+                            description: 'جرب تختار فلتر تاني أو قسماً مختلفاً من الصالة.',
+                            icon: Icons.table_restaurant_outlined,
+                          ))
                     : LayoutBuilder(
                         builder: (context, constraints) {
                           final isMobile = constraints.maxWidth < 600;
@@ -142,25 +269,38 @@ class _TablesScreenState extends State<TablesScreen> {
     required int billRequested,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
         color: PieColors.surface1,
         border: Border(bottom: BorderSide(color: PieColors.border, width: 1)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildSummaryItem('إجمالي الطاولات', total, PieColors.ink),
-            const SizedBox(width: 20),
-            _buildSummaryItem('شاغرة', vacant, const Color(0xFF4ADE80)),
-            const SizedBox(width: 20),
-            _buildSummaryItem('مشغولة', occupied, PieColors.cashierAccent),
-            const SizedBox(width: 20),
-            _buildSummaryItem('طلب الحساب', billRequested, const Color(0xFFF87171)),
-          ],
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildSummaryItem('إجمالي الطاولات', total, PieColors.ink),
+                  const SizedBox(width: 20),
+                  _buildSummaryItem('شاغرة', vacant, const Color(0xFF4ADE80)),
+                  const SizedBox(width: 20),
+                  _buildSummaryItem('مشغولة', occupied, PieColors.cashierAccent),
+                  const SizedBox(width: 20),
+                  _buildSummaryItem('طلب الحساب', billRequested, const Color(0xFFF87171)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          PieButton.primary(
+            onPressed: _showAddTableDialog,
+            icon: Icons.add_rounded,
+            label: 'إضافة طاولة',
+            accentColor: PieColors.cashierAccent,
+            height: 36,
+          ),
+        ],
       ),
     );
   }
