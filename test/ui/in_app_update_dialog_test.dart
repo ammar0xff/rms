@@ -6,13 +6,13 @@ import 'package:rms/src/features/system/widgets/in_app_update_dialog.dart';
 final _testSha = List.filled(64, '0').join();
 
 UpdateManifest _testManifest({
-  String version = '0.36.0',
-  int buildNumber = 37,
+  String version = '0.37.0',
+  int buildNumber = 38,
   String releaseNotes = 'تحسينات جذرية في التحديث التلقائي',
   UpdateSeverity severity = UpdateSeverity.optional,
 }) {
   return UpdateManifest(
-    releaseId: 'rel-test-036',
+    releaseId: 'rel-test-037',
     version: version,
     buildNumber: buildNumber,
     platform: UpdatePlatform.android,
@@ -23,7 +23,7 @@ UpdateManifest _testManifest({
     publishedAt: DateTime.parse('2026-10-25T12:00:00.000'),
     manifestSchemaVersion: 1,
     artifact: ReleaseArtifact(
-      reference: 'https://github.com/ammar-monsef/PIE/releases/download/v0.36.0/app-release.apk',
+      reference: 'https://github.com/ammar-monsef/PIE/releases/download/v0.37.0/app-release.apk',
       sizeBytes: 15 * 1024 * 1024,
       sha256: _testSha,
       signature: 'test-signature',
@@ -56,7 +56,7 @@ void main() {
 
       // Verify dialog header and labels
       expect(find.text('تحديث جديد للنظام'), findsOneWidget);
-      expect(find.text('v0.36.0'), findsOneWidget);
+      expect(find.text('v0.37.0'), findsOneWidget);
       expect(find.text('تحسينات جذرية في التحديث التلقائي'), findsOneWidget);
       expect(find.text('تثبيت التحديث الآن'), findsOneWidget);
       expect(find.text('تأجيل'), findsOneWidget);
