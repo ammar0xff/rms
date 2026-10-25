@@ -12,7 +12,6 @@ import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
-import '../../domain/navigation/delivery_navigation.dart';
 import '../../domain/navigation/driver_location_service.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/widgets/pie_toast.dart';
@@ -792,37 +791,18 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 Row(
                   children: [
                     Expanded(
-                      flex: 4,
-                      child: PieButton.primary(
-                        onPressed: () async {
-                          final uri = deliveryNavigationUri(address: delivery.address);
-                          final launched = await openDeliveryNavigation(uri);
-                          if (!launched && context.mounted) {
-                            PieToast.show(context, 'تعذر فتح تطبيق خرائط Google تلقائياً', isError: true);
-                          }
-                        },
-                        label: 'Google (GPS) 🗺️',
-                        icon: Icons.map_rounded,
-                        accentColor: PieColors.driverAccent,
-                        height: 40,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      flex: 3,
                       child: PieButton.secondary(
                         onPressed: () => DriverNavSheet.show(context, delivery: delivery),
-                        label: 'خريطة السير',
+                        label: 'خريطة السير 🗺️',
                         icon: Icons.navigation_rounded,
                         height: 40,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 3,
                       child: PieButton.secondary(
                         onPressed: () => DriverReceiptSheet.show(context, delivery: delivery),
-                        label: 'عرض البون',
+                        label: 'عرض البون 🧾',
                         icon: Icons.receipt_long_rounded,
                         height: 40,
                       ),

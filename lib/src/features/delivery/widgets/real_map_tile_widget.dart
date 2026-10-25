@@ -67,6 +67,7 @@ class RealMapTileWidgetState extends State<RealMapTileWidget>
   late final AnimationController _pulseController;
   late int _zoom;
   Offset _panOffset = Offset.zero;
+  bool _followDriver = true;
   RealMapLayer _activeLayer = RealMapLayer.dark;
   bool _showLayerPicker = false;
 
@@ -280,33 +281,30 @@ class RealMapTileWidgetState extends State<RealMapTileWidget>
 
   void _recenter() {
     setState(() {
+      _followDriver = false;
       _zoom = _calculateFittingZoom(_driverCoord, _destinationCoord);
       _panOffset = Offset.zero;
     });
   }
 
   void _snapToDriver() {
-    final centerCoord = GeoCoord(
-      (_driverCoord.lat + _destinationCoord.lat) / 2.0,
-      (_driverCoord.lng + _destinationCoord.lng) / 2.0,
-    );
     setState(() {
-      _zoom = 15;
-      final centerPixels = _coordToWorldPixels(centerCoord, 15);
-      final driverPixels = _coordToWorldPixels(_driverCoord, 15);
-      _panOffset = Offset(centerPixels.dx - driverPixels.dx, centerPixels.dy - driverPixels.dy);
+      _followDriver = true;
+      _zoom = 16;
+      _panOffset = Offset.zero;
     });
   }
 
   void _snapToDestination() {
-    final centerCoord = GeoCoord(
-      (_driverCoord.lat + _destinationCoord.lat) / 2.0,
-      (_driverCoord.lng + _destinationCoord.lng) / 2.0,
-    );
     setState(() {
-      _zoom = 15;
-      final centerPixels = _coordToWorldPixels(centerCoord, 15);
-      final destPixels = _coordToWorldPixels(_destinationCoord, 15);
+      _followDriver = false;
+      _zoom = 16;
+      final centerCoord = GeoCoord(
+        (_driverCoord.lat + _destinationCoord.lat) / 2.0,
+        (_driverCoord.lng + _destinationCoord.lng) / 2.0,
+      );
+      final centerPixels = _coordToWorldPixels(centerCoord, 16);
+      final destPixels = _coordToWorldPixels(_destinationCoord, 16);
       _panOffset = Offset(centerPixels.dx - destPixels.dx, centerPixels.dy - destPixels.dy);
     });
   }
@@ -347,12 +345,17 @@ class RealMapTileWidgetState extends State<RealMapTileWidget>
 
         final viewportSize = Size(viewportWidth, viewportHeight);
 
-        // Center map midway between driver and destination
-        final centerLat = (_driverCoord.lat + _destinationCoord.lat) / 2.0;
-        final centerLng = (_driverCoord.lng + _destinationCoord.lng) / 2.0;
-        final centerCoord = GeoCoord(centerLat, centerLng);
+        // Center camera: follow driver when active, or center midway between driver and destination
+        final GeoCoord cameraCenter;
+        if (_followDriver) {
+          cameraCenter = _driverCoord;
+        } else {
+          final centerLat = (_driverCoord.lat + _destinationCoord.lat) / 2.0;
+          final centerLng = (_driverCoord.lng + _destinationCoord.lng) / 2.0;
+          cameraCenter = GeoCoord(centerLat, centerLng);
+        }
 
-        final centerPixels = _coordToWorldPixels(centerCoord, _zoom);
+        final centerPixels = _coordToWorldPixels(cameraCenter, _zoom);
 
         final minWorldX = centerPixels.dx - (viewportSize.width / 2) - _panOffset.dx;
         final minWorldY = centerPixels.dy - (viewportSize.height / 2) - _panOffset.dy;
@@ -422,20 +425,17 @@ class RealMapTileWidgetState extends State<RealMapTileWidget>
           }).toList();
         }
 
-        // Calculate Courier screen position based on progress
-        final t = widget.progress.clamp(0.0, 1.0);
-        Offset courierScreenPos = screenPoints.first;
-        double headingAngle = 0.0;
-        if (screenPoints.length >= 2) {
-          final totalSegs = screenPoints.length - 1;
-          final scaledT = t * totalSegs;
-          final curIdx = scaledT.floor().clamp(0, totalSegs - 1);
-          final segT = (scaledT - curIdx).clamp(0.0, 1.0);
+        // Calculate Courier screen position directly from real GPS coordinates
+        final driverWp = _coordToWorldPixels(_driverCoord, _zoom);
+        final Offset courierScreenPos = Offset(driverWp.dx - minWorldX, driverWp.dy - minWorldY);
 
-          final pA = screenPoints[curIdx];
-          final pB = screenPoints[curIdx + 1];
-          courierScreenPos = Offset.lerp(pA, pB, segT)!;
-          headingAngle = math.atan2(pB.dy - pA.dy, pB.dx - pA.dx);
+        final lastLoc = DriverLocationService.instance.lastKnownLocation;
+        double headingAngle = 0.0;
+        if (lastLoc != null && lastLoc.heading > 0) {
+          headingAngle = lastLoc.heading * math.pi / 180.0;
+        } else if (screenPoints.length >= 2) {
+          final destWp = _coordToWorldPixels(_destinationCoord, _zoom);
+          headingAngle = math.atan2(destWp.dy - driverWp.dy, destWp.dx - driverWp.dx);
         }
 
         final mapContent = Stack(
@@ -486,6 +486,7 @@ class RealMapTileWidgetState extends State<RealMapTileWidget>
             onPanUpdate: (details) {
               setState(() {
                 _panOffset += details.delta;
+                _followDriver = false;
               });
             },
             onDoubleTap: _zoomIn,
@@ -717,6 +718,49 @@ class RealMapTileWidgetState extends State<RealMapTileWidget>
                   ),
                 ),
               ),
+              // Floating Recenter to Driver button when panned away
+              if (widget.interactive && widget.showOverlays && !_followDriver)
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _snapToDriver,
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF38BDF8),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF38BDF8).withValues(alpha: 0.4),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.my_location_rounded, size: 16, color: Colors.black),
+                            SizedBox(width: 6),
+                            Text(
+                              'إعادة التمركز 🎯',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                                fontFamily: 'IBMPlexSansArabic',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );

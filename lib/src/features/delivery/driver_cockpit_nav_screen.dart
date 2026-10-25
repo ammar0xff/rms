@@ -60,10 +60,7 @@ class DriverCockpitNavScreen extends StatefulWidget {
   State<DriverCockpitNavScreen> createState() => _DriverCockpitNavScreenState();
 }
 
-class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _simController;
-  bool _isSimulating = false;
+class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen> {
   bool _is3D = false;
   RealMapLayer _activeLayer = RealMapLayer.dark;
   bool _soundEnabled = true;
@@ -112,28 +109,6 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
 
     // Listen to real-time changes to handle mid-trip cancellation or driver reassignment
     SyncMonitor.instance.addListener(_onSyncRefresh);
-
-    _simController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 28),
-    );
-
-    _simController.addListener(() {
-      setState(() {});
-      _checkManeuverChime(_simController.value);
-    });
-
-    _simController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        setState(() {
-          _isSimulating = false;
-          _hasArrived = true;
-        });
-        if (_soundEnabled) {
-          PieSoundService.instance.chime();
-        }
-      }
-    });
   }
 
   void _onSyncRefresh() async {
@@ -193,7 +168,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   }
 
   void _onLocationUpdate() {
-    if (!_isSimulating && mounted) {
+    if (mounted) {
       final loc = DriverLocationService.instance.lastKnownLocation;
       if (loc != null) {
         // Auto-center map upon receiving first live GPS lock
@@ -205,6 +180,15 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
         final distFromLastMeters = _lastRoutedCoord != null
             ? DeliveryGeocoding.haversineDistanceKm(_lastRoutedCoord!, loc.coord) * 1000.0
             : 999.0;
+
+        final distToDestMeters = (DeliveryGeocoding.haversineDistanceKm(loc.coord, _destCoord) * 1000.0).round();
+        if (!_hasArrived && distToDestMeters <= 45) {
+          _hasArrived = true;
+          if (_soundEnabled) {
+            PieSoundService.instance.chime();
+          }
+          PieToast.show(context, '🎉 وصلت إلى موقع العميل بالسلامة!', isSuccess: true);
+        }
 
         // Dynamic rerouting: recalculate route when courier moves > 60 meters
         if (distFromLastMeters > 60.0 ||
@@ -227,38 +211,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     SyncMonitor.instance.removeListener(_onSyncRefresh);
     DriverLocationService.instance.locationNotifier.removeListener(_onLocationUpdate);
     DriverLocationService.instance.stopTracking();
-    _simController.dispose();
     super.dispose();
-  }
-
-  void _checkManeuverChime(double progress) {
-    final idx = (progress * 5).floor().clamp(0, 5);
-    if (idx != _lastManeuverIndex) {
-      _lastManeuverIndex = idx;
-      if (_soundEnabled) {
-        PieSoundService.instance.click();
-      }
-    }
-  }
-
-  void _toggleSimulation() {
-    setState(() {
-      _isSimulating = !_isSimulating;
-      if (_isSimulating) {
-        if (_simController.value >= 1.0) _simController.reset();
-        _simController.forward();
-      } else {
-        _simController.stop();
-      }
-    });
-  }
-
-  void _resetSimulation() {
-    setState(() {
-      _isSimulating = false;
-      _hasArrived = false;
-      _simController.reset();
-    });
   }
 
   Future<void> _callPhone(String phone) async {
@@ -334,59 +287,66 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   @override
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
-    final progress = _simController.value;
+    final loc = DriverLocationService.instance.lastKnownLocation;
+    final int currentSpeed = loc != null && loc.speed > 0 ? loc.speed.round() : 0;
+    final distToDestMeters = (DeliveryGeocoding.haversineDistanceKm(_driverCoord, _destCoord) * 1000.0).round();
 
-    // Dynamic Turn-by-Turn Instruction Calculation based on Progress and Real Geocoding
+    // Real progress and telemetry
+    final initialTripMeters = math.max(1, _totalMeters);
+    final metersRemaining = _hasArrived ? 0 : distToDestMeters;
+    final minutesRemaining = _hasArrived
+        ? 0
+        : (_totalMeters > 0 && metersRemaining > 0
+            ? math.max(1, ((metersRemaining / _totalMeters) * _totalEtaMinutes).round())
+            : DeliveryGeocoding.estimateEtaMinutes(
+                metersRemaining / 1000.0,
+                vehicle: widget.initialVehicle,
+              ));
+    final realProgress = (1.0 - (metersRemaining / initialTripMeters)).clamp(0.0, 1.0);
+
+    // Dynamic Turn-by-Turn Instruction based on live GPS and road maneuvers
     final IconData turnIcon;
     final String instruction;
     final String nextTurn;
-    final int metersRemaining;
-    final int minutesRemaining;
-    final int currentSpeed;
-    final liveSpeed = DriverLocationService.instance.lastKnownLocation?.speed.round() ?? 0;
 
-    if (progress < 0.12) {
-      final m = _maneuvers.first;
-      turnIcon = m.icon;
-      instruction = m.instruction;
-      nextTurn = _maneuvers.length > 1 ? _maneuvers[1].instruction : 'واصل السير نحو الوجهة';
-      metersRemaining = _totalMeters;
-      minutesRemaining = _totalEtaMinutes;
-      currentSpeed = _isSimulating ? 36 : liveSpeed;
-    } else if (progress < 0.45) {
-      final m = _maneuvers.length > 1 ? _maneuvers[1] : _maneuvers.first;
-      turnIcon = m.icon;
-      instruction = m.instruction;
-      nextTurn = _maneuvers.length > 2 ? _maneuvers[2].instruction : 'واصل السير نحو الوجهة';
-      metersRemaining = (_totalMeters * (1.0 - progress)).round();
-      minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
-      currentSpeed = _isSimulating ? 38 : liveSpeed;
-    } else if (progress < 0.75) {
-      final m = _maneuvers.length > 2 ? _maneuvers[2] : _maneuvers.first;
-      turnIcon = m.icon;
-      instruction = m.instruction;
-      nextTurn = _maneuvers.length > 3 ? _maneuvers[3].instruction : 'اقتربت من الوجهة';
-      metersRemaining = (_totalMeters * (1.0 - progress)).round();
-      minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
-      currentSpeed = _isSimulating ? 34 : liveSpeed;
-    } else if (progress < 0.95) {
-      final m = _maneuvers.length > 3 ? _maneuvers[3] : _maneuvers.first;
-      turnIcon = m.icon;
-      instruction = m.instruction;
-      nextTurn = _maneuvers.last.instruction;
-      metersRemaining = (_totalMeters * (1.0 - progress)).round();
-      minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
-      currentSpeed = _isSimulating ? 22 : liveSpeed;
-    } else {
-      final m = _maneuvers.last;
-      turnIcon = m.icon;
-      instruction = 'وصلت إلى موقع العميل بالسلامة!';
+    if (_hasArrived || distToDestMeters <= 45) {
+      final m = _maneuvers.isNotEmpty ? _maneuvers.last : null;
+      turnIcon = m?.icon ?? Icons.check_circle_rounded;
+      instruction = 'وصلت إلى موقع العميل بالسلامة! 🏁';
       nextTurn = widget.delivery.landmark?.isNotEmpty == true
           ? 'علامة: ${widget.delivery.landmark}'
           : widget.delivery.address;
-      metersRemaining = 0;
-      minutesRemaining = 0;
-      currentSpeed = 0;
+    } else if (_maneuvers.isEmpty) {
+      turnIcon = Icons.navigation_rounded;
+      instruction = 'واصل السير نحو ${DeliveryGeocoding.extractStreetName(widget.delivery.address)}';
+      nextTurn = widget.delivery.address;
+    } else {
+      // Find the closest upcoming maneuver along the route
+      int bestIdx = 0;
+      double minManeuverDist = double.infinity;
+      for (int i = 0; i < _maneuvers.length; i++) {
+        final d = DeliveryGeocoding.haversineDistanceKm(_driverCoord, _maneuvers[i].coord) * 1000.0;
+        if (d < minManeuverDist) {
+          minManeuverDist = d;
+          bestIdx = i;
+        }
+      }
+
+      if (bestIdx != _lastManeuverIndex) {
+        _lastManeuverIndex = bestIdx;
+        if (_soundEnabled) {
+          PieSoundService.instance.click();
+        }
+      }
+
+      final m = _maneuvers[bestIdx];
+      turnIcon = m.icon;
+      instruction = m.instruction;
+      if (bestIdx + 1 < _maneuvers.length) {
+        nextTurn = _maneuvers[bestIdx + 1].instruction;
+      } else {
+        nextTurn = 'اقتربت من الوجهة: ${DeliveryGeocoding.extractStreetName(widget.delivery.address)}';
+      }
     }
 
     final vehicleEmoji = widget.initialVehicle.contains('سكوتر')
@@ -411,7 +371,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                   delivery: widget.delivery,
                   driverCoord: _driverCoord,
                   vehicleEmoji: vehicleEmoji,
-                  progress: progress,
+                  progress: realProgress,
                   is3D: _is3D,
                   interactive: true,
                   showOverlays: false,
@@ -572,7 +532,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
-                          value: progress.clamp(0.0, 1.0),
+                          value: realProgress.clamp(0.0, 1.0),
                           backgroundColor: const Color(0xFF1E293B),
                           valueColor: const AlwaysStoppedAnimation<Color>(PieColors.driverAccent),
                           minHeight: 4,
@@ -891,46 +851,6 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                     ),
                     const SizedBox(height: 8),
 
-                    // Simulation Play / Pause / Reset Control
-                    InkWell(
-                      onTap: _toggleSimulation,
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: _isSimulating
-                              ? const Color(0xFF16A34A).withValues(alpha: 0.25)
-                              : const Color(0xFF0F172A).withValues(alpha: 0.92),
-                          borderRadius: PieRadius.borderMd,
-                          border: Border.all(
-                            color: _isSimulating ? const Color(0xFF16A34A) : PieColors.border,
-                          ),
-                        ),
-                        child: Icon(
-                          _isSimulating ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                          size: 20,
-                          color: _isSimulating ? const Color(0xFF16A34A) : Colors.white,
-                        ),
-                      ),
-                    ),
-                    if (progress > 0) ...[
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: _resetSimulation,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A).withValues(alpha: 0.92),
-                            borderRadius: PieRadius.borderMd,
-                            border: Border.all(color: PieColors.border),
-                          ),
-                          child: const Icon(Icons.restart_alt_rounded, size: 18, color: PieColors.inkSecondary),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 8),
                     // Snap to Driver / Current Location
                     Tooltip(
                       message: 'إعادة التمركز على موقعي 🛵',
