@@ -22,7 +22,7 @@ enum RealMapLayer {
 }
 
 /// Real interactive Geographic Slippy Map Tile engine with dynamic route polyline,
-/// authentic tile rendering from CartoDB & OpenStreetMap & ESRI Satellite,
+/// zero-key raster tile rendering from Google Maps, OpenStreetMap & ESRI Satellite,
 /// real destination geocoding, courier beacon, and ergonomic gesture controls.
 class RealMapTileWidget extends StatefulWidget {
   const RealMapTileWidget({
@@ -174,17 +174,76 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
     return Offset(x, y);
   }
 
+  /// Optional CartoDB API key if explicitly provided via --dart-define=CARTO_API_KEY=...
+  static const String _cartoApiKey = String.fromEnvironment('CARTO_API_KEY');
+
+  /// High-contrast night matrix for GPU-accelerated dark mode styling.
+  /// Converts standard road tiles into an authentic dark matter theme without requiring
+  /// any proprietary API keys or external watermarking servers.
+  static const ColorFilter _darkMapFilter = ColorFilter.matrix(<double>[
+    -0.80,  0.00,  0.00, 0.00, 220.0,
+     0.00, -0.80,  0.00, 0.00, 225.0,
+     0.00,  0.00, -0.75, 0.00, 240.0,
+     0.00,  0.00,  0.00, 1.00,   0.0,
+  ]);
+
   String _getTileUrl(int z, int x, int y, RealMapLayer layer) {
+    final sub = ((x + y) % 4).abs();
+    if (_cartoApiKey.isNotEmpty) {
+      switch (layer) {
+        case RealMapLayer.dark:
+          return 'https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png?key=$_cartoApiKey';
+        case RealMapLayer.standard:
+          return 'https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png?key=$_cartoApiKey';
+        case RealMapLayer.light:
+          return 'https://a.basemaps.cartocdn.com/rastertiles/light_all/$z/$x/$y.png?key=$_cartoApiKey';
+        case RealMapLayer.satellite:
+          return 'https://mt$sub.google.com/vt/lyrs=y&x=$x&y=$y&z=$z';
+      }
+    }
+
+    // Default zero-configuration, zero-watermark, fast global map layers:
     switch (layer) {
-      case RealMapLayer.dark:
-        return 'https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png';
       case RealMapLayer.standard:
-        return 'https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png';
+        // Google Maps Standard Roads with full local Arabic & English place names
+        return 'https://mt$sub.google.com/vt/lyrs=m&x=$x&y=$y&z=$z';
+      case RealMapLayer.satellite:
+        // Google Maps Hybrid Satellite (High-res satellite + road network overlay)
+        return 'https://mt$sub.google.com/vt/lyrs=y&x=$x&y=$y&z=$z';
+      case RealMapLayer.dark:
+        // High-clarity road tiles passed through the GPU darkMapFilter
+        return 'https://mt$sub.google.com/vt/lyrs=m&x=$x&y=$y&z=$z';
       case RealMapLayer.light:
-        return 'https://a.basemaps.cartocdn.com/rastertiles/light_all/$z/$x/$y.png';
+        // Google Maps Terrain / High contrast clean light roads
+        return 'https://mt$sub.google.com/vt/lyrs=p&x=$x&y=$y&z=$z';
+    }
+  }
+
+  String? _getFallbackTileUrl(int z, int x, int y, RealMapLayer layer) {
+    switch (layer) {
       case RealMapLayer.satellite:
         return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/$z/$y/$x';
+      case RealMapLayer.standard:
+      case RealMapLayer.dark:
+      case RealMapLayer.light:
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/$z/$y/$x';
     }
+  }
+
+  Widget _buildOfflineTileGrid() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _currentLayer.isLightMode
+            ? const Color(0xFFF1F5F9)
+            : const Color(0xFF0A0F1D),
+        border: Border.all(
+          color: _currentLayer.isLightMode
+              ? const Color(0xFFCBD5E1).withValues(alpha: 0.3)
+              : const Color(0xFF1E293B).withValues(alpha: 0.3),
+          width: 0.5,
+        ),
+      ),
+    );
   }
 
   void _recenter() {
@@ -285,22 +344,25 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
               fit: BoxFit.cover,
               headers: const {'User-Agent': 'PIE-Restaurant-POS/1.0'},
               errorBuilder: (context, error, stackTrace) {
-                // Safe offline / test fallback grid
-                return Container(
-                  decoration: BoxDecoration(
-                    color: _currentLayer.isLightMode
-                        ? const Color(0xFFF1F5F9)
-                        : const Color(0xFF0A0F1D),
-                    border: Border.all(
-                      color: _currentLayer.isLightMode
-                          ? const Color(0xFFCBD5E1).withValues(alpha: 0.3)
-                          : const Color(0xFF1E293B).withValues(alpha: 0.3),
-                      width: 0.5,
-                    ),
-                  ),
-                );
+                final fallbackUrl = _getFallbackTileUrl(_zoom, wrappedTx, ty, _currentLayer);
+                if (fallbackUrl != null && fallbackUrl != tileUrl) {
+                  return Image.network(
+                    fallbackUrl,
+                    fit: BoxFit.cover,
+                    headers: const {'User-Agent': 'PIE-Restaurant-POS/1.0'},
+                    errorBuilder: (context, error, stackTrace) => _buildOfflineTileGrid(),
+                  );
+                }
+                return _buildOfflineTileGrid();
               },
             );
+
+            if (_currentLayer == RealMapLayer.dark && _cartoApiKey.isEmpty) {
+              tileWidget = ColorFiltered(
+                colorFilter: _darkMapFilter,
+                child: tileWidget,
+              );
+            }
 
             tiles.add(
               Positioned(
