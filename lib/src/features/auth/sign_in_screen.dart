@@ -8,6 +8,7 @@ import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
+import '../../core/widgets/pie_logo.dart';
 import '../../domain/models/app_role.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -267,32 +268,7 @@ class _SignInScreenState extends State<SignInScreen> {
           const Spacer(),
 
           // Glowing Brand Logo
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: PieColors.surface2,
-              borderRadius: PieRadius.borderLg,
-              border: Border.all(color: PieColors.cashierAccent, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: PieColors.cashierAccent.withValues(alpha: 0.3),
-                  blurRadius: 28,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text(
-                'π',
-                style: TextStyle(
-                  color: PieColors.cashierAccent,
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
+          const PieLogo(size: 72),
           const SizedBox(height: 24),
 
           // Titles
@@ -398,31 +374,7 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget _buildMobileHeader(bool isDemo) {
     return Column(
       children: [
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: PieColors.surface2,
-            borderRadius: PieRadius.borderLg,
-            border: Border.all(color: PieColors.cashierAccent, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: PieColors.cashierAccent.withValues(alpha: 0.25),
-                blurRadius: 20,
-              ),
-            ],
-          ),
-          child: const Center(
-            child: Text(
-              'π',
-              style: TextStyle(
-                color: PieColors.cashierAccent,
-                fontSize: 34,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
+        const PieLogo(size: 60),
         const SizedBox(height: 14),
         Text(
           'PIE Operations',

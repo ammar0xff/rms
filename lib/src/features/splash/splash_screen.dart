@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
+import '../../core/widgets/pie_logo.dart';
 
 /// Full-featured animated splash screen for PIE Operations.
 class SplashScreen extends StatefulWidget {
@@ -94,33 +95,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   );
                 },
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: PieColors.surface2,
-                    borderRadius: const BorderRadius.all(Radius.circular(28)),
-                    border: Border.all(color: PieColors.roleCashier, width: 2.2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: PieColors.roleCashier.withValues(alpha: 0.35),
-                        blurRadius: 36,
-                        spreadRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'π',
-                      style: TextStyle(
-                        color: PieColors.roleCashier,
-                        fontSize: 54,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
-                      ),
-                    ),
-                  ),
-                ),
+                child: const PieLogo(size: 96),
               ),
               const SizedBox(height: 28),
 
