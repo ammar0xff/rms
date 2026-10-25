@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
@@ -36,6 +37,17 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
     super.initState();
     final rand = (DateTime.now().millisecondsSinceEpoch % 9000) + 1000;
     _handoverCode = 'HND-$rand';
+    SyncMonitor.instance.addListener(_onSyncRefresh);
+  }
+
+  @override
+  void dispose() {
+    SyncMonitor.instance.removeListener(_onSyncRefresh);
+    super.dispose();
+  }
+
+  void _onSyncRefresh() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -181,8 +193,13 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
             final branchId = branch?.id ?? 'main-branch';
 
             // Filter strictly to the authenticated driver's delivered orders
-            final myDeliveries =
-                allDeliveries.where((d) => d.driver == myDriverName).toList();
+            final myDeliveries = allDeliveries
+                .where((d) => DriverSession.instance.isDeliveryAssignedToCurrentDriver(
+                      delivery: d,
+                      user: user,
+                      drivers: drivers,
+                    ))
+                .toList();
 
             final deliveredStops = myDeliveries
                 .where((d) =>

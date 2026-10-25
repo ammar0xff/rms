@@ -28,6 +28,24 @@ class DriverSession {
     }
 
     if (user != null) {
+      // 1. Direct ID match: user.uid matches DriverModel.id
+      for (final d in drivers) {
+        if (d.id == user.uid && d.name.isNotEmpty) {
+          return d.name;
+        }
+      }
+
+      // 2. Direct email match: user.email matches DriverModel.email
+      final userEmail = user.email?.trim().toLowerCase() ?? '';
+      if (userEmail.isNotEmpty) {
+        for (final d in drivers) {
+          if (d.email.isNotEmpty && d.email.trim().toLowerCase() == userEmail && d.name.isNotEmpty) {
+            return d.name;
+          }
+        }
+      }
+
+      // 3. Display name match
       final displayName = user.displayName?.trim() ?? '';
       if (displayName.isNotEmpty) {
         for (final d in drivers) {
@@ -46,6 +64,9 @@ class DriverSession {
             if (d.name == 'كابتن توصيل' || d.name.contains('توصيل')) {
               return d.name;
             }
+          }
+          if (drivers.isNotEmpty) {
+            return drivers.first.name;
           }
           return 'كابتن توصيل';
         }
@@ -76,5 +97,56 @@ class DriverSession {
     }
 
     return 'كابتن التوصيل';
+  }
+
+  /// Checks whether a [DeliveryModel] belongs to the currently active or authenticated courier.
+  bool isDeliveryAssignedToCurrentDriver({
+    required DeliveryModel delivery,
+    required AppUser? user,
+    required List<DriverModel> drivers,
+  }) {
+    final assigned = delivery.driver.trim();
+    if (assigned.isEmpty || assigned == DeliveryModel.unassignedDriver) return false;
+
+    final myName = resolveCurrentDriverName(user: user, drivers: drivers);
+    if (assigned.toLowerCase() == myName.toLowerCase()) return true;
+
+    // Resolve matching driver model for current user
+    DriverModel? myDriverModel;
+    if (user != null) {
+      for (final d in drivers) {
+        if (d.id == user.uid ||
+            (d.email.isNotEmpty && d.email.toLowerCase() == (user.email ?? '').toLowerCase()) ||
+            d.name.toLowerCase() == myName.toLowerCase()) {
+          myDriverModel = d;
+          break;
+        }
+      }
+    }
+
+    if (myDriverModel != null) {
+      if (assigned.toLowerCase() == myDriverModel.name.toLowerCase()) return true;
+      if (assigned.toLowerCase() == myDriverModel.id.toLowerCase()) return true;
+      if (myDriverModel.email.isNotEmpty &&
+          assigned.toLowerCase() == myDriverModel.email.toLowerCase()) {
+        return true;
+      }
+    }
+
+    if (user != null) {
+      if (user.displayName != null &&
+          assigned.toLowerCase() == user.displayName!.trim().toLowerCase()) {
+        return true;
+      }
+      if (user.email != null &&
+          assigned.toLowerCase() == user.email!.trim().toLowerCase()) {
+        return true;
+      }
+      if (assigned.toLowerCase() == user.uid.trim().toLowerCase()) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

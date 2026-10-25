@@ -66,19 +66,44 @@ class CollectionModel {
 
   static CollectionModel fromRecord(Map<String, Object?> record) =>
       CollectionModel(
-        id: record['id'] as String,
-        deliveryId: record['deliveryId'] as String,
-        orderRef: record['orderRef'] as String,
-        driver: record['driver'] as String,
-        amount: (record['amount'] as num).toDouble(),
-        method: PaymentMethod.values.byName(record['method'] as String),
-        collectedAt: DateTime.parse(record['collectedAt'] as String),
+        id: (record['id'] ?? '') as String,
+        deliveryId: (record['deliveryId'] ?? '') as String,
+        orderRef: (record['orderRef'] ?? '') as String,
+        driver: (record['driver'] ?? '') as String,
+        amount: (record['amount'] as num?)?.toDouble() ?? 0.0,
+        method: () {
+          final s = record['method'] as String?;
+          if (s == null) return PaymentMethod.cash;
+          try {
+            return PaymentMethod.values.byName(s);
+          } catch (_) {
+            return PaymentMethod.cash;
+          }
+        }(),
+        collectedAt: record['collectedAt'] == null
+            ? DateTime.now()
+            : (DateTime.tryParse(record['collectedAt'].toString()) ?? DateTime.now()),
         settledAt: record['settledAt'] != null
-            ? DateTime.tryParse(record['settledAt'] as String)
+            ? DateTime.tryParse(record['settledAt'].toString())
             : null,
         createdOffline: record['createdOffline'] as bool? ?? false,
-        settlementStatus: SettlementStatus.values
-            .byName(record['settlementStatus'] as String),
-        syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
+        settlementStatus: () {
+          final s = record['settlementStatus'] as String?;
+          if (s == null) return SettlementStatus.pending;
+          try {
+            return SettlementStatus.values.byName(s);
+          } catch (_) {
+            return SettlementStatus.pending;
+          }
+        }(),
+        syncStatus: () {
+          final s = record['syncStatus'] as String?;
+          if (s == null) return SyncStatus.synced;
+          try {
+            return SyncStatus.values.byName(s);
+          } catch (_) {
+            return SyncStatus.synced;
+          }
+        }(),
       );
 }

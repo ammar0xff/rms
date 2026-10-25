@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/di/app_services.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
@@ -39,6 +40,24 @@ class ActiveTripScreen extends StatefulWidget {
 
 class _ActiveTripScreenState extends State<ActiveTripScreen> {
   String? _expandedStopId;
+  int? _lastActiveCount;
+  Set<String> _previousActiveIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    SyncMonitor.instance.addListener(_onSyncRefresh);
+  }
+
+  @override
+  void dispose() {
+    SyncMonitor.instance.removeListener(_onSyncRefresh);
+    super.dispose();
+  }
+
+  void _onSyncRefresh() {
+    if (mounted) setState(() {});
+  }
 
   Future<void> _callPhone(String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
@@ -100,13 +119,38 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             drivers: drivers,
           );
 
-          final myDeliveries =
-              allDeliveries.where((d) => d.driver == myDriverName).toList();
+          final myDeliveries = allDeliveries
+              .where((d) => DriverSession.instance.isDeliveryAssignedToCurrentDriver(
+                    delivery: d,
+                    user: services.auth.currentUser,
+                    drivers: drivers,
+                  ))
+              .toList();
           final activeDeliveries = myDeliveries
               .where((d) =>
                   d.state != DeliveryState.delivered &&
                   d.state != DeliveryState.failed)
               .toList();
+
+          if (_lastActiveCount != null && activeDeliveries.length > _lastActiveCount!) {
+            final newlyAdded = activeDeliveries.firstWhere(
+              (d) => !_previousActiveIds.contains(d.id),
+              orElse: () => activeDeliveries.first,
+            );
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                PieSoundService.instance.chime();
+                PieToast.show(
+                  context,
+                  'وصلك طلب دليفري جديد برقم #${newlyAdded.orderRef} 🛵',
+                  isSuccess: true,
+                  icon: Icons.two_wheeler_rounded,
+                );
+              }
+            });
+          }
+          _lastActiveCount = activeDeliveries.length;
+          _previousActiveIds = activeDeliveries.map((d) => d.id).toSet();
 
           final totalCustody = myDeliveries
               .where((d) =>
@@ -178,6 +222,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                         isSuccess: true,
                         icon: Icons.two_wheeler_rounded,
                       );
+                      setState(() {});
                     }
                   },
                   label: 'بدء خط السير والتحرك بالطلعة',
@@ -612,6 +657,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                               'تم تسليم الأوردر وإيداع مبلغ ${PieTypography.formatEgp(delivery.amount)} نقداً بالعهدة بنجاح ✅',
                               isSuccess: true,
                             );
+                            setState(() {});
                           }
                         },
                         label: 'تم التسليم واستلام العهدة ✅',
@@ -624,7 +670,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     Expanded(
                       flex: 4,
                       child: PieButton.destructive(
-                        onPressed: () => DriverFailDialog.show(context, delivery: delivery),
+                        onPressed: () async {
+                          final failed = await DriverFailDialog.show(context, delivery: delivery);
+                          if (failed == true && mounted) {
+                            setState(() {});
+                          }
+                        },
                         label: 'تعذر التسليم',
                         icon: Icons.cancel_outlined,
                         height: 42,

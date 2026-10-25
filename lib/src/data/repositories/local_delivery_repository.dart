@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../domain/assignment/delivery_assignment.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/collection.dart';
@@ -57,6 +58,12 @@ class LocalDeliveryRepository implements DeliveryRepository {
         snapshots.map((s) => DeliveryModel.fromRecord(s.value)).toList();
     deliveries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return deliveries;
+  }
+
+  @override
+  Future<DeliveryModel?> getDelivery(String deliveryId) async {
+    final record = await LocalStores.deliveries.record(deliveryId).get(_db.db);
+    return record == null ? null : DeliveryModel.fromRecord(record);
   }
 
   static const List<DeliveryZone> defaultDeliveryZones = [
@@ -151,6 +158,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
         snapshot: driver.toRecord(),
       );
     }
+    SyncMonitor.instance.refresh();
   }
 
   @override
@@ -203,6 +211,13 @@ class LocalDeliveryRepository implements DeliveryRepository {
         ),
       );
     });
+    await mirrorRecord(
+      _mirror,
+      entityType: 'delivery',
+      entityId: id,
+      snapshot: delivery.toRecord(),
+    );
+    SyncMonitor.instance.refresh();
     return delivery;
   }
 
@@ -228,6 +243,18 @@ class LocalDeliveryRepository implements DeliveryRepository {
         reason: reason,
       );
     });
+    if (outcome == AssignmentOutcome.assigned) {
+      final updated = await getDelivery(deliveryId);
+      if (updated != null) {
+        await mirrorRecord(
+          _mirror,
+          entityType: 'delivery',
+          entityId: deliveryId,
+          snapshot: updated.toRecord(),
+        );
+      }
+      SyncMonitor.instance.refresh();
+    }
     return outcome;
   }
 
@@ -266,6 +293,22 @@ class LocalDeliveryRepository implements DeliveryRepository {
         );
       }
     });
+    for (final res in results) {
+      if (res.outcome == AssignmentOutcome.assigned) {
+        final d = await getDelivery(res.deliveryId);
+        if (d != null) {
+          await mirrorRecord(
+            _mirror,
+            entityType: 'delivery',
+            entityId: d.id,
+            snapshot: d.toRecord(),
+          );
+        }
+      }
+    }
+    if (results.isNotEmpty) {
+      SyncMonitor.instance.refresh();
+    }
     return results;
   }
 
@@ -427,6 +470,16 @@ class LocalDeliveryRepository implements DeliveryRepository {
         ),
       );
     });
+    final updated = await getDelivery(deliveryId);
+    if (updated != null) {
+      await mirrorRecord(
+        _mirror,
+        entityType: 'delivery',
+        entityId: deliveryId,
+        snapshot: updated.toRecord(),
+      );
+    }
+    SyncMonitor.instance.refresh();
     AppLogger.info('Delivery $deliveryId failed ($reason).');
   }
 
@@ -482,6 +535,16 @@ class LocalDeliveryRepository implements DeliveryRepository {
         ),
       );
     });
+    final updated = await getDelivery(deliveryId);
+    if (updated != null) {
+      await mirrorRecord(
+        _mirror,
+        entityType: 'delivery',
+        entityId: deliveryId,
+        snapshot: updated.toRecord(),
+      );
+    }
+    SyncMonitor.instance.refresh();
   }
 
   @override
@@ -556,6 +619,24 @@ class LocalDeliveryRepository implements DeliveryRepository {
         ),
       );
     });
+    if (collection != null) {
+      await mirrorRecord(
+        _mirror,
+        entityType: 'collection',
+        entityId: collection!.id,
+        snapshot: collection!.toRecord(),
+      );
+      final updated = await getDelivery(deliveryId);
+      if (updated != null) {
+        await mirrorRecord(
+          _mirror,
+          entityType: 'delivery',
+          entityId: deliveryId,
+          snapshot: updated.toRecord(),
+        );
+      }
+      SyncMonitor.instance.refresh();
+    }
     return collection;
   }
 
@@ -657,6 +738,16 @@ class LocalDeliveryRepository implements DeliveryRepository {
         ),
       );
     });
+    final updated = await getDelivery(deliveryId);
+    if (updated != null) {
+      await mirrorRecord(
+        _mirror,
+        entityType: 'delivery',
+        entityId: deliveryId,
+        snapshot: updated.toRecord(),
+      );
+    }
+    SyncMonitor.instance.refresh();
   }
 
   /// Marks the delivery (or collection) an outbox entry refers to as synced and

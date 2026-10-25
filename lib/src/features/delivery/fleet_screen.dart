@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
@@ -30,6 +31,31 @@ class FleetScreen extends StatefulWidget {
 
 class _FleetScreenState extends State<FleetScreen> {
   bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SyncMonitor.instance.addListener(_onSyncRefresh);
+  }
+
+  @override
+  void dispose() {
+    SyncMonitor.instance.removeListener(_onSyncRefresh);
+    super.dispose();
+  }
+
+  void _onSyncRefresh() {
+    if (mounted) setState(() {});
+  }
+
+  bool _deliveryMatchesDriver(DeliveryModel d, DriverModel driver) {
+    final assigned = d.driver.trim().toLowerCase();
+    if (assigned.isEmpty) return false;
+    if (assigned == driver.name.trim().toLowerCase()) return true;
+    if (assigned == driver.id.trim().toLowerCase()) return true;
+    if (driver.email.isNotEmpty && assigned == driver.email.trim().toLowerCase()) return true;
+    return false;
+  }
 
   Future<void> _showAddDriverDialog(AppServices services) async {
     final user = services.auth.currentUser;
@@ -592,7 +618,7 @@ class _FleetScreenState extends State<FleetScreen> {
 
                 for (final driver in drivers) {
                   final activeJobs = deliveries.where((d) =>
-                      d.driver == driver.name &&
+                      _deliveryMatchesDriver(d, driver) &&
                       (d.state == DeliveryState.assigned ||
                           d.state == DeliveryState.onRoute));
                   if (activeJobs.isNotEmpty) {
@@ -603,7 +629,7 @@ class _FleetScreenState extends State<FleetScreen> {
                   }
 
                   final unsettledDelivered = deliveries.where((d) =>
-                      d.driver == driver.name &&
+                      _deliveryMatchesDriver(d, driver) &&
                       d.state == DeliveryState.delivered &&
                       d.settlementStatus != SettlementStatus.settled);
                   for (final job in unsettledDelivered) {
@@ -1017,14 +1043,14 @@ class _FleetScreenState extends State<FleetScreen> {
   }) {
     final activeOrders = allDeliveries
         .where((d) =>
-            d.driver == driver.name &&
+            _deliveryMatchesDriver(d, driver) &&
             (d.state == DeliveryState.assigned ||
                 d.state == DeliveryState.onRoute))
         .toList();
 
     final unsettledDelivered = allDeliveries
         .where((d) =>
-            d.driver == driver.name &&
+            _deliveryMatchesDriver(d, driver) &&
             d.state == DeliveryState.delivered &&
             d.settlementStatus != SettlementStatus.settled)
         .toList();

@@ -305,10 +305,10 @@ void main() {
     expect(settles.single.entityId, delivery.id);
     expect(settles.single.payload['settlement'], 10.0);
 
-    // Still awaiting server confirmation.
+    // Settled locally so cash drawer expectedCash reflects it immediately.
     expect(
       (await repo.listDeliveries()).single.settlementStatus,
-      SettlementStatus.pending,
+      SettlementStatus.settled,
     );
   });
 

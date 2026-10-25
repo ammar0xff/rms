@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/di/app_services.dart';
@@ -438,7 +439,11 @@ class _PosScreenState extends State<PosScreen> {
           final autoDispatch = facility?.autoAssignDelivery ?? true;
 
           if (autoDispatch) {
-            await services.deliveries?.autoAssignWaiting();
+            final assignedList = await services.deliveries?.autoAssignWaiting();
+            final wasAssigned = assignedList?.any((d) => d.deliveryId == delivery?.id) ?? false;
+            if (!wasAssigned && delivery != null && mounted) {
+              await _showManualDriverAssignDialog(context, delivery.id, orderRef);
+            }
           } else if (delivery != null && mounted) {
             await _showManualDriverAssignDialog(context, delivery.id, orderRef);
           }
@@ -1743,7 +1748,32 @@ class _PosScreenState extends State<PosScreen> {
     final driversRepo = services.deliveries;
     if (driversRepo == null) return;
 
-    final drivers = await driversRepo.listDrivers();
+    var drivers = await driversRepo.listDrivers();
+    if (drivers.isEmpty) {
+      if (services.inboundSync != null) {
+        await services.inboundSync!.waitForInitialCollection('drivers', timeout: const Duration(milliseconds: 1500));
+        drivers = await driversRepo.listDrivers();
+      }
+      if (drivers.isEmpty) {
+        try {
+          final snap = await FirebaseFirestore.instance.collection('drivers').get();
+          if (snap.docs.isNotEmpty) {
+            final fetched = snap.docs.map<DriverModel>((doc) {
+              final data = doc.data();
+              return DriverModel(
+                id: doc.id,
+                name: data['name']?.toString() ?? 'كابتن',
+                available: data['available'] == true || data['status'] == 'available',
+                phone: data['phone']?.toString(),
+                email: data['email']?.toString() ?? '',
+              );
+            }).toList();
+            await driversRepo.cacheDrivers(fetched);
+            drivers = fetched;
+          }
+        } catch (_) {}
+      }
+    }
     final allDeliveries = await driversRepo.listDeliveries();
 
     if (!mounted) return;

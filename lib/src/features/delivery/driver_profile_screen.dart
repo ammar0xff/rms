@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/pwa/pwa_cache_service.dart';
 import '../../core/sound/pie_sound_service.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
@@ -32,6 +33,22 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   bool _isUpdating = false;
   bool _isClearingCache = false;
   String _selectedVehicle = 'موتوسيكل';
+
+  @override
+  void initState() {
+    super.initState();
+    SyncMonitor.instance.addListener(_onSyncRefresh);
+  }
+
+  @override
+  void dispose() {
+    SyncMonitor.instance.removeListener(_onSyncRefresh);
+    super.dispose();
+  }
+
+  void _onSyncRefresh() {
+    if (mounted) setState(() {});
+  }
 
   Future<void> _clearBrowserCache() async {
     setState(() => _isClearingCache = true);
@@ -128,7 +145,9 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
 
             DriverModel? currentDriver;
             for (final d in allDrivers) {
-              if (d.name == myDriverName) {
+              if (d.name == myDriverName ||
+                  (user != null && d.id == user.uid) ||
+                  (user?.email != null && d.email.isNotEmpty && d.email.toLowerCase() == user!.email!.toLowerCase())) {
                 currentDriver = d;
                 break;
               }
@@ -141,7 +160,11 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
               builder: (context, deliverySnap) {
                 final allDeliveries = deliverySnap.data ?? [];
                 final myDeliveries = allDeliveries
-                    .where((d) => d.driver == myDriverName)
+                    .where((d) => DriverSession.instance.isDeliveryAssignedToCurrentDriver(
+                          delivery: d,
+                          user: user,
+                          drivers: allDrivers,
+                        ))
                     .toList();
 
                 final activeStops = myDeliveries

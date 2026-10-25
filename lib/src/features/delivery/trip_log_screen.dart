@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
@@ -26,6 +27,22 @@ class _TripLogScreenState extends State<TripLogScreen> {
   DeliveryState? _selectedFilter;
 
   @override
+  void initState() {
+    super.initState();
+    SyncMonitor.instance.addListener(_onSyncRefresh);
+  }
+
+  @override
+  void dispose() {
+    SyncMonitor.instance.removeListener(_onSyncRefresh);
+    super.dispose();
+  }
+
+  void _onSyncRefresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
     final deliveryRepo = services.deliveries;
@@ -45,8 +62,13 @@ class _TripLogScreenState extends State<TripLogScreen> {
               drivers: drivers,
             );
 
-            final myDeliveries =
-                allDeliveries.where((d) => d.driver == myDriverName).toList();
+            final myDeliveries = allDeliveries
+                .where((d) => DriverSession.instance.isDeliveryAssignedToCurrentDriver(
+                      delivery: d,
+                      user: services.auth.currentUser,
+                      drivers: drivers,
+                    ))
+                .toList();
             final deliveredList = myDeliveries
                 .where((d) => d.state == DeliveryState.delivered)
                 .toList();

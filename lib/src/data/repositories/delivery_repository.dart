@@ -30,6 +30,9 @@ class DeliveryAssignmentResult {
 abstract class DeliveryRepository {
   Future<List<DeliveryModel>> listDeliveries();
 
+  /// Retrieves a single delivery by ID, or null if not found.
+  Future<DeliveryModel?> getDelivery(String deliveryId);
+
   Future<List<DriverModel>> listDrivers();
 
   Future<void> cacheDrivers(List<DriverModel> drivers, {bool replace = true});

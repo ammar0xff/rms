@@ -129,12 +129,22 @@ class DeliveryModel {
       };
 
   static DeliveryModel fromRecord(Map<String, Object?> record) => DeliveryModel(
-        id: record['id'] as String,
-        orderRef: record['orderRef'] as String,
-        address: record['address'] as String,
-        amount: (record['amount'] as num).toDouble(),
-        state: DeliveryState.values.byName(record['state'] as String),
-        createdAt: DateTime.parse(record['createdAt'] as String),
+        id: (record['id'] ?? record['localId'] ?? '') as String,
+        orderRef: (record['orderRef'] ?? '') as String,
+        address: (record['address'] ?? '') as String,
+        amount: (record['amount'] as num?)?.toDouble() ?? 0.0,
+        state: () {
+          final s = record['state'] as String?;
+          if (s == null) return DeliveryState.waiting;
+          try {
+            return DeliveryState.values.byName(s);
+          } catch (_) {
+            return DeliveryState.waiting;
+          }
+        }(),
+        createdAt: record['createdAt'] == null
+            ? DateTime.now()
+            : (DateTime.tryParse(record['createdAt'].toString()) ?? DateTime.now()),
         driver: record['driver'] as String? ?? unassignedDriver,
         customerName: record['customerName'] as String?,
         customerPhone: record['customerPhone'] as String?,
@@ -142,17 +152,38 @@ class DeliveryModel {
         zoneName: record['zoneName'] as String?,
         zoneFee: (record['zoneFee'] as num?)?.toDouble(),
         offline: record['offline'] as bool? ?? false,
-        settlementStatus: SettlementStatus.values
-            .byName(record['settlementStatus'] as String? ?? 'pending'),
+        settlementStatus: () {
+          final s = record['settlementStatus'] as String?;
+          if (s == null) return SettlementStatus.pending;
+          try {
+            return SettlementStatus.values.byName(s);
+          } catch (_) {
+            return SettlementStatus.pending;
+          }
+        }(),
         localRevision: (record['localRevision'] as int?) ?? 1,
-        syncStatus: SyncStatus.values.byName(record['syncStatus'] as String),
+        syncStatus: () {
+          final s = record['syncStatus'] as String?;
+          if (s == null) return SyncStatus.synced;
+          try {
+            return SyncStatus.values.byName(s);
+          } catch (_) {
+            return SyncStatus.synced;
+          }
+        }(),
         failedReason: record['failedReason'] == null
             ? null
-            : DeliveryFailureReason.values
-                .byName(record['failedReason'] as String),
+            : () {
+                try {
+                  return DeliveryFailureReason.values
+                      .byName(record['failedReason'] as String);
+                } catch (_) {
+                  return null;
+                }
+              }(),
         failedAt: record['failedAt'] == null
             ? null
-            : DateTime.parse(record['failedAt'] as String),
+            : DateTime.tryParse(record['failedAt'].toString()),
       );
 }
 
@@ -162,21 +193,29 @@ class DriverModel {
     required this.id,
     required this.name,
     this.available = true,
+    this.phone,
+    this.email = '',
   });
 
   final String id;
   final String name;
   final bool available;
+  final String? phone;
+  final String email;
 
   Map<String, Object?> toRecord() => {
         'id': id,
         'name': name,
         'available': available,
+        if (phone != null) 'phone': phone,
+        if (email.isNotEmpty) 'email': email,
       };
 
   static DriverModel fromRecord(Map<String, Object?> record) => DriverModel(
-        id: (record['id'] ?? record['uid'] ?? '') as String,
-        name: (record['name'] ?? record['displayName'] ?? record['email'] ?? 'كابتن توصيل') as String,
+        id: (record['id'] ?? record['uid'] ?? '').toString(),
+        name: (record['name'] ?? record['displayName'] ?? record['email'] ?? 'كابتن توصيل').toString(),
         available: record['available'] as bool? ?? true,
+        phone: record['phone']?.toString(),
+        email: (record['email'] ?? '').toString(),
       );
 }
