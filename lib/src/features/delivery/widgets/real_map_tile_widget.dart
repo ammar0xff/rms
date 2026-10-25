@@ -8,13 +8,17 @@ import '../../../domain/navigation/driver_location_service.dart';
 
 /// Available map imagery layers
 enum RealMapLayer {
-  dark('🌙 ليلي', 'خريطة ليلية حقيقية عالية التباين'),
-  street('☀️ شوارع', 'خريطة شوارع تفصيلية باللغة العربية'),
-  satellite('🛰️ قمر صناعي', 'صور أقمار صناعية حقيقية ملتقطة من الفضاء');
+  standard('🗺️ كلاسيكي', 'خريطة شوارع قياسية (Standard)'),
+  satellite('🛰️ قمر صناعي', 'صور أقمار صناعية حقيقية (Satellite)'),
+  dark('🌙 ليلي', 'خريطة ليلية عالية التباين (Dark)'),
+  light('☀️ نهاري', 'خريطة نهارية فاتحة عالية الوضوح (Light)');
 
   const RealMapLayer(this.label, this.description);
   final String label;
   final String description;
+
+  static RealMapLayer get street => standard;
+  bool get isLightMode => this == RealMapLayer.standard || this == RealMapLayer.light;
 }
 
 /// Real interactive Geographic Slippy Map Tile engine with dynamic route polyline,
@@ -32,6 +36,8 @@ class RealMapTileWidget extends StatefulWidget {
     this.showFollowMarker = true,
     this.showOverlays = true,
     this.initialZoom = 15,
+    this.activeLayer,
+    this.onLayerChanged,
     this.onProgressChanged,
     this.height,
   });
@@ -45,6 +51,8 @@ class RealMapTileWidget extends StatefulWidget {
   final bool showFollowMarker;
   final bool showOverlays;
   final int initialZoom;
+  final RealMapLayer? activeLayer;
+  final ValueChanged<RealMapLayer>? onLayerChanged;
   final ValueChanged<double>? onProgressChanged;
   final double? height;
 
@@ -58,15 +66,20 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
   late int _zoom;
   Offset _panOffset = Offset.zero;
   RealMapLayer _activeLayer = RealMapLayer.dark;
+  bool _showLayerPicker = false;
 
   late GeoCoord _destinationCoord;
   late GeoCoord _driverCoord;
   late List<NavManeuver> _maneuvers;
+  DrivingRoute? _drivingRoute;
   bool _isLiveGps = false;
+
+  RealMapLayer get _currentLayer => widget.activeLayer ?? _activeLayer;
 
   @override
   void initState() {
     super.initState();
+    _activeLayer = widget.activeLayer ?? RealMapLayer.dark;
     _resolveCoordinates();
     _zoom = _calculateFittingZoom(_driverCoord, _destinationCoord);
     _pulseController = AnimationController(
@@ -104,6 +117,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
   @override
   void didUpdateWidget(covariant RealMapTileWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.activeLayer != null && widget.activeLayer != _activeLayer) {
+      _activeLayer = widget.activeLayer!;
+    }
     if (oldWidget.delivery.id != widget.delivery.id ||
         oldWidget.delivery.address != widget.delivery.address ||
         oldWidget.driverCoord?.lat != widget.driverCoord?.lat ||
@@ -121,6 +137,20 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
       origin: _driverCoord,
       destination: _destinationCoord,
     );
+    _fetchRoadRoute();
+  }
+
+  Future<void> _fetchRoadRoute() async {
+    final route = await DeliveryGeocoding.fetchRealDrivingRoute(
+      _driverCoord,
+      _destinationCoord,
+      delivery: widget.delivery,
+    );
+    if (mounted && route.points.isNotEmpty) {
+      setState(() {
+        _drivingRoute = route;
+      });
+    }
   }
 
   @override
@@ -148,8 +178,10 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
     switch (layer) {
       case RealMapLayer.dark:
         return 'https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png';
-      case RealMapLayer.street:
+      case RealMapLayer.standard:
         return 'https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png';
+      case RealMapLayer.light:
+        return 'https://a.basemaps.cartocdn.com/rastertiles/light_all/$z/$x/$y.png';
       case RealMapLayer.satellite:
         return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/$z/$y/$x';
     }
@@ -200,10 +232,17 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
     }
   }
 
+  void _selectLayer(RealMapLayer layer) {
+    setState(() {
+      _activeLayer = layer;
+      _showLayerPicker = false;
+    });
+    widget.onLayerChanged?.call(layer);
+  }
+
   void _cycleLayer() {
     setState(() {
-      final nextIdx = (_activeLayer.index + 1) % RealMapLayer.values.length;
-      _activeLayer = RealMapLayer.values[nextIdx];
+      _showLayerPicker = !_showLayerPicker;
     });
   }
 
@@ -237,7 +276,7 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
         for (int ty = startTileY; ty <= endTileY; ty++) {
           for (int tx = startTileX; tx <= endTileX; tx++) {
             final wrappedTx = ((tx % numTiles) + numTiles) % numTiles;
-            final tileUrl = _getTileUrl(_zoom, wrappedTx, ty, _activeLayer);
+            final tileUrl = _getTileUrl(_zoom, wrappedTx, ty, _currentLayer);
             final left = tx * 256.0 - minWorldX;
             final top = ty * 256.0 - minWorldY;
 
@@ -249,11 +288,11 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                 // Safe offline / test fallback grid
                 return Container(
                   decoration: BoxDecoration(
-                    color: _activeLayer == RealMapLayer.street
+                    color: _currentLayer.isLightMode
                         ? const Color(0xFFF1F5F9)
                         : const Color(0xFF0A0F1D),
                     border: Border.all(
-                      color: _activeLayer == RealMapLayer.street
+                      color: _currentLayer.isLightMode
                           ? const Color(0xFFCBD5E1).withValues(alpha: 0.3)
                           : const Color(0xFF1E293B).withValues(alpha: 0.3),
                       width: 0.5,
@@ -275,11 +314,19 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
           }
         }
 
-        // Project route maneuvers into screen space
-        final screenPoints = _maneuvers.map((m) {
-          final wp = _coordToWorldPixels(m.coord, _zoom);
-          return Offset(wp.dx - minWorldX, wp.dy - minWorldY);
-        }).toList();
+        // Project route into screen space: prefer real OSRM road coordinates if fetched
+        final List<Offset> screenPoints;
+        if (_drivingRoute != null && _drivingRoute!.points.isNotEmpty) {
+          screenPoints = _drivingRoute!.points.map((p) {
+            final wp = _coordToWorldPixels(p, _zoom);
+            return Offset(wp.dx - minWorldX, wp.dy - minWorldY);
+          }).toList();
+        } else {
+          screenPoints = _maneuvers.map((m) {
+            final wp = _coordToWorldPixels(m.coord, _zoom);
+            return Offset(wp.dx - minWorldX, wp.dy - minWorldY);
+          }).toList();
+        }
 
         // Calculate Courier screen position based on progress
         final t = widget.progress.clamp(0.0, 1.0);
@@ -320,7 +367,7 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                     vehicleEmoji: widget.vehicleEmoji,
                     orderRef: widget.delivery.orderRef,
                     clientAddress: widget.delivery.address,
-                    isDark: _activeLayer != RealMapLayer.street,
+                    isDark: !_currentLayer.isLightMode,
                     isFromBranch: isFromBranch,
                   ),
                 );
@@ -387,8 +434,8 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                         const SizedBox(width: 5),
                         Text(
                           _isLiveGps
-                              ? '🛰️ موقع السائق المباشر • ${_activeLayer.label}'
-                              : 'خريطة جغرافية حقيقية • ${_activeLayer.label}',
+                              ? '🛰️ موقع السائق المباشر • ${_currentLayer.label}'
+                              : 'خريطة جغرافية حقيقية • ${_currentLayer.label}',
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -410,9 +457,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                       // Layer Switcher Button
                       _buildMapCircleBtn(
                         icon: Icons.layers_rounded,
-                        tooltip: 'تغيير نوع الخريطة (${_activeLayer.label})',
+                        tooltip: 'تغيير نوع الخريطة (${_currentLayer.label})',
                         onTap: _cycleLayer,
-                        color: PieColors.driverAccent,
+                        color: _showLayerPicker ? const Color(0xFF38BDF8) : PieColors.driverAccent,
                       ),
                       const SizedBox(height: 8),
                       // Snap to Driver Button (موقعي)
@@ -452,6 +499,93 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                         onTap: _zoomOut,
                       ),
                     ],
+                  ),
+                ),
+
+              // Google Maps Style Layer Picker Floating Card
+              if (widget.interactive && _showLayerPicker)
+                Positioned(
+                  top: 10,
+                  left: 54,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.96),
+                      borderRadius: PieRadius.borderMd,
+                      border: Border.all(color: PieColors.driverBorder, width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 12,
+                          offset: const Offset(2, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'نمط الخريطة',
+                              style: TextStyle(
+                                fontFamily: 'IBMPlexSansArabic',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            InkWell(
+                              onTap: () => setState(() => _showLayerPicker = false),
+                              child: const Icon(Icons.close_rounded, size: 14, color: PieColors.inkSecondary),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ...RealMapLayer.values.map((layer) {
+                          final isSelected = layer == _currentLayer;
+                          return InkWell(
+                            onTap: () => _selectLayer(layer),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              margin: const EdgeInsets.only(bottom: 3),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? PieColors.driverAccent.withValues(alpha: 0.18)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isSelected ? PieColors.driverAccent : Colors.transparent,
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    layer.label,
+                                    style: TextStyle(
+                                      fontFamily: 'IBMPlexSansArabic',
+                                      fontSize: 11,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      color: isSelected ? PieColors.driverAccent : Colors.white70,
+                                    ),
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.check_rounded, size: 13, color: PieColors.driverAccent),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -602,10 +736,12 @@ class _RealMapOverlayPainter extends CustomPainter {
     final street = DeliveryGeocoding.extractStreetName(clientAddress);
     _drawBadge(canvas, 'موقع العميل: $street 📍', destPos + const Offset(-45, -24), const Color(0xFFDC2626));
 
-    // 4. Draw Waypoint nodes along the route
-    for (int i = 1; i < screenPoints.length - 1; i++) {
-      canvas.drawCircle(screenPoints[i], 4, Paint()..color = PieColors.driverAccent);
-      canvas.drawCircle(screenPoints[i], 2, Paint()..color = Colors.white);
+    // 4. Draw Waypoint nodes along the route (only for sparse waypoints, not every point of high-res road geometry)
+    if (screenPoints.length <= 14) {
+      for (int i = 1; i < screenPoints.length - 1; i++) {
+        canvas.drawCircle(screenPoints[i], 4, Paint()..color = PieColors.driverAccent);
+        canvas.drawCircle(screenPoints[i], 2, Paint()..color = Colors.white);
+      }
     }
 
     // 5. Draw Animated Radar Pulse around Courier

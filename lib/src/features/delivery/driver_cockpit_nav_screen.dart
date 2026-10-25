@@ -12,12 +12,12 @@ import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/navigation/delivery_geocoding.dart';
-import '../../domain/navigation/delivery_navigation.dart';
 import '../../domain/navigation/driver_location_service.dart';
 import '../../core/widgets/pie_toast.dart';
 import 'driver_custody_collection_dialog.dart';
 import 'driver_fail_dialog.dart';
 import 'widgets/driver_nav_map_canvas.dart';
+import 'widgets/real_map_tile_widget.dart';
 
 /// Screen: Driver In-App Navigation Cockpit (شاشة الملاحة المباشرة بالخريطة الحقيقية)
 ///
@@ -63,6 +63,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   late final AnimationController _simController;
   bool _isSimulating = false;
   bool _is3D = false;
+  RealMapLayer _activeLayer = RealMapLayer.dark;
   bool _soundEnabled = true;
   bool _hasArrived = false;
   bool _isCompleting = false;
@@ -227,26 +228,6 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     }
   }
 
-  Future<void> _launchExternalGoogleMaps() async {
-    final uri = googleMapsTurnByTurnUri(
-      origin: _driverCoord,
-      coord: _destCoord,
-      address: widget.delivery.address,
-    );
-    final launched = await openDeliveryNavigation(uri);
-    if (!launched && mounted) {
-      PieToast.show(context, 'تعذر فتح تطبيق خرائط Google تلقائياً', isError: true);
-    }
-  }
-
-  Future<void> _launchExternalWaze() async {
-    final uri = wazeNavigationUri(coord: _destCoord);
-    final launched = await openDeliveryNavigation(uri);
-    if (!launched && mounted) {
-      PieToast.show(context, 'تعذر فتح تطبيق Waze تلقائياً', isError: true);
-    }
-  }
-
   Future<void> _completeDelivery(AppServices services) async {
     final confirmed = await DriverCustodyCollectionDialog.show(
       context,
@@ -361,6 +342,8 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                   is3D: _is3D,
                   interactive: true,
                   showOverlays: false,
+                  activeLayer: _activeLayer,
+                  onLayerChanged: (l) => setState(() => _activeLayer = l),
                 ),
               ),
 
@@ -623,12 +606,40 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                           ),
                         ),
                         child: Text(
-                          _is3D ? '📐 3D' : '🗺️ 2D',
+                          _is3D ? '🗺️ 2D' : '📐 3D',
                           style: TextStyle(
                             fontFamily: 'IBMPlexSansArabic',
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: _is3D ? PieColors.driverAccent : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Map Style Layer Selector Button
+                    Tooltip(
+                      message: 'نمط الخريطة (${_activeLayer.label})',
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            final nextIdx = (_activeLayer.index + 1) % RealMapLayer.values.length;
+                            _activeLayer = RealMapLayer.values[nextIdx];
+                          });
+                          PieToast.show(context, 'تم تفعيل نمط: ${_activeLayer.label}', isSuccess: true);
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                            borderRadius: PieRadius.borderMd,
+                            border: Border.all(color: PieColors.border),
+                          ),
+                          child: Text(
+                            _activeLayer.label.split(' ').first,
+                            style: const TextStyle(fontSize: 14),
                           ),
                         ),
                       ),
@@ -724,31 +735,6 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Direct Turn-by-Turn GPS Navigation Launcher Bar
-                      Row(
-                        children: [
-                          Expanded(
-                            child: PieButton.primary(
-                              onPressed: _launchExternalGoogleMaps,
-                              label: 'خرائط Google',
-                              icon: Icons.navigation_rounded,
-                              accentColor: PieColors.driverAccent,
-                              height: 38,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: PieButton.secondary(
-                              onPressed: _launchExternalWaze,
-                              label: 'تطبيق Waze',
-                              icon: Icons.explore_rounded,
-                              height: 38,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
                       // Customer Info & Communication Row
                       Row(
                         children: [

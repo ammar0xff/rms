@@ -10,6 +10,7 @@ import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
+import '../../core/widgets/pie_toast.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../data/repositories/cash_session_repository.dart';
 import '../../domain/models/cash_session.dart';
@@ -326,6 +327,18 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
+  void _repeatOrder(Order order) {
+    setState(() {
+      _cartItems.clear();
+      _cartItems.addAll(order.items);
+    });
+    PieSoundService.instance.chime();
+    PieToast.show(
+      context,
+      'تم تكرار عناصر الطلب السابق #${order.canonicalOrderNumber ?? order.provisionalOrderNumber} (${order.items.length} صنف)',
+    );
+  }
+
   Future<void> _startCheckout() async {
     if (!_isShiftOpen) {
       _promptOpenShift();
@@ -350,6 +363,7 @@ class _PosScreenState extends State<PosScreen> {
       serviceAmount: _serviceAmount,
       discountAmount: 0.0,
       orderType: _selectedChannel,
+      onRepeatOrder: (order) => _repeatOrder(order),
       onComplete: (
         paymentMethod, {
         customerName,
@@ -358,9 +372,34 @@ class _PosScreenState extends State<PosScreen> {
         tenderedAmount,
         zoneName,
         zoneFee,
+        latitude,
+        longitude,
+        customerId,
       }) async {
         if (services.orders == null) {
           throw StateError('قاعدة البيانات غير متاحة حالياً، تعذر حفظ الفاتورة');
+        }
+
+        // Save or update customer record if name or phone provided
+        String? resolvedCustomerId = customerId;
+        if ((customerName != null && customerName.isNotEmpty) ||
+            (customerPhone != null && customerPhone.isNotEmpty)) {
+          try {
+            final savedCustomer = await services.customers?.saveOrUpdateCustomer(
+              name: customerName?.isNotEmpty == true ? customerName! : 'عميل',
+              phone: customerPhone ?? '',
+              address: deliveryAddress ?? '',
+              latitude: latitude,
+              longitude: longitude,
+              createdOffline: services.sync?.isOnline != true,
+            );
+            if (savedCustomer != null) {
+              resolvedCustomerId = savedCustomer.id;
+              await services.customers?.recordCustomerOrder(savedCustomer.id);
+            }
+          } catch (e) {
+            AppLogger.warn('Customer record warning: $e');
+          }
         }
 
         // Write order locally first
@@ -371,6 +410,12 @@ class _PosScreenState extends State<PosScreen> {
           serviceAmount: _serviceAmount,
           discountAmount: 0.0,
           deliveryFee: zoneFee ?? 0.0,
+          customerId: resolvedCustomerId,
+          customerName: customerName,
+          customerPhone: customerPhone,
+          deliveryAddress: deliveryAddress,
+          deliveryLatitude: latitude,
+          deliveryLongitude: longitude,
           createdOffline: services.sync?.isOnline != true,
         );
 
@@ -409,18 +454,6 @@ class _PosScreenState extends State<PosScreen> {
           }
         }
 
-        // Save customer info if provided
-        if (customerName != null || customerPhone != null) {
-          try {
-            await services.customers?.createCustomer(
-              name: customerName?.isNotEmpty == true ? customerName! : 'عميل',
-              phone: customerPhone ?? '',
-              notes: deliveryAddress ?? '',
-              createdOffline: services.sync?.isOnline != true,
-            );
-          } catch (_) {}
-        }
-
         // Handle delivery channel: create job and auto-dispatch or manual assign
         if (_selectedChannel == OrderType.delivery) {
           final delivery = await services.deliveries?.createDelivery(
@@ -430,6 +463,8 @@ class _PosScreenState extends State<PosScreen> {
             customerName: customerName,
             customerPhone: customerPhone,
             landmark: deliveryAddress,
+            latitude: latitude,
+            longitude: longitude,
             zoneName: zoneName,
             zoneFee: zoneFee,
             createdOffline: services.sync?.isOnline != true,

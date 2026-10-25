@@ -13,6 +13,13 @@ class Order {
     this.discountAmount = 0.0,
     this.serviceAmount = 0.0,
     this.deliveryFee = 0.0,
+    this.customerId,
+    this.customerName,
+    this.customerPhone,
+    this.deliveryAddress,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
+    this.branchId,
     this.serverId,
     this.canonicalOrderNumber,
     this.localRevision = 1,
@@ -29,6 +36,13 @@ class Order {
   final DateTime createdAt;
   final OrderType orderType;
   final double deliveryFee;
+  final String? customerId;
+  final String? customerName;
+  final String? customerPhone;
+  final String? deliveryAddress;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
+  final String? branchId;
 
   /// Tax charged on top of the items, rounded to cents at creation. Stored on
   /// the order (rather than recomputed at each reader) so the payment, the
@@ -60,6 +74,11 @@ class Order {
   double get total =>
       subtotal - discountAmount + taxAmount + serviceAmount + deliveryFee;
 
+  String get id => serverId ?? localId;
+  String get orderNumber => (canonicalOrderNumber != null && canonicalOrderNumber!.isNotEmpty)
+      ? canonicalOrderNumber!
+      : provisionalOrderNumber;
+
   Map<String, Object?> toRecord() => {
         'localId': localId,
         'provisionalOrderNumber': provisionalOrderNumber,
@@ -71,6 +90,13 @@ class Order {
         'discountAmount': discountAmount,
         'serviceAmount': serviceAmount,
         'deliveryFee': deliveryFee,
+        'customerId': customerId,
+        'customerName': customerName,
+        'customerPhone': customerPhone,
+        'deliveryAddress': deliveryAddress,
+        'deliveryLatitude': deliveryLatitude,
+        'deliveryLongitude': deliveryLongitude,
+        'branchId': branchId,
         'serverId': serverId,
         'canonicalOrderNumber': canonicalOrderNumber,
         'localRevision': localRevision,
@@ -103,6 +129,13 @@ class Order {
         discountAmount: (record['discountAmount'] as num?)?.toDouble() ?? 0.0,
         serviceAmount: (record['serviceAmount'] as num?)?.toDouble() ?? 0.0,
         deliveryFee: (record['deliveryFee'] as num?)?.toDouble() ?? 0.0,
+        customerId: record['customerId'] as String?,
+        customerName: record['customerName'] as String?,
+        customerPhone: record['customerPhone'] as String?,
+        deliveryAddress: record['deliveryAddress'] as String?,
+        deliveryLatitude: (record['deliveryLatitude'] as num?)?.toDouble(),
+        deliveryLongitude: (record['deliveryLongitude'] as num?)?.toDouble(),
+        branchId: record['branchId'] as String?,
         serverId: record['serverId'] as String?,
         canonicalOrderNumber: record['canonicalOrderNumber'] as String?,
         localRevision: record['localRevision'] as int? ?? 1,

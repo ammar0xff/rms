@@ -10,7 +10,6 @@ import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/navigation/delivery_geocoding.dart';
-import '../../domain/navigation/delivery_navigation.dart';
 import '../../domain/navigation/driver_location_service.dart';
 import '../../core/widgets/pie_toast.dart';
 import 'driver_cockpit_nav_screen.dart';
@@ -40,29 +39,6 @@ class DriverNavSheet extends StatelessWidget {
       shape: const RoundedRectangleBorder(borderRadius: PieRadius.topLg),
       builder: (context) => DriverNavSheet(delivery: delivery),
     );
-  }
-
-  Future<void> _launchMaps(BuildContext context) async {
-    final driverCoord = DriverLocationService.instance.effectiveCoord;
-    final dest = DeliveryGeocoding.resolveDestination(delivery);
-    final uri = googleMapsTurnByTurnUri(
-      origin: driverCoord,
-      coord: dest,
-      address: delivery.address,
-    );
-    final launched = await openDeliveryNavigation(uri);
-    if (!launched && context.mounted) {
-      PieToast.show(context, 'تعذر فتح تطبيق الخرائط الخارجي تلقائياً', isError: true);
-    }
-  }
-
-  Future<void> _launchWaze(BuildContext context) async {
-    final dest = DeliveryGeocoding.resolveDestination(delivery);
-    final uri = wazeNavigationUri(coord: dest);
-    final launched = await openDeliveryNavigation(uri);
-    if (!launched && context.mounted) {
-      PieToast.show(context, 'تعذر فتح تطبيق Waze تلقائياً', isError: true);
-    }
   }
 
   void _copyAddress(BuildContext context) {
@@ -182,28 +158,16 @@ class DriverNavSheet extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    // Prominent Direct Navigation Buttons Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: PieButton.primary(
-                            onPressed: () => _launchMaps(context),
-                            label: 'فتح في خرائط Google (GPS مباشر)',
-                            icon: Icons.map_rounded,
-                            accentColor: PieColors.driverAccent,
-                            height: 44,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: PieButton.secondary(
-                            onPressed: () => _launchWaze(context),
-                            label: 'Waze مباشر 🧭',
-                            icon: Icons.explore_rounded,
-                            height: 44,
-                          ),
-                        ),
-                      ],
+                    // Prominent Direct In-App Navigation Button
+                    PieButton.primary(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        DriverCockpitNavScreen.push(context, delivery: delivery);
+                      },
+                      label: 'بدء الملاحة الحية على الخريطة (In-App HUD) 🧭',
+                      icon: Icons.navigation_rounded,
+                      accentColor: PieColors.driverAccent,
+                      height: 46,
                     ),
                   ],
                 ),

@@ -233,10 +233,10 @@ void main() {
       await tester.pumpFewFrames();
 
       expect(find.byType(DriverNavSheet), findsOneWidget);
-      expect(find.text('فتح في خرائط Google (GPS مباشر)'), findsOneWidget);
+      expect(find.textContaining('بدء الملاحة الحية على الخريطة'), findsOneWidget);
       expect(
-        find.descendant(of: find.byType(DriverNavSheet), matching: find.byIcon(Icons.map_rounded)),
-        findsOneWidget,
+        find.descendant(of: find.byType(DriverNavSheet), matching: find.byIcon(Icons.navigation_rounded)),
+        findsWidgets,
       );
     });
 

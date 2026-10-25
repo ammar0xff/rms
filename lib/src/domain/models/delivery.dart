@@ -57,6 +57,9 @@ class DeliveryModel {
     this.customerName,
     this.customerPhone,
     this.landmark,
+    this.latitude,
+    this.longitude,
+    this.branchId,
     this.zoneName,
     this.zoneFee,
     this.offline = false,
@@ -83,6 +86,11 @@ class DeliveryModel {
   final String? customerPhone;
   final String? landmark;
 
+  /// Precise geo-coordinates of destination for in-app road routing and navigation.
+  final double? latitude;
+  final double? longitude;
+  final String? branchId;
+
   /// Regional delivery zone name and static fee configured by manager.
   final String? zoneName;
   final double? zoneFee;
@@ -97,7 +105,6 @@ class DeliveryModel {
   /// Monotonic local revision, used as the optimistic-concurrency base for
   /// conflict-aware reassignment.
   int localRevision;
-
   SyncStatus syncStatus;
 
   /// Set on the failed transition, cleared never (audit trail). Failed COD
@@ -118,6 +125,9 @@ class DeliveryModel {
         'customerName': customerName,
         'customerPhone': customerPhone,
         'landmark': landmark,
+        'latitude': latitude,
+        'longitude': longitude,
+        'branchId': branchId,
         'zoneName': zoneName,
         'zoneFee': zoneFee,
         'offline': offline,
@@ -149,6 +159,9 @@ class DeliveryModel {
         customerName: record['customerName'] as String?,
         customerPhone: record['customerPhone'] as String?,
         landmark: record['landmark'] as String?,
+        latitude: (record['latitude'] as num?)?.toDouble(),
+        longitude: (record['longitude'] as num?)?.toDouble(),
+        branchId: record['branchId'] as String?,
         zoneName: record['zoneName'] as String?,
         zoneFee: (record['zoneFee'] as num?)?.toDouble(),
         offline: record['offline'] as bool? ?? false,

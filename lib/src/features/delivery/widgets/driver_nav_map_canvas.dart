@@ -15,6 +15,8 @@ class DriverNavMapCanvas extends StatelessWidget {
     this.interactive = true,
     this.showFollowMarker = true,
     this.showOverlays = true,
+    this.activeLayer,
+    this.onLayerChanged,
     this.onProgressChanged,
     this.height,
   });
@@ -27,6 +29,8 @@ class DriverNavMapCanvas extends StatelessWidget {
   final bool interactive;
   final bool showFollowMarker;
   final bool showOverlays;
+  final RealMapLayer? activeLayer;
+  final ValueChanged<RealMapLayer>? onLayerChanged;
   final ValueChanged<double>? onProgressChanged;
   final double? height;
 
@@ -41,6 +45,8 @@ class DriverNavMapCanvas extends StatelessWidget {
       interactive: interactive,
       showFollowMarker: showFollowMarker,
       showOverlays: showOverlays,
+      activeLayer: activeLayer,
+      onLayerChanged: onLayerChanged,
       onProgressChanged: onProgressChanged,
       height: height,
     );

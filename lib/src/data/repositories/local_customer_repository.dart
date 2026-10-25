@@ -45,18 +45,53 @@ class LocalCustomerRepository implements CustomerRepository {
   final RecordMirror? _mirror;
 
   @override
-  Future<List<CustomerModel>> listCustomers() async {
+  Future<List<CustomerModel>> listCustomers({String? branchId}) async {
     final snapshots = await LocalStores.customers.find(_db.db);
-    final customers =
-        snapshots.map((s) => CustomerModel.fromRecord(s.value)).toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
+    var customers =
+        snapshots.map((s) => CustomerModel.fromRecord(s.value)).toList();
+    if (branchId != null && branchId.isNotEmpty) {
+      customers = customers
+          .where((c) => c.branchId.isEmpty || c.branchId == branchId)
+          .toList();
+    }
+    customers.sort((a, b) => a.name.compareTo(b.name));
     return customers;
+  }
+
+  @override
+  Future<CustomerModel?> findByPhone(String phone) async {
+    final trimmed = phone.trim();
+    if (trimmed.isEmpty) return null;
+    final snapshots = await LocalStores.customers.find(_db.db);
+    for (final s in snapshots) {
+      final customer = CustomerModel.fromRecord(s.value);
+      if (customer.phone.trim() == trimmed) {
+        return customer;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<List<CustomerModel>> searchCustomers(String query, {String? branchId}) async {
+    final q = query.trim().toLowerCase();
+    final all = await listCustomers(branchId: branchId);
+    if (q.isEmpty) return all;
+    return all.where((c) =>
+      c.name.toLowerCase().contains(q) ||
+      c.phone.toLowerCase().contains(q) ||
+      c.address.toLowerCase().contains(q)
+    ).toList();
   }
 
   @override
   Future<CustomerModel> createCustomer({
     required String name,
     String phone = '',
+    String address = '',
+    double? latitude,
+    double? longitude,
+    String branchId = '',
     String notes = '',
     bool createdOffline = false,
   }) async {
@@ -69,7 +104,12 @@ class LocalCustomerRepository implements CustomerRepository {
       id: _uuid.v4(),
       name: trimmed,
       phone: phone.trim(),
+      address: address.trim(),
+      latitude: latitude,
+      longitude: longitude,
+      branchId: branchId.trim(),
       notes: notes.trim(),
+      totalOrders: 0,
       createdAt: now,
       syncStatus: SyncStatus.pendingSync,
     );
@@ -78,12 +118,7 @@ class LocalCustomerRepository implements CustomerRepository {
       entityType: 'customer',
       entityId: customer.id,
       operationType: 'createCustomer',
-      payload: {
-        'id': customer.id,
-        'name': customer.name,
-        'phone': customer.phone,
-        'notes': customer.notes,
-      },
+      payload: customer.toRecord(),
       schemaVersion: AppVersion.localSchemaVersion,
       idempotencyKey: _uuid.v4(),
       createdAt: now,
@@ -109,6 +144,89 @@ class LocalCustomerRepository implements CustomerRepository {
     AppLogger.info(
         'Customer ${customer.id} queued (offline=$createdOffline).');
     return customer;
+  }
+
+  @override
+  Future<CustomerModel> saveOrUpdateCustomer({
+    required String name,
+    required String phone,
+    String? address,
+    double? latitude,
+    double? longitude,
+    String? branchId,
+    String? notes,
+    bool createdOffline = false,
+  }) async {
+    final existing = await findByPhone(phone);
+    if (existing == null) {
+      return createCustomer(
+        name: name,
+        phone: phone,
+        address: address ?? '',
+        latitude: latitude,
+        longitude: longitude,
+        branchId: branchId ?? '',
+        notes: notes ?? '',
+        createdOffline: createdOffline,
+      );
+    }
+
+    final updated = CustomerModel(
+      id: existing.id,
+      name: name.trim().isNotEmpty ? name.trim() : existing.name,
+      phone: existing.phone,
+      address: (address != null && address.trim().isNotEmpty) ? address.trim() : existing.address,
+      latitude: latitude ?? existing.latitude,
+      longitude: longitude ?? existing.longitude,
+      branchId: (branchId != null && branchId.trim().isNotEmpty) ? branchId.trim() : existing.branchId,
+      notes: notes ?? existing.notes,
+      totalOrders: existing.totalOrders,
+      lastOrderAt: existing.lastOrderAt,
+      createdAt: existing.createdAt,
+      localRevision: existing.localRevision + 1,
+      syncStatus: SyncStatus.pendingSync,
+    );
+
+    await updateCustomer(updated);
+    return updated;
+  }
+
+  @override
+  Future<void> recordCustomerOrder(String customerId, {DateTime? orderAt}) async {
+    final record = LocalStores.customers.record(customerId);
+    final existing = await record.get(_db.db);
+    if (existing == null) return;
+
+    final customer = CustomerModel.fromRecord(existing);
+    customer.totalOrders += 1;
+    customer.lastOrderAt = orderAt ?? _clock();
+    customer.localRevision += 1;
+    customer.syncStatus = SyncStatus.pendingSync;
+
+    await updateCustomer(customer);
+  }
+
+  @override
+  Future<void> updateCustomer(CustomerModel customer) async {
+    final now = _clock();
+    final entry = OutboxEntry(
+      operationId: _uuid.v4(),
+      entityType: 'customer',
+      entityId: customer.id,
+      operationType: 'updateCustomer',
+      payload: customer.toRecord(),
+      schemaVersion: AppVersion.localSchemaVersion,
+      idempotencyKey: _uuid.v4(),
+      createdAt: now,
+    );
+
+    await _db.transaction((txn) async {
+      await LocalStores.customers
+          .record(customer.id)
+          .put(txn, customer.toRecord());
+      await _outbox.append(txn, entry);
+    });
+    AppLogger.info('Customer ${customer.id} updated.');
   }
 
   @override

@@ -55,6 +55,13 @@ class LocalOrderRepository implements OrderRepository {
       discountAmount: draft.discountAmount,
       serviceAmount: draft.serviceAmount,
       deliveryFee: draft.deliveryFee,
+      customerId: draft.customerId,
+      customerName: draft.customerName,
+      customerPhone: draft.customerPhone,
+      deliveryAddress: draft.deliveryAddress,
+      deliveryLatitude: draft.deliveryLatitude,
+      deliveryLongitude: draft.deliveryLongitude,
+      branchId: draft.branchId,
       syncStatus: SyncStatus.pendingSync,
     );
     final entry = OutboxEntry(
@@ -67,6 +74,13 @@ class LocalOrderRepository implements OrderRepository {
         'items': order.items.map((i) => i.toRecord()).toList(),
         'orderType': order.orderType.name,
         'total': order.total,
+        if (order.customerId != null) 'customerId': order.customerId,
+        if (order.customerName != null) 'customerName': order.customerName,
+        if (order.customerPhone != null) 'customerPhone': order.customerPhone,
+        if (order.deliveryAddress != null) 'deliveryAddress': order.deliveryAddress,
+        if (order.deliveryLatitude != null) 'deliveryLatitude': order.deliveryLatitude,
+        if (order.deliveryLongitude != null) 'deliveryLongitude': order.deliveryLongitude,
+        if (order.branchId != null) 'branchId': order.branchId,
       },
       schemaVersion: AppVersion.localSchemaVersion,
       idempotencyKey: _uuid.v4(),
@@ -82,9 +96,9 @@ class LocalOrderRepository implements OrderRepository {
   }
 
   @override
-  Future<List<Order>> listOrders() async {
+  Future<List<Order>> listOrders({String? branchId, String? customerId}) async {
     final snapshots = await LocalStores.orders.find(_db.db);
-    final orders = <Order>[];
+    var orders = <Order>[];
     for (final s in snapshots) {
       try {
         orders.add(Order.fromRecord(s.value));
@@ -92,10 +106,26 @@ class LocalOrderRepository implements OrderRepository {
         AppLogger.warn('Skipping corrupted order record ${s.key}: $e');
       }
     }
+    if (branchId != null && branchId.isNotEmpty) {
+      orders = orders.where((o) => o.branchId == null || o.branchId!.isEmpty || o.branchId == branchId).toList();
+    }
+    if (customerId != null && customerId.isNotEmpty) {
+      orders = orders.where((o) => o.customerId == customerId).toList();
+    }
     orders.sort(
       (a, b) => b.createdAt.compareTo(a.createdAt),
     );
     return orders;
+  }
+
+  @override
+  Future<List<Order>> getOrdersByCustomer(String customerId) async {
+    return listOrders(customerId: customerId);
+  }
+
+  @override
+  Future<List<Order>> getOrdersByBranch(String branchId) async {
+    return listOrders(branchId: branchId);
   }
 
   @override

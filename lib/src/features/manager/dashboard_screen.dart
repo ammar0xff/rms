@@ -6,7 +6,9 @@ import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/approval_request.dart';
+import '../../domain/models/branch.dart';
 import '../../domain/models/cash_session.dart';
+import '../../domain/models/customer.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/inventory_item.dart';
 import '../../domain/models/order.dart';
@@ -15,13 +17,22 @@ import '../../domain/models/order_type.dart';
 /// Screen 16: Command Dashboard (لوحة القيادة والمتابعة اللحظية للمدير)
 ///
 /// Functional contract:
+/// - Multi-branch monitoring & drill-down filter
 /// - Shift state & Net sales hero
+/// - Customer acquisition & repeat order KPIs
 /// - KPI grid from real database records
 /// - Sales channel breakdown (hall / takeaway / delivery)
 /// - Hourly volume with the peak marked
 /// - Alerts that are real operational thresholds
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  String? _selectedBranchId;
 
   @override
   Widget build(BuildContext context) {
@@ -36,21 +47,37 @@ class DashboardScreen extends StatelessWidget {
             services.approvals?.listRequests() ?? Future.value(<ApprovalRequest>[]),
             services.inventory?.listItems() ?? Future.value(<InventoryItemModel>[]),
             services.cashSessions?.currentSession() ?? Future.value(null),
+            services.branches?.listBranches() ?? Future.value(<BranchModel>[]),
+            services.customers?.listCustomers() ?? Future.value(<CustomerModel>[]),
           ]),
           builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final orders = (snapshot.data![0] as List).cast<Order>();
-            final deliveries = (snapshot.data![1] as List).cast<DeliveryModel>();
+            final allOrders = (snapshot.data![0] as List).cast<Order>();
+            final allDeliveries = (snapshot.data![1] as List).cast<DeliveryModel>();
             final approvals = (snapshot.data![2] as List).cast<ApprovalRequest>();
             final inventory = (snapshot.data![3] as List).cast<InventoryItemModel>();
             final session = snapshot.data![4] as CashSession?;
+            final branches = (snapshot.data![5] as List).cast<BranchModel>();
+            final allCustomers = (snapshot.data![6] as List).cast<CustomerModel>();
+
+            // Filter data by selected branch if set
+            final orders = _selectedBranchId == null
+                ? allOrders
+                : allOrders.where((o) => o.branchId == _selectedBranchId).toList();
+            final deliveries = _selectedBranchId == null
+                ? allDeliveries
+                : allDeliveries.where((d) => d.branchId == _selectedBranchId).toList();
+            final customers = _selectedBranchId == null
+                ? allCustomers
+                : allCustomers.where((c) => c.branchId == _selectedBranchId).toList();
 
             final activeOrders = orders.where((o) => !o.voided).toList();
             final netSales = activeOrders.fold(0.0, (sum, o) => sum + o.total);
             final avgTicket = activeOrders.isEmpty ? 0.0 : netSales / activeOrders.length;
+            final repeatCustomers = customers.where((c) => c.totalOrders > 1).length;
 
             // Channel Breakdown calculations
             final takeawayTotal = activeOrders
@@ -70,6 +97,9 @@ class DashboardScreen extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // Multi-Branch Filter Bar
+                _buildBranchFilterBar(branches),
+
                 // Net Sales Hero Card
                 _buildNetSalesHero(session, netSales, activeOrders.length),
                 const SizedBox(height: 16),
@@ -89,6 +119,8 @@ class DashboardScreen extends StatelessWidget {
                   ordersCount: activeOrders.length,
                   avgTicket: avgTicket,
                   deliveriesCount: deliveries.where((d) => d.state != DeliveryState.delivered).length,
+                  customersCount: customers.length,
+                  repeatCustomersCount: repeatCustomers,
                   lowStockCount: lowStockItems.length,
                 ),
                 const SizedBox(height: 20),
@@ -229,18 +261,82 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildBranchFilterBar(List<BranchModel> branches) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildBranchChip(
+              id: null,
+              label: 'كل الفروع (المجمع) 🏢',
+              isSelected: _selectedBranchId == null,
+            ),
+            const SizedBox(width: 8),
+            ...branches.map((b) {
+              return Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: _buildBranchChip(
+                  id: b.id,
+                  label: '${b.name} 📍',
+                  isSelected: _selectedBranchId == b.id,
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBranchChip({
+    required String? id,
+    required String label,
+    required bool isSelected,
+  }) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedBranchId = id;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? PieColors.managerAccent : PieColors.surface2,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? PieColors.managerAccent : PieColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'IBMPlexSansArabic',
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected ? Colors.white : PieColors.ink,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildKpiGrid({
     required int ordersCount,
     required double avgTicket,
     required int deliveriesCount,
+    required int customersCount,
+    required int repeatCustomersCount,
     required int lowStockCount,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 900;
-        final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
-        final crossAxisCount = isDesktop ? 4 : (isTablet ? 4 : 2);
-        final childAspectRatio = isDesktop ? 2.2 : (isTablet ? 1.8 : 1.4);
+        final crossAxisCount = isDesktop ? 5 : 2;
+        final childAspectRatio = isDesktop ? 1.8 : 1.35;
 
         return GridView.count(
           shrinkWrap: true,
@@ -252,7 +348,8 @@ class DashboardScreen extends StatelessWidget {
           children: [
             _buildKpiCard('عدد الأوردرات', '$ordersCount أوردر', Icons.receipt_long_rounded),
             _buildKpiCard('متوسط الفاتورة', PieTypography.formatEgp(avgTicket), Icons.analytics_outlined),
-            _buildKpiCard('دليفري قيد التنفيذ', '$deliveriesCount أوردر', Icons.delivery_dining_rounded),
+            _buildKpiCard('دليفري نشط', '$deliveriesCount أوردر', Icons.delivery_dining_rounded),
+            _buildKpiCard('العملاء المسجلين', '$customersCount عميل ($repeatCustomersCount متكرر)', Icons.people_outline_rounded),
             _buildKpiCard('نواقص المخزون', '$lowStockCount صنف', Icons.warning_amber_rounded),
           ],
         );
@@ -270,7 +367,15 @@ class DashboardScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: PieTypography.caption),
+              Expanded(
+                child: Text(
+                  label,
+                  style: PieTypography.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
               Icon(icon, size: 16, color: PieColors.inkMuted),
             ],
           ),

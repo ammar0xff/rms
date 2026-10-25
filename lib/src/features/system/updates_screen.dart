@@ -200,7 +200,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           setState(() {
             _isInstalling = false;
             _installProgress = 0.0;
-            _installStatusText = 'تعذر التثبيت التلقائي: ${outcome.errorMessage ?? outcome.failureReason?.name}';
+            _installStatusText = 'تعذر التثبيت التلقائي: ${outcome.errorMessage.isNotEmpty ? outcome.errorMessage : outcome.failureReason.name}';
           });
 
           // Show dialog with direct download fallback
@@ -212,7 +212,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 backgroundColor: PieColors.surface2,
                 title: const Text('تثبيت يدوي للتحديث', style: TextStyle(color: PieColors.textPrimary)),
                 content: Text(
-                  'التثبيت التلقائي المباشر غير مكتمل على هذه المنصة (${outcome.errorMessage ?? outcome.failureReason?.name ?? "تثبيت النظام"}).\nيمكنك تحميل الحزمة مباشرة وتثبيتها بنقرة واحدة.',
+                  'التثبيت التلقائي المباشر غير مكتمل على هذه المنصة (${outcome.errorMessage.isNotEmpty ? outcome.errorMessage : outcome.failureReason.name}).\nيمكنك تحميل الحزمة مباشرة وتثبيتها بنقرة واحدة.',
                   style: const TextStyle(color: PieColors.textSecondary),
                 ),
                 actions: [

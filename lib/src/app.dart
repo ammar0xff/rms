@@ -16,6 +16,7 @@ import 'domain/models/cash_session.dart';
 import 'features/accounting/invoices_screen.dart';
 import 'features/accounting/z_report_screen.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/cashier/cashier_customers_screen.dart';
 import 'features/cashier/cashier_settings_screen.dart';
 import 'features/delivery/active_trip_screen.dart';
 import 'features/delivery/custody_settlement_screen.dart';
@@ -213,11 +214,11 @@ class _RoleShellState extends State<_RoleShell> {
                 (widget.activeRole == AppRole.cashier || widget.activeRole == AppRole.manager))
               _TopBarShiftControls(
                 services: services,
-                isCloseShiftTab: safeIndex == 4 && widget.activeRole == AppRole.cashier,
+                isCloseShiftTab: safeIndex == 5 && widget.activeRole == AppRole.cashier,
                 onNavigateToCloseShift: () {
                   PieSoundService.instance.click();
                   if (widget.activeRole == AppRole.cashier) {
-                    setState(() => _currentIndex = 4);
+                    setState(() => _currentIndex = 5);
                   } else {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ZReportScreen()),
@@ -227,7 +228,7 @@ class _RoleShellState extends State<_RoleShell> {
                 onNavigateToShiftDetails: () {
                   PieSoundService.instance.click();
                   if (widget.activeRole == AppRole.cashier) {
-                    setState(() => _currentIndex = 2);
+                    setState(() => _currentIndex = 3);
                   } else {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ShiftScreen()),
@@ -508,7 +509,7 @@ class _RoleShellState extends State<_RoleShell> {
                           onPressed: () {
                             Navigator.of(dialogCtx).pop(false);
                             if (widget.activeRole == AppRole.cashier) {
-                              setState(() => _currentIndex = 4);
+                              setState(() => _currentIndex = 5);
                             } else {
                               Navigator.of(context).push(
                                 MaterialPageRoute(builder: (_) => const ZReportScreen()),
@@ -592,6 +593,11 @@ class _RoleShellState extends State<_RoleShell> {
               selectedIcon: Icons.two_wheeler,
             ),
             PieNavItem(
+              label: 'سجل العملاء',
+              icon: Icons.people_alt_outlined,
+              selectedIcon: Icons.people_alt,
+            ),
+            PieNavItem(
               label: 'الوردية والخزينة',
               icon: Icons.schedule_outlined,
               selectedIcon: Icons.schedule,
@@ -615,6 +621,7 @@ class _RoleShellState extends State<_RoleShell> {
           const [
             PosScreen(),
             FleetScreen(),
+            CashierCustomersScreen(),
             ShiftScreen(),
             InvoicesScreen(),
             ZReportScreen(),

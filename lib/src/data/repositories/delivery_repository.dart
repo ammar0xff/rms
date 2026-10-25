@@ -56,6 +56,9 @@ abstract class DeliveryRepository {
     String? landmark,
     String? zoneName,
     double? zoneFee,
+    double? latitude,
+    double? longitude,
+    String? branchId,
     bool createdOffline = false,
   });
 

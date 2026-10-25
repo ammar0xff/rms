@@ -11,7 +11,6 @@ import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
-import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/navigation/delivery_navigation.dart';
 import '../../core/sound/pie_sound_service.dart';
@@ -40,8 +39,8 @@ class ActiveTripScreen extends StatefulWidget {
 
 class _ActiveTripScreenState extends State<ActiveTripScreen> {
   String? _expandedStopId;
-  int? _lastActiveCount;
-  Set<String> _previousActiveIds = {};
+  bool _initializedActiveDeliveries = false;
+  final Set<String> _notifiedDeliveryIds = {};
 
   @override
   void initState() {
@@ -57,6 +56,133 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
   void _onSyncRefresh() {
     if (mounted) setState(() {});
+  }
+
+  void _showIncomingOrderAlert(BuildContext context, DeliveryModel delivery) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF0F172A),
+          shape: const RoundedRectangleBorder(
+            borderRadius: PieRadius.borderLg,
+            side: BorderSide(color: PieColors.driverAccent, width: 2),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.two_wheeler_rounded, color: PieColors.driverAccent, size: 22),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  '🔔 طلب دليفري جديد للمتابعة!',
+                  style: TextStyle(
+                    fontFamily: 'IBMPlexSansArabic',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: PieColors.driverSurface,
+                  borderRadius: PieRadius.borderMd,
+                  border: Border.all(color: PieColors.driverBorder),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'أوردر رقم #${delivery.orderRef}',
+                        style: const TextStyle(
+                          fontFamily: 'IBMPlexSansArabic',
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PieNumeral.money(
+                      delivery.amount,
+                      style: PieTypography.monoBody.copyWith(
+                        color: PieColors.driverAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (delivery.customerName?.isNotEmpty == true) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.person_rounded, size: 16, color: PieColors.inkSecondary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        delivery.customerName!,
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFFEF4444)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      delivery.address,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: const Text('إغلاق', style: TextStyle(color: PieColors.inkSecondary)),
+            ),
+            PieButton.primary(
+              onPressed: () {
+                Navigator.of(dialogCtx).pop();
+                DriverCockpitNavScreen.push(context, delivery: delivery);
+              },
+              label: 'بدء الملاحة الحية 🧭',
+              icon: Icons.navigation_rounded,
+              accentColor: PieColors.driverAccent,
+              height: 42,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _callPhone(String phone) async {
@@ -132,25 +258,28 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   d.state != DeliveryState.failed)
               .toList();
 
-          if (_lastActiveCount != null && activeDeliveries.length > _lastActiveCount!) {
-            final newlyAdded = activeDeliveries.firstWhere(
-              (d) => !_previousActiveIds.contains(d.id),
-              orElse: () => activeDeliveries.first,
-            );
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                PieSoundService.instance.chime();
-                PieToast.show(
-                  context,
-                  'وصلك طلب دليفري جديد برقم #${newlyAdded.orderRef} 🛵',
-                  isSuccess: true,
-                  icon: Icons.two_wheeler_rounded,
-                );
+          if (snapshot.hasData) {
+            if (!_initializedActiveDeliveries) {
+              _initializedActiveDeliveries = true;
+              for (final d in activeDeliveries) {
+                _notifiedDeliveryIds.add(d.id);
               }
-            });
+            } else {
+              for (final d in activeDeliveries) {
+                if (!_notifiedDeliveryIds.contains(d.id)) {
+                  _notifiedDeliveryIds.add(d.id);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      PieSoundService.instance.chime();
+                      HapticFeedback.heavyImpact();
+                      _showIncomingOrderAlert(context, d);
+                    }
+                  });
+                  break;
+                }
+              }
+            }
           }
-          _lastActiveCount = activeDeliveries.length;
-          _previousActiveIds = activeDeliveries.map((d) => d.id).toSet();
 
           final totalCustody = myDeliveries
               .where((d) =>

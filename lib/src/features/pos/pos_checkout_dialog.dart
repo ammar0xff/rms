@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
@@ -7,9 +8,12 @@ import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../core/widgets/pie_toast.dart';
+import '../../domain/models/customer.dart';
 import '../../domain/models/delivery_zone.dart';
+import '../../domain/models/order.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/models/payment.dart';
+import '../../domain/navigation/delivery_geocoding.dart';
 
 typedef PosCheckoutCallback = Future<void> Function(
   PaymentMethod paymentMethod, {
@@ -19,12 +23,18 @@ typedef PosCheckoutCallback = Future<void> Function(
   double? tenderedAmount,
   String? zoneName,
   double? zoneFee,
+  double? latitude,
+  double? longitude,
+  String? customerId,
 });
 
 /// Checkout & Tender Dialog (الدفع وإنهاء الفاتورة)
 ///
 /// Features:
 /// - Customer information validation (mandatory for delivery, optional for takeaway)
+/// - Real-time address autocomplete via OpenStreetMap / Nominatim (Suez & Egyptian cities)
+/// - Exact GPS coordinate resolution for driver in-app navigation
+/// - Automatic customer matching & order history lookup with Repeat Last Order
 /// - Exact bill breakdown: Subtotal, discount, service, tax, Total
 /// - Numeric keypad for entering cash tendered
 /// - Quick-tender chips (+50, +100, +200, exact)
@@ -40,6 +50,7 @@ class PosCheckoutDialog extends StatefulWidget {
     required this.serviceAmount,
     required this.discountAmount,
     required this.onComplete,
+    this.onRepeatOrder,
     this.orderType = OrderType.takeaway,
   });
 
@@ -50,6 +61,7 @@ class PosCheckoutDialog extends StatefulWidget {
   final double discountAmount;
   final OrderType orderType;
   final PosCheckoutCallback onComplete;
+  final void Function(Order order)? onRepeatOrder;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -60,6 +72,7 @@ class PosCheckoutDialog extends StatefulWidget {
     required double discountAmount,
     required OrderType orderType,
     required PosCheckoutCallback onComplete,
+    void Function(Order order)? onRepeatOrder,
   }) {
     return showDialog<bool>(
       context: context,
@@ -72,6 +85,7 @@ class PosCheckoutDialog extends StatefulWidget {
         discountAmount: discountAmount,
         orderType: orderType,
         onComplete: onComplete,
+        onRepeatOrder: onRepeatOrder,
       ),
     );
   }
@@ -95,18 +109,114 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
   bool _attemptedSettle = false;
   bool _isSubmitting = false;
 
+  // Customer repeat order state
+  CustomerModel? _matchedCustomer;
+  List<Order> _customerPastOrders = [];
+  bool _dismissedRepeatPrompt = false;
+  Timer? _phoneDebounce;
+
+  // Address search & GPS coordinates state
+  List<PlaceSuggestion> _addressSuggestions = [];
+  bool _searchingAddress = false;
+  Timer? _addressDebounce;
+  double? _selectedLatitude;
+  double? _selectedLongitude;
+  bool _isLocationValidated = false;
+
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
+
+    _phoneController.addListener(_onPhoneChanged);
+    _addressController.addListener(_onAddressChanged);
+
     if (_isDelivery) {
       _loadingZones = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadDeliveryZones());
     } else {
       _tenderedInput = widget.totalAmount.toStringAsFixed(0);
     }
+  }
+
+  void _onPhoneChanged() {
+    _phoneDebounce?.cancel();
+    final phone = _phoneController.text.trim();
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length >= 8) {
+      _phoneDebounce = Timer(const Duration(milliseconds: 350), () async {
+        final services = AppScope.of(context);
+        final customer = await services.customers?.findByPhone(phone);
+        if (!mounted) return;
+        if (customer != null) {
+          setState(() {
+            _matchedCustomer = customer;
+            if (_nameController.text.trim().isEmpty) {
+              _nameController.text = customer.name;
+            }
+            if (_addressController.text.trim().isEmpty && customer.address.isNotEmpty) {
+              _addressController.text = customer.address;
+              _selectedLatitude = customer.latitude;
+              _selectedLongitude = customer.longitude;
+              _isLocationValidated = customer.latitude != null && customer.longitude != null;
+            }
+          });
+
+          // Fetch previous orders
+          final orders = await services.orders?.getOrdersByCustomer(customer.id) ?? [];
+          if (mounted) {
+            setState(() {
+              _customerPastOrders = orders;
+            });
+          }
+        }
+      });
+    }
+  }
+
+  void _onAddressChanged() {
+    if (!_isDelivery) return;
+    _addressDebounce?.cancel();
+    final text = _addressController.text.trim();
+    if (text.length >= 3) {
+      setState(() => _searchingAddress = true);
+      _addressDebounce = Timer(const Duration(milliseconds: 380), () async {
+        final suggestions = await DeliveryGeocoding.searchAddressSuggestions(text);
+        if (mounted) {
+          setState(() {
+            _addressSuggestions = suggestions;
+            _searchingAddress = false;
+          });
+        }
+      });
+    } else {
+      setState(() {
+        _addressSuggestions = [];
+        _searchingAddress = false;
+      });
+    }
+  }
+
+  void _selectAddressSuggestion(PlaceSuggestion suggestion) {
+    PieSoundService.instance.click();
+    setState(() {
+      _addressController.text = suggestion.displayName;
+      _selectedLatitude = suggestion.coord.lat;
+      _selectedLongitude = suggestion.coord.lng;
+      _isLocationValidated = true;
+      _addressSuggestions = [];
+
+      // Auto-match delivery zone if applicable
+      final fullText = '${suggestion.name} ${suggestion.city} ${suggestion.displayName}'.toLowerCase();
+      for (final zone in _availableZones) {
+        if (fullText.contains(zone.name.toLowerCase())) {
+          _selectedZone = zone;
+          break;
+        }
+      }
+    });
   }
 
   Future<void> _loadDeliveryZones() async {
@@ -127,6 +237,10 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
 
   @override
   void dispose() {
+    _phoneDebounce?.cancel();
+    _addressDebounce?.cancel();
+    _phoneController.removeListener(_onPhoneChanged);
+    _addressController.removeListener(_onAddressChanged);
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
@@ -256,6 +370,9 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
             : _tenderedAmount,
         zoneName: _selectedZone?.name,
         zoneFee: _deliveryFee,
+        latitude: _selectedLatitude,
+        longitude: _selectedLongitude,
+        customerId: _matchedCustomer?.id,
       );
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -373,7 +490,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                 label: _isSubmitting
                     ? 'جاري حفظ الطلب...'
                     : (_isDelivery && _selectedMethod == PaymentMethod.cash)
-                        ? 'تأكيد وحفظ أوردر الدليفري • ${PieTypography.formatEgp(_effectiveTotal)}'
+                        ? 'إنهاء الدفع وتأكيد أوردر الدليفري • ${PieTypography.formatEgp(_effectiveTotal)}'
                         : _selectedMethod == PaymentMethod.cash && _changeDue > 0
                             ? 'إنهاء الدفع • الباقي: ${PieTypography.formatEgp(_changeDue)}'
                             : 'إنهاء الدفع وحفظ الطلب • ${PieTypography.formatEgp(_effectiveTotal)}',
@@ -476,7 +593,24 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (_isDelivery) ...[
+              if (_matchedCustomer != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: PieColors.cashierSurface,
+                    borderRadius: PieRadius.borderSm,
+                    border: Border.all(color: PieColors.cashierBorder),
+                  ),
+                  child: Text(
+                    'عميل مسجل (${_matchedCustomer!.totalOrders} طلب سابق)',
+                    style: PieTypography.caption.copyWith(
+                      color: PieColors.cashierAccent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ] else if (_isDelivery) ...[
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -496,6 +630,121 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
               ],
             ],
           ),
+
+          // Repeat last order prompt if customer has past orders
+          if (_customerPastOrders.isNotEmpty && !_dismissedRepeatPrompt) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: PieColors.cashierSurface,
+                borderRadius: PieRadius.borderMd,
+                border: Border.all(color: PieColors.cashierAccent.withOpacity(0.4)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.history_rounded, size: 16, color: PieColors.cashierAccent),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'هذا العميل له ${_customerPastOrders.length} طلب سابق. هل ترغب في تكرار آخر طلب أو إنشاء طلب مختلف؟',
+                          style: PieTypography.caption.copyWith(
+                            color: PieColors.ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 14, color: PieColors.inkMuted),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => setState(() => _dismissedRepeatPrompt = true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          PieSoundService.instance.chime();
+                          final lastOrder = _customerPastOrders.first;
+                          widget.onRepeatOrder?.call(lastOrder);
+                          Navigator.of(context).pop(false);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: PieColors.cashierAccent,
+                            borderRadius: PieRadius.borderSm,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.replay_rounded, size: 13, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text(
+                                'تكرار آخر طلب (${_customerPastOrders.first.items.length} صنف)',
+                                style: PieTypography.caption.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => _showCustomerOrderHistoryModal(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: PieColors.surface2,
+                            borderRadius: PieRadius.borderSm,
+                            border: Border.all(color: PieColors.border),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.list_alt_rounded, size: 13, color: PieColors.inkSecondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'عرض سجل الطلبات',
+                                style: PieTypography.caption.copyWith(
+                                  color: PieColors.inkSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() => _dismissedRepeatPrompt = true),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'طلب جديد',
+                          style: PieTypography.caption.copyWith(
+                            color: PieColors.inkMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 10),
           Row(
             children: [
@@ -527,17 +776,339 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
             const SizedBox(height: 8),
             _buildZoneSelector(),
             const SizedBox(height: 8),
-            _buildTextField(
-              controller: _addressController,
-              label: 'عنوان التوصيل بالتفصيل',
-              hint: 'الشارع، رقم العمارة، رقم الشقة / الدور',
-              isError: showErrorAddress,
-              isRequired: true,
-              icon: Icons.location_on_outlined,
-            ),
+            _buildAddressFieldWithAutocomplete(showErrorAddress),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildAddressFieldWithAutocomplete(bool isError) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'عنوان التوصيل بالتفصيل (بحث ذكي في الأماكن والشوارع)',
+                style: PieTypography.caption.copyWith(
+                  color: isError ? PieColors.stateError : PieColors.inkSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isError) ...[
+              const SizedBox(width: 4),
+              Text(
+                'مطلوب',
+                style: PieTypography.caption.copyWith(color: PieColors.stateError, fontSize: 10),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          height: 38,
+          decoration: BoxDecoration(
+            color: PieColors.surface2,
+            borderRadius: PieRadius.borderMd,
+            border: Border.all(
+              color: isError
+                  ? PieColors.stateError
+                  : (_isLocationValidated ? PieColors.stateSynced : PieColors.border),
+            ),
+          ),
+          child: TextField(
+            controller: _addressController,
+            style: PieTypography.body,
+            decoration: InputDecoration(
+              hintText: 'ابحث عن شارع أو حي (مثل: الأمل، شارع الباسل، السويس)...',
+              hintStyle: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+              prefixIcon: const Icon(Icons.search_rounded, size: 16, color: PieColors.inkSecondary),
+              suffixIcon: _searchingAddress
+                  ? const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: PieColors.cashierAccent),
+                      ),
+                    )
+                  : (_addressController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 14, color: PieColors.inkMuted),
+                          onPressed: () {
+                            _addressController.clear();
+                            setState(() {
+                              _addressSuggestions = [];
+                              _selectedLatitude = null;
+                              _selectedLongitude = null;
+                              _isLocationValidated = false;
+                            });
+                          },
+                        )
+                      : null),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+          ),
+        ),
+
+        // Verified GPS indicator or Amber Manual Tag
+        if (_isLocationValidated && _selectedLatitude != null && _selectedLongitude != null) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: PieColors.stateSyncedBg,
+              borderRadius: PieRadius.borderSm,
+              border: Border.all(color: PieColors.stateSynced.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, size: 13, color: PieColors.stateSynced),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'موقع جغرافي مؤكد للطلب: (${_selectedLatitude!.toStringAsFixed(4)}, ${_selectedLongitude!.toStringAsFixed(4)})',
+                    style: PieTypography.caption.copyWith(
+                      color: PieColors.stateSynced,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (_addressController.text.trim().isNotEmpty && _addressSuggestions.isEmpty && !_searchingAddress) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: PieColors.statePendingBg,
+              borderRadius: PieRadius.borderSm,
+              border: Border.all(color: PieColors.statePending.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 12, color: PieColors.statePending),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'عنوان يدوي - يُفضّل اختيار مكان من الاقتراحات لتوليد مسار ملاحة دقيق للسائق',
+                    style: PieTypography.caption.copyWith(
+                      color: PieColors.statePending,
+                      fontSize: 10,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Suggestions Dropdown List
+        if (_addressSuggestions.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 180),
+            decoration: BoxDecoration(
+              color: PieColors.surface2,
+              borderRadius: PieRadius.borderMd,
+              border: Border.all(color: PieColors.cashierAccent.withOpacity(0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(4),
+              itemCount: _addressSuggestions.length,
+              separatorBuilder: (_, __) => const Divider(height: 1, color: PieColors.border),
+              itemBuilder: (context, index) {
+                final suggestion = _addressSuggestions[index];
+                return InkWell(
+                  onTap: () => _selectAddressSuggestion(suggestion),
+                  borderRadius: PieRadius.borderSm,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.place_rounded, size: 16, color: PieColors.cashierAccent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                suggestion.name,
+                                style: PieTypography.bodyStrong.copyWith(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                suggestion.displayName,
+                                style: PieTypography.caption.copyWith(fontSize: 10, color: PieColors.inkSecondary),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: PieColors.surface3,
+                            borderRadius: PieRadius.borderSm,
+                          ),
+                          child: Text(
+                            suggestion.city,
+                            style: PieTypography.caption.copyWith(fontSize: 9, color: PieColors.cashierAccent),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showCustomerOrderHistoryModal(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: PieColors.surface2,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (modalCtx) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.history_edu_rounded, color: PieColors.cashierAccent),
+                        const SizedBox(width: 8),
+                        Text(
+                          'سجل طلبات: ${_matchedCustomer?.name ?? _phoneController.text}',
+                          style: PieTypography.heading,
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(modalCtx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (_customerPastOrders.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text('لا توجد طلبات سابقة مسجلة لهذا العميل', style: PieTypography.body),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _customerPastOrders.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, idx) {
+                        final order = _customerPastOrders[idx];
+                        final itemsSummary = order.items.map((i) => '${i.quantity}x ${i.name}').join('، ');
+                        final dateStr = '${order.createdAt.year}/${order.createdAt.month}/${order.createdAt.day}';
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: PieColors.surface1,
+                            borderRadius: PieRadius.borderMd,
+                            border: Border.all(color: PieColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'طلب #${order.canonicalOrderNumber ?? order.provisionalOrderNumber}',
+                                          style: PieTypography.bodyStrong,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          dateStr,
+                                          style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      itemsSummary,
+                                      style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'الإجمالي: ${PieTypography.formatEgp(order.total)}',
+                                      style: PieTypography.monoCaption.copyWith(
+                                        color: PieColors.cashierAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              PieButton(
+                                label: 'تكرار هذا الطلب',
+                                icon: Icons.replay,
+                                onPressed: () {
+                                  PieSoundService.instance.chime();
+                                  widget.onRepeatOrder?.call(order);
+                                  Navigator.pop(modalCtx);
+                                  Navigator.of(context).pop(false);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -814,15 +1385,16 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
 
   Widget _buildDeliveryCodCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: PieColors.surface1,
         borderRadius: PieRadius.borderMd,
         border: Border.all(color: PieColors.driverBorder),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
@@ -844,6 +1416,14 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          ActionChip(
+            label: const Text('بالضبط'),
+            backgroundColor: PieColors.surface2,
+            side: const BorderSide(color: PieColors.border),
+            labelStyle: PieTypography.caption.copyWith(color: PieColors.cashierAccent),
+            onPressed: () => _onQuickChipTap(_effectiveTotal),
           ),
           const SizedBox(height: 14),
           Container(
@@ -869,7 +1449,8 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildCardTerminalCard() {

@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../../core/logging/app_logger.dart';
 import '../models/delivery.dart';
 
 /// Geographic coordinate pair (Latitude and Longitude).
@@ -11,6 +14,11 @@ class GeoCoord {
 
   @override
   String toString() => '$lat,$lng';
+
+  Map<String, double> toMap() => {'lat': lat, 'lng': lng};
+
+  static GeoCoord fromMap(Map<String, dynamic> map) =>
+      GeoCoord((map['lat'] as num).toDouble(), (map['lng'] as num).toDouble());
 }
 
 /// A real navigation maneuver with instruction, street name, and distance.
@@ -30,6 +38,46 @@ class NavManeuver {
   final GeoCoord coord;
 }
 
+/// An address or place suggestion from real geocoding search.
+class PlaceSuggestion {
+  const PlaceSuggestion({
+    required this.name,
+    required this.displayName,
+    required this.city,
+    required this.coord,
+    this.rawAddress = '',
+  });
+
+  final String name;
+  final String displayName;
+  final String city;
+  final GeoCoord coord;
+  final String rawAddress;
+
+  double get latitude => coord.lat;
+  double get longitude => coord.lng;
+}
+
+/// Complete driving route calculation with road coordinates and navigation info.
+class DrivingRoute {
+  const DrivingRoute({
+    required this.points,
+    required this.distanceMeters,
+    required this.durationSeconds,
+    this.maneuvers = const [],
+    this.isRealRoads = true,
+  });
+
+  final List<GeoCoord> points;
+  final int distanceMeters;
+  final int durationSeconds;
+  final List<NavManeuver> maneuvers;
+  final bool isRealRoads;
+
+  double get distanceKm => distanceMeters / 1000.0;
+  int get durationMinutes => math.max(1, (durationSeconds / 60).round());
+}
+
 /// Real Geocoding and route synthesis for delivery addresses.
 class DeliveryGeocoding {
   // Default Cairo Central Branch (Tahrir / Downtown Cairo)
@@ -37,6 +85,26 @@ class DeliveryGeocoding {
 
   // Geographic registry of major Egyptian cities and delivery zones
   static const Map<String, GeoCoord> zoneCoordinates = {
+    // Suez Governorate (السويس)
+    'السويس': GeoCoord(29.9668, 32.5498),
+    'حي السويس': GeoCoord(29.9680, 32.5500),
+    'الأمل': GeoCoord(29.9820, 32.5310),
+    'مساكن الأمل': GeoCoord(29.9820, 32.5310),
+    'شارع الباسل': GeoCoord(29.9705, 32.5512),
+    'الباسل': GeoCoord(29.9705, 32.5512),
+    'حي الأربعين': GeoCoord(29.9830, 32.5360),
+    'الأربعين': GeoCoord(29.9830, 32.5360),
+    'حي فيصل السويس': GeoCoord(29.9950, 32.5200),
+    'بورتوفيق': GeoCoord(29.9530, 32.5620),
+    'حوض الدرس': GeoCoord(29.9620, 32.5540),
+    'الملاحة': GeoCoord(29.9750, 32.5480),
+    'الغريب': GeoCoord(29.9715, 32.5550),
+    'التوفيقية': GeoCoord(29.9780, 32.5280),
+    'الصباح': GeoCoord(29.9890, 32.5180),
+    'السلام': GeoCoord(29.9980, 32.5050),
+    'العتاقة': GeoCoord(29.9200, 32.4800),
+
+    // Greater Cairo
     'المعادي': GeoCoord(29.9602, 31.2569),
     'زهراء المعادي': GeoCoord(29.9723, 31.3015),
     'مدينة نصر': GeoCoord(30.0561, 31.3439),
@@ -66,6 +134,8 @@ class DeliveryGeocoding {
     'المعصرة': GeoCoord(29.9056, 31.3015),
     'حلوان': GeoCoord(29.8499, 31.3342),
     'العاشر من رمضان': GeoCoord(30.2987, 31.7416),
+
+    // Alexandria
     'سموحة': GeoCoord(31.2156, 29.9489),
     'سيدي جابر': GeoCoord(31.2185, 29.9412),
     'محطة الرمل': GeoCoord(31.2001, 29.8999),
@@ -74,6 +144,11 @@ class DeliveryGeocoding {
 
   /// Resolves geographic destination coordinates for a given [DeliveryModel].
   static GeoCoord resolveDestination(DeliveryModel delivery) {
+    // 0. If validated coordinates are already stored, use them directly
+    if (delivery.latitude != null && delivery.longitude != null) {
+      return GeoCoord(delivery.latitude!, delivery.longitude!);
+    }
+
     // 1. Check known zones from zoneName or address
     final text = '${delivery.zoneName ?? ''} ${delivery.address} ${delivery.landmark ?? ''}';
     for (final entry in zoneCoordinates.entries) {
@@ -86,11 +161,239 @@ class DeliveryGeocoding {
       }
     }
 
-    // Default to a realistic Cairo location offset from branch by order hash
+    // Default to a realistic location offset from branch by order hash
     final hash = delivery.orderRef.hashCode.abs();
     final latOffset = ((hash % 120) - 60) * 0.0004;
     final lngOffset = (((hash ~/ 120) % 120) - 60) * 0.0004;
     return GeoCoord(defaultBranch.lat + latOffset, defaultBranch.lng + lngOffset);
+  }
+
+  /// Searches for real address suggestions using Nominatim OpenStreetMap API,
+  /// with local fallback for Egyptian locations.
+  static Future<List<PlaceSuggestion>> searchAddressSuggestions(
+    String query, {
+    GeoCoord? proximityBias,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return const [];
+
+    final results = <PlaceSuggestion>[];
+
+    // 1. First search via OpenStreetMap Nominatim with Egyptian country code
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(trimmed)}&format=json&countrycodes=eg&limit=6&accept-language=ar,en',
+      );
+      final response = await http.get(uri, headers: {
+        'User-Agent': 'TeleTunnalDelivery/2.0 (Egyptian Food POS & Delivery System)',
+      }).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          for (final item in data) {
+            final lat = double.tryParse(item['lat']?.toString() ?? '');
+            final lon = double.tryParse(item['lon']?.toString() ?? '');
+            if (lat != null && lon != null) {
+              final displayName = item['display_name']?.toString() ?? '';
+              final name = item['name']?.toString() ?? trimmed;
+              final parts = displayName.split(',');
+              final city = parts.length > 1 ? parts[1].trim() : 'مصر';
+              results.add(
+                PlaceSuggestion(
+                  name: name.isNotEmpty ? name : trimmed,
+                  displayName: displayName,
+                  city: city,
+                  coord: GeoCoord(lat, lon),
+                  rawAddress: displayName,
+                ),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      AppLogger.warn('Nominatim geocoding lookup failed: $e');
+    }
+
+    // 2. Supplement or fallback with local matching zones from zoneCoordinates
+    final qLower = trimmed.toLowerCase();
+    for (final entry in zoneCoordinates.entries) {
+      if (entry.key.toLowerCase().contains(qLower) ||
+          qLower.contains(entry.key.toLowerCase())) {
+        final alreadyPresent = results.any((r) =>
+            (r.coord.lat - entry.value.lat).abs() < 0.005 &&
+            (r.coord.lng - entry.value.lng).abs() < 0.005);
+        if (!alreadyPresent) {
+          results.add(
+            PlaceSuggestion(
+              name: entry.key,
+              displayName: '${entry.key}، جمهورية مصر العربية',
+              city: entry.key.contains('السويس') || entry.key.contains('الأمل') || entry.key.contains('الباسل') || entry.key.contains('الأربعين') ? 'السويس' : 'القاهرة',
+              coord: entry.value,
+              rawAddress: '${entry.key}، مصر',
+            ),
+          );
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /// Fetches a real driving route along actual roads using OSRM, with automatic
+  /// synthesis fallback when offline or unavailable.
+  static Future<DrivingRoute> fetchRealDrivingRoute(
+    GeoCoord origin,
+    GeoCoord destination, {
+    DeliveryModel? delivery,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&steps=true',
+      );
+      final response = await http
+          .get(uri)
+          .timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['code'] == 'Ok' && data['routes'] != null && (data['routes'] as List).isNotEmpty) {
+          final route = data['routes'][0];
+          final distanceMeters = (route['distance'] as num?)?.round() ?? 1000;
+          final durationSeconds = (route['duration'] as num?)?.round() ?? 300;
+
+          final coordinates = (route['geometry']?['coordinates'] as List?) ?? [];
+          final points = <GeoCoord>[];
+          for (final c in coordinates) {
+            if (c is List && c.length >= 2) {
+              final lng = (c[0] as num).toDouble();
+              final lat = (c[1] as num).toDouble();
+              points.add(GeoCoord(lat, lng));
+            }
+          }
+
+          if (points.length >= 2) {
+            // Build maneuvers from OSRM steps or fallback maneuvers
+            List<NavManeuver> maneuvers = [];
+            final legs = route['legs'] as List?;
+            if (legs != null && legs.isNotEmpty) {
+              final steps = legs[0]['steps'] as List?;
+              if (steps != null && steps.isNotEmpty) {
+                for (final step in steps) {
+                  final maneuver = step['maneuver'];
+                  final type = maneuver?['type']?.toString() ?? '';
+                  final modifier = maneuver?['modifier']?.toString() ?? '';
+                  final name = step['name']?.toString() ?? '';
+                  final dist = (step['distance'] as num?)?.round() ?? 0;
+                  final loc = maneuver?['location'] as List?;
+
+                  GeoCoord mCoord = destination;
+                  if (loc != null && loc.length >= 2) {
+                    mCoord = GeoCoord((loc[1] as num).toDouble(), (loc[0] as num).toDouble());
+                  }
+
+                  IconData icon = Icons.straight_rounded;
+                  String instruction = 'استمر على الطريق';
+                  if (type == 'depart') {
+                    icon = Icons.navigation_rounded;
+                    instruction = name.isNotEmpty ? 'انطلق عبر $name' : 'انطلق إلى وجهتك';
+                  } else if (type == 'arrive') {
+                    icon = Icons.sports_score_rounded;
+                    instruction = 'وصلت إلى وجهتك بالسلامة!';
+                  } else if (modifier.contains('left')) {
+                    icon = Icons.turn_left_rounded;
+                    instruction = name.isNotEmpty ? 'انعطف يساراً إلى $name' : 'انعطف يساراً';
+                  } else if (modifier.contains('right')) {
+                    icon = Icons.turn_right_rounded;
+                    instruction = name.isNotEmpty ? 'انعطف يميناً إلى $name' : 'انعطف يميناً';
+                  } else if (modifier.contains('uturn')) {
+                    icon = Icons.u_turn_left_rounded;
+                    instruction = 'قم بالدوران للخلف (U-Turn)';
+                  }
+
+                  maneuvers.add(
+                    NavManeuver(
+                      instruction: instruction,
+                      streetName: name.isNotEmpty ? name : 'الطريق الرئيسي',
+                      icon: icon,
+                      distanceMeters: dist,
+                      coord: mCoord,
+                    ),
+                  );
+                }
+              }
+            }
+
+            if (maneuvers.isEmpty && delivery != null) {
+              maneuvers = buildTripManeuvers(
+                delivery: delivery,
+                origin: origin,
+                destination: destination,
+              );
+            }
+
+            return DrivingRoute(
+              points: points,
+              distanceMeters: distanceMeters,
+              durationSeconds: durationSeconds,
+              maneuvers: maneuvers,
+              isRealRoads: true,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      AppLogger.warn('OSRM routing failed, using realistic synthesized fallback: $e');
+    }
+
+    // Graceful offline fallback: synthesized road route
+    final fallbackDist = (estimateRoadDistanceKm(origin, destination) * 1000).round();
+    final fallbackDuration = estimateEtaMinutes(fallbackDist / 1000.0) * 60;
+    final fallbackPoints = _synthesizeRoadPoints(origin, destination);
+    final fallbackManeuvers = delivery != null
+        ? buildTripManeuvers(delivery: delivery, origin: origin, destination: destination)
+        : <NavManeuver>[
+            NavManeuver(
+              instruction: 'انطلق من موقعك الحالي',
+              streetName: 'الطريق المباشر',
+              icon: Icons.navigation_rounded,
+              distanceMeters: fallbackDist,
+              coord: origin,
+            ),
+            NavManeuver(
+              instruction: 'وصلت إلى موقع العميل',
+              streetName: 'نقطة الوصول',
+              icon: Icons.sports_score_rounded,
+              distanceMeters: 0,
+              coord: destination,
+            ),
+          ];
+
+    return DrivingRoute(
+      points: fallbackPoints,
+      distanceMeters: fallbackDist,
+      durationSeconds: fallbackDuration,
+      maneuvers: fallbackManeuvers,
+      isRealRoads: false,
+    );
+  }
+
+  /// Synthesizes realistic intermediate road coordinates (simulating real grid roads)
+  static List<GeoCoord> _synthesizeRoadPoints(GeoCoord origin, GeoCoord destination) {
+    final points = <GeoCoord>[origin];
+    const steps = 12;
+    for (int i = 1; i < steps; i++) {
+      final t = i / steps.toDouble();
+      // Add slight road jitter curve
+      final jitterLat = math.sin(t * math.pi) * 0.0008;
+      final jitterLng = math.cos(t * math.pi) * 0.0008;
+      final lat = origin.lat + (destination.lat - origin.lat) * t + jitterLat;
+      final lng = origin.lng + (destination.lng - origin.lng) * t + jitterLng;
+      points.add(GeoCoord(lat, lng));
+    }
+    points.add(destination);
+    return points;
   }
 
   /// Calculates straight-line distance in kilometers using the Haversine formula.

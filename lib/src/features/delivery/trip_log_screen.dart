@@ -57,10 +57,6 @@ class _TripLogScreenState extends State<TripLogScreen> {
           builder: (context, snapshot) {
             final drivers = (snapshot.data?[0] as List<DriverModel>?) ?? [];
             final allDeliveries = (snapshot.data?[1] as List<DeliveryModel>?) ?? [];
-            final myDriverName = DriverSession.instance.resolveCurrentDriverName(
-              user: services.auth.currentUser,
-              drivers: drivers,
-            );
 
             final myDeliveries = allDeliveries
                 .where((d) => DriverSession.instance.isDeliveryAssignedToCurrentDriver(
