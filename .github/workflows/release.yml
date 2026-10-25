@@ -27,7 +27,7 @@ on:
       platforms:
         description: Comma-separated platforms, or "all"
         type: string
-        default: 'all'
+        default: 'android'
       version:
         description: Human version, e.g. 0.9.0 (leave blank to infer from pubspec.yaml)
         type: string
@@ -99,7 +99,9 @@ jobs:
           fi
 
           requested="${{ inputs.platforms }}"
-          if [ -z "$requested" ] || [ "$requested" = "all" ]; then
+          if [ -z "$requested" ]; then
+            requested="android"
+          elif [ "$requested" = "all" ]; then
             requested="android,linux,windows,macos"
           fi
 
