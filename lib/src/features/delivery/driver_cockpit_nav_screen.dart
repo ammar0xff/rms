@@ -352,6 +352,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                   progress: progress,
                   is3D: _is3D,
                   interactive: true,
+                  showOverlays: false,
                 ),
               ),
 
@@ -666,11 +667,17 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                     ],
 
                     const SizedBox(height: 8),
-                    // External Google Maps Quick Button
+                    // Snap to Driver / Current Location
                     Tooltip(
-                      message: 'فتح في خرائط Google',
+                      message: 'إعادة التمركز على موقعي 🛵',
                       child: InkWell(
-                        onTap: _launchExternalGoogleMaps,
+                        onTap: () {
+                          setState(() {
+                            _driverCoord = DriverLocationService.instance.effectiveCoord;
+                            _recalculateRoute();
+                          });
+                          PieToast.show(context, 'تم إعادة التمركز على موقعك 🛰️', isSuccess: true);
+                        },
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.all(9),
@@ -679,25 +686,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                             borderRadius: PieRadius.borderMd,
                             border: Border.all(color: PieColors.border),
                           ),
-                          child: const Icon(Icons.map_rounded, size: 18, color: Color(0xFF38BDF8)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    // External Waze Quick Button
-                    Tooltip(
-                      message: 'فتح في Waze',
-                      child: InkWell(
-                        onTap: _launchExternalWaze,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.all(9),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A).withValues(alpha: 0.92),
-                            borderRadius: PieRadius.borderMd,
-                            border: Border.all(color: PieColors.border),
-                          ),
-                          child: const Icon(Icons.explore_rounded, size: 18, color: Color(0xFF34D399)),
+                          child: const Icon(Icons.near_me_rounded, size: 18, color: Color(0xFF38BDF8)),
                         ),
                       ),
                     ),
@@ -733,7 +722,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                           Expanded(
                             child: PieButton.primary(
                               onPressed: _launchExternalGoogleMaps,
-                              label: 'Google Maps صوتي 🗺️',
+                              label: 'خرائط Google',
                               icon: Icons.navigation_rounded,
                               accentColor: PieColors.driverAccent,
                               height: 38,
@@ -743,7 +732,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                           Expanded(
                             child: PieButton.secondary(
                               onPressed: _launchExternalWaze,
-                              label: 'Waze مباشر 🧭',
+                              label: 'تطبيق Waze',
                               icon: Icons.explore_rounded,
                               height: 38,
                             ),
@@ -874,8 +863,8 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                             child: PieButton.primary(
                               onPressed: _isCompleting ? null : () => _completeDelivery(services),
                               label: _hasArrived
-                                  ? 'تأكيد التسليم واستلام العهدة ✅'
-                                  : 'وصلت.. تأكيد التسليم ✅',
+                                  ? 'تأكيد التسليم'
+                                  : 'وصلت للعميل',
                               icon: Icons.check_circle_rounded,
                               accentColor: const Color(0xFF16A34A),
                               height: 46,

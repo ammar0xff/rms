@@ -30,6 +30,7 @@ class RealMapTileWidget extends StatefulWidget {
     this.is3D = false,
     this.interactive = true,
     this.showFollowMarker = true,
+    this.showOverlays = true,
     this.initialZoom = 15,
     this.onProgressChanged,
     this.height,
@@ -42,6 +43,7 @@ class RealMapTileWidget extends StatefulWidget {
   final bool is3D;
   final bool interactive;
   final bool showFollowMarker;
+  final bool showOverlays;
   final int initialZoom;
   final ValueChanged<double>? onProgressChanged;
   final double? height;
@@ -363,42 +365,43 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
               Positioned.fill(child: interactiveMap),
 
               // Top Map Layer & Status Badge
-              Positioned(
-                top: 10,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: PieColors.surfaceOverlay.withValues(alpha: 0.9),
-                    borderRadius: PieRadius.borderSm,
-                    border: Border.all(color: PieColors.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isLiveGps ? Icons.satellite_alt_rounded : Icons.public_rounded,
-                        size: 14,
-                        color: _isLiveGps ? const Color(0xFF38BDF8) : const Color(0xFF4ADE80),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        _isLiveGps
-                            ? '🛰️ موقع السائق المباشر • ${_activeLayer.label}'
-                            : 'خريطة جغرافية حقيقية • ${_activeLayer.label}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: PieColors.ink,
+              if (widget.showOverlays)
+                Positioned(
+                  top: 10,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: PieColors.surfaceOverlay.withValues(alpha: 0.9),
+                      borderRadius: PieRadius.borderSm,
+                      border: Border.all(color: PieColors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isLiveGps ? Icons.satellite_alt_rounded : Icons.public_rounded,
+                          size: 14,
+                          color: _isLiveGps ? const Color(0xFF38BDF8) : const Color(0xFF4ADE80),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 5),
+                        Text(
+                          _isLiveGps
+                              ? '🛰️ موقع السائق المباشر • ${_activeLayer.label}'
+                              : 'خريطة جغرافية حقيقية • ${_activeLayer.label}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: PieColors.ink,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
               // Interactive Floating Controls (Left Bar)
-              if (widget.interactive)
+              if (widget.interactive && widget.showOverlays)
                 Positioned(
                   top: 10,
                   left: 12,
@@ -453,7 +456,8 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                 ),
 
               // Destination Chip Badge (Bottom Right)
-              Positioned(
+              if (widget.showOverlays)
+                Positioned(
                 bottom: 10,
                 right: 12,
                 child: Container(
