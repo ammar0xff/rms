@@ -13,9 +13,11 @@ import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/navigation/delivery_geocoding.dart';
 import '../../domain/navigation/driver_location_service.dart';
+import '../../core/state/sync_monitor.dart';
 import '../../core/widgets/pie_toast.dart';
 import 'driver_custody_collection_dialog.dart';
 import 'driver_fail_dialog.dart';
+import 'driver_identity_service.dart';
 import 'widgets/driver_nav_map_canvas.dart';
 import 'widgets/real_map_tile_widget.dart';
 
@@ -67,6 +69,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   bool _soundEnabled = true;
   bool _hasArrived = false;
   bool _isCompleting = false;
+  bool _dismissedDueToStatusChange = false;
   int _lastManeuverIndex = 0;
 
   late GeoCoord _driverCoord;
@@ -97,6 +100,9 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     DriverLocationService.instance.startTracking();
     DriverLocationService.instance.locationNotifier.addListener(_onLocationUpdate);
 
+    // Listen to real-time changes to handle mid-trip cancellation or driver reassignment
+    SyncMonitor.instance.addListener(_onSyncRefresh);
+
     _simController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 28),
@@ -118,6 +124,48 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
         }
       }
     });
+  }
+
+  void _onSyncRefresh() async {
+    if (!mounted || _dismissedDueToStatusChange) return;
+    final services = AppScope.of(context);
+    final deliveryRepo = services.deliveries;
+    if (deliveryRepo == null) return;
+
+    final updated = await deliveryRepo.getDelivery(widget.delivery.id);
+    if (!mounted || _dismissedDueToStatusChange) return;
+
+    if (updated == null) {
+      _dismissedDueToStatusChange = true;
+      PieSoundService.instance.beep();
+      PieToast.show(context, 'تم حذف الطلب من قائمة الدليفري', isError: true);
+      Navigator.of(context).pop();
+      return;
+    }
+
+    if (updated.state == DeliveryState.failed || updated.state == DeliveryState.returned) {
+      _dismissedDueToStatusChange = true;
+      PieSoundService.instance.beep();
+      final reason = updated.failedReason?.label ?? 'تم إلغاء الطلب من الإدارة';
+      PieToast.show(context, 'تنبيه: تم إلغاء مسار الطلب ($reason)', isError: true);
+      Navigator.of(context).pop();
+      return;
+    }
+
+    final drivers = await deliveryRepo.listDrivers();
+    if (!mounted || _dismissedDueToStatusChange) return;
+    final isStillMine = DriverSession.instance.isDeliveryAssignedToCurrentDriver(
+      delivery: updated,
+      user: services.auth.currentUser,
+      drivers: drivers,
+    );
+    if (!isStillMine) {
+      _dismissedDueToStatusChange = true;
+      PieSoundService.instance.beep();
+      PieToast.show(context, 'تنبيه: تمت إعادة إسناد الطلب لكابتن آخر (${updated.driver})', isError: true);
+      Navigator.of(context).pop();
+      return;
+    }
   }
 
   void _recalculateRoute() {
@@ -153,6 +201,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
 
   @override
   void dispose() {
+    SyncMonitor.instance.removeListener(_onSyncRefresh);
     DriverLocationService.instance.locationNotifier.removeListener(_onLocationUpdate);
     DriverLocationService.instance.stopTracking();
     _simController.dispose();

@@ -360,6 +360,18 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
         }
       }
 
+      var effectiveLat = _selectedLatitude;
+      var effectiveLng = _selectedLongitude;
+      if (_isDelivery && (effectiveLat == null || effectiveLng == null)) {
+        if (_selectedZone != null) {
+          final matchedZoneCoord = DeliveryGeocoding.zoneCoordinates[_selectedZone!.name];
+          if (matchedZoneCoord != null) {
+            effectiveLat = matchedZoneCoord.lat;
+            effectiveLng = matchedZoneCoord.lng;
+          }
+        }
+      }
+
       await widget.onComplete(
         _selectedMethod,
         customerName: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
@@ -370,8 +382,8 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
             : _tenderedAmount,
         zoneName: _selectedZone?.name,
         zoneFee: _deliveryFee,
-        latitude: _selectedLatitude,
-        longitude: _selectedLongitude,
+        latitude: effectiveLat,
+        longitude: effectiveLng,
         customerId: _matchedCustomer?.id,
       );
       if (mounted) {

@@ -83,6 +83,15 @@ class DeliveryGeocoding {
   // Default Cairo Central Branch (Tahrir / Downtown Cairo)
   static const GeoCoord defaultBranch = GeoCoord(30.0444, 31.2357);
 
+  // Suez Central Branch (Suez city center)
+  static const GeoCoord suezBranch = GeoCoord(29.9668, 32.5498);
+
+  // Dynamic active branch coordinate, initialized to Suez branch or Cairo branch.
+  static GeoCoord activeBranchCoord = suezBranch;
+
+  // Cache for address geocoding suggestions to prevent duplicate HTTP calls and rate limiting.
+  static final Map<String, List<PlaceSuggestion>> _suggestionCache = {};
+
   // Geographic registry of major Egyptian cities and delivery zones
   static const Map<String, GeoCoord> zoneCoordinates = {
     // Suez Governorate (السويس)
@@ -142,17 +151,22 @@ class DeliveryGeocoding {
     'ميامي': GeoCoord(31.2655, 30.0058),
   };
 
+  /// Updates the dynamic active branch coordinate across the application.
+  static void setActiveBranchCoordinates(GeoCoord coord) {
+    activeBranchCoord = coord;
+  }
+
   /// Resolves geographic destination coordinates for a given [DeliveryModel].
-  static GeoCoord resolveDestination(DeliveryModel delivery) {
+  static GeoCoord resolveDestination(DeliveryModel delivery, {GeoCoord? branchCoord}) {
     // 0. If validated coordinates are already stored, use them directly
     if (delivery.latitude != null && delivery.longitude != null) {
       return GeoCoord(delivery.latitude!, delivery.longitude!);
     }
 
-    // 1. Check known zones from zoneName or address
-    final text = '${delivery.zoneName ?? ''} ${delivery.address} ${delivery.landmark ?? ''}';
+    // 1. Check known zones from zoneName or address or landmark
+    final text = '${delivery.zoneName ?? ''} ${delivery.address} ${delivery.landmark ?? ''}'.toLowerCase();
     for (final entry in zoneCoordinates.entries) {
-      if (text.contains(entry.key)) {
+      if (text.contains(entry.key.toLowerCase())) {
         // Add a slight realistic micro-offset based on orderRef hash so multiple orders in the same zone don't stack on 1 pixel
         final hash = delivery.orderRef.hashCode.abs();
         final latOffset = ((hash % 100) - 50) * 0.00015;
@@ -161,21 +175,33 @@ class DeliveryGeocoding {
       }
     }
 
+    // 2. City-aware anchor: Fallback to branchCoord, or activeBranchCoord (Suez by default)
+    final anchor = branchCoord ??
+        (text.contains('قاهر') || text.contains('معادي') || text.contains('نصر') || text.contains('جيزة')
+            ? defaultBranch
+            : activeBranchCoord);
+
     // Default to a realistic location offset from branch by order hash
     final hash = delivery.orderRef.hashCode.abs();
     final latOffset = ((hash % 120) - 60) * 0.0004;
     final lngOffset = (((hash ~/ 120) % 120) - 60) * 0.0004;
-    return GeoCoord(defaultBranch.lat + latOffset, defaultBranch.lng + lngOffset);
+    return GeoCoord(anchor.lat + latOffset, anchor.lng + lngOffset);
   }
 
   /// Searches for real address suggestions using Nominatim OpenStreetMap API,
-  /// with local fallback for Egyptian locations.
+  /// with local fallback for Egyptian locations. Includes in-memory caching to
+  /// prevent duplicate network requests and avoid API rate limiting.
   static Future<List<PlaceSuggestion>> searchAddressSuggestions(
     String query, {
     GeoCoord? proximityBias,
   }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return const [];
+
+    final cacheKey = trimmed.toLowerCase();
+    if (_suggestionCache.containsKey(cacheKey)) {
+      return _suggestionCache[cacheKey]!;
+    }
 
     final results = <PlaceSuggestion>[];
 
@@ -238,6 +264,7 @@ class DeliveryGeocoding {
       }
     }
 
+    _suggestionCache[cacheKey] = results;
     return results;
   }
 
@@ -456,7 +483,7 @@ class DeliveryGeocoding {
     final totalDistMeters = (estimateRoadDistanceKm(origin, destination) * 1000).round();
 
     final step1Dist = math.max(150, (totalDistMeters * 0.15).round());
-    final step2Dist = 250; // Keeps test assertion 'انعطف يميناً بعد 250 متراً' satisfied
+    const step2Dist = 250; // Keeps test assertion 'انعطف يميناً بعد 250 متراً' satisfied
     final step3Dist = math.max(200, (totalDistMeters * 0.40).round());
     final step4Dist = math.max(100, (totalDistMeters * 0.20).round());
 

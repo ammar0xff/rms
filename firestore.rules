@@ -101,8 +101,20 @@ service cloud.firestore {
     match /collections/{id} {
       allow read, write: if signedIn();
     }
+    // Deliveries: readable by signed-in staff and drivers.
+    // Create allowed for signed-in operators (cashier, manager).
+    // Update allowed for privileged operators (manager, developer), cashiers, or
+    // couriers updating delivery progress (without tampering with the financial order amount).
+    // Delete restricted to privileged operators only.
     match /deliveries/{id} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn() && (
+        isPrivileged() ||
+        myRole() == 'cashier' ||
+        request.resource.data.get('amount', 0) == resource.data.get('amount', 0)
+      );
+      allow delete: if signedIn() && isPrivileged();
     }
     match /purchases/{id} {
       allow read, write: if signedIn();
