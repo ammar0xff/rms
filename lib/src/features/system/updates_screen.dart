@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_version.dart';
+import '../../core/pwa/pwa_cache_service.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
@@ -137,6 +139,17 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     final services = AppScope.of(context);
     final manifest = _availableRelease;
     if (manifest == null) return;
+
+    if (kIsWeb) {
+      setState(() {
+        _isInstalling = true;
+        _installProgress = 0.5;
+        _installStatusText = 'جاري تحديث كاش النظام وإعادة التحميل...';
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      PwaCacheService.instance.clearCacheAndReload();
+      return;
+    }
 
     setState(() {
       _isInstalling = true;
@@ -387,7 +400,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: PieColors.well,
                                 borderRadius: PieRadius.borderMd,
                               ),

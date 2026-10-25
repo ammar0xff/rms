@@ -38,6 +38,18 @@ class MainActivity : FlutterActivity() {
                                 apkFile = targetApk
                             }
 
+                            // On Android 8+ (Oreo), check if permission to install unknown apps is granted.
+                            // If not, guide user straight to system settings for this app.
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                if (!packageManager.canRequestPackageInstalls()) {
+                                    val manageIntent = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                                        data = Uri.parse("package:$packageName")
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    startActivity(manageIntent)
+                                }
+                            }
+
                             // A FileProvider URI is required from Android 7: passing a
                             // raw file:// to another app throws FileUriExposedException.
                             val uri: Uri = FileProvider.getUriForFile(
@@ -50,6 +62,19 @@ class MainActivity : FlutterActivity() {
                                 setDataAndType(uri, "application/vnd.android.package-archive")
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+
+                            val resInfoList = packageManager.queryIntentActivities(
+                                intent,
+                                android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+                            )
+                            for (resolveInfo in resInfoList) {
+                                grantUriPermission(
+                                    resolveInfo.activityInfo.packageName,
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                )
                             }
 
                             // Android shows its own confirmation; the user may decline,
@@ -58,7 +83,6 @@ class MainActivity : FlutterActivity() {
                                 startActivity(intent)
                                 "ok"
                             } catch (e: Exception) {
-                                // No installer able to handle the package archive.
                                 "failed"
                             }
                             result.success(launched)

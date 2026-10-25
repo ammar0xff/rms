@@ -19,7 +19,7 @@ import '../../domain/models/cashier_user_settings.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/models/semantic_version.dart';
 import '../../domain/models/update_manifest.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../system/widgets/in_app_update_dialog.dart';
 
 /// Screen: Cashier Settings & Personal Profile (`إعدادات الكاشير`)
 ///
@@ -818,11 +818,14 @@ class _CashierSettingsScreenState extends State<CashierSettingsScreen> {
                           foregroundColor: Colors.white,
                           shape: const RoundedRectangleBorder(borderRadius: PieRadius.borderSm),
                         ),
-                        onPressed: () async {
-                          final ref = _availableUpdateManifest!.artifact.reference;
-                          final uri = Uri.tryParse(ref) ??
-                              Uri.parse('https://github.com/ammar0xff/rms/releases/tag/v${_availableUpdateManifest!.version}');
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        onPressed: () {
+                          InAppUpdateDialog.show(
+                            context,
+                            manifest: _availableUpdateManifest!,
+                            onComplete: () {
+                              _checkForUpdates(services);
+                            },
+                          );
                         },
                       ),
                     ),

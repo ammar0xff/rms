@@ -165,8 +165,13 @@ class HttpArtifactDownloader implements ArtifactDownloader {
         ),
       );
 
-      final request = await client.getUrl(uriFor(manifest));
-      final token = await tokenProvider?.call();
+      final uri = uriFor(manifest);
+      final request = await client.getUrl(uri);
+      request.followRedirects = true;
+      request.maxRedirects = 10;
+      final isGitHub = uri.host.contains('github.com') ||
+          uri.host.contains('githubusercontent.com');
+      final token = isGitHub ? null : await tokenProvider?.call();
       if (token != null && token.isNotEmpty) {
         // The Firebase Storage REST API expects the ID token under the
         // `Firebase` scheme, not `Bearer`, and evaluates security rules
