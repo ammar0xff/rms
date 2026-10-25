@@ -150,15 +150,15 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
         final service = await runtime.service();
         final check = await runtime.checkManifest(manifest);
 
-        if (!check.isApproved) {
+        if (!check.canInstall) {
           setState(() {
             _isInstalling = false;
-            _installStatusText = 'لا يمكن التثبيت الآن: ${check.readiness.label}';
+            _installStatusText = 'لا يمكن التثبيت الآن: ${check.readiness.status.label}';
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('لا يمكن التثبيت الآن: ${check.readiness.label}'),
+                content: Text('لا يمكن التثبيت الآن: ${check.readiness.status.label}'),
                 backgroundColor: PieColors.stateError,
               ),
             );
@@ -547,7 +547,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                             ),
                           ),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: PieColors.borderMedium),
+                            side: const BorderSide(color: PieColors.border),
                             shape: const RoundedRectangleBorder(borderRadius: PieRadius.borderMd),
                           ),
                           onPressed: _launchDirectDownload,
