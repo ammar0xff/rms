@@ -67,14 +67,25 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
   @override
   void initState() {
     super.initState();
-    _zoom = widget.initialZoom.clamp(12, 17);
+    _resolveCoordinates();
+    _zoom = _calculateFittingZoom(_driverCoord, _destinationCoord);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat();
 
-    _resolveCoordinates();
     DriverLocationService.instance.locationNotifier.addListener(_onDriverLocationUpdated);
+  }
+
+  int _calculateFittingZoom(GeoCoord c1, GeoCoord c2) {
+    final distKm = DeliveryGeocoding.haversineDistanceKm(c1, c2);
+    if (distKm <= 0.8) return 16;
+    if (distKm <= 2.2) return 15;
+    if (distKm <= 5.5) return 14;
+    if (distKm <= 12.0) return 13;
+    if (distKm <= 26.0) return 12;
+    if (distKm <= 55.0) return 11;
+    return 10;
   }
 
   void _onDriverLocationUpdated() {
@@ -136,8 +147,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
   String _getTileUrl(int z, int x, int y, RealMapLayer layer) {
     switch (layer) {
       case RealMapLayer.dark:
+        return 'https://a.basemaps.cartocdn.com/rastertiles/dark_all/$z/$x/$y.png';
       case RealMapLayer.street:
-        return 'https://tile.openstreetmap.org/$z/$x/$y.png';
+        return 'https://a.basemaps.cartocdn.com/rastertiles/voyager/$z/$x/$y.png';
       case RealMapLayer.satellite:
         return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/$z/$y/$x';
     }
@@ -145,33 +157,33 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
 
   void _recenter() {
     setState(() {
-      _zoom = widget.initialZoom.clamp(12, 17);
+      _zoom = _calculateFittingZoom(_driverCoord, _destinationCoord);
       _panOffset = Offset.zero;
     });
   }
 
   void _snapToDriver() {
-    final t = widget.progress.clamp(0.0, 1.0);
-    final centerLat = _driverCoord.lat + (_destinationCoord.lat - _driverCoord.lat) * (0.3 + 0.4 * t);
-    final centerLng = _driverCoord.lng + (_destinationCoord.lng - _driverCoord.lng) * (0.3 + 0.4 * t);
-    final centerCoord = GeoCoord(centerLat, centerLng);
-    final centerPixels = _coordToWorldPixels(centerCoord, _zoom);
-    final driverPixels = _coordToWorldPixels(_driverCoord, _zoom);
-
+    final centerCoord = GeoCoord(
+      (_driverCoord.lat + _destinationCoord.lat) / 2.0,
+      (_driverCoord.lng + _destinationCoord.lng) / 2.0,
+    );
     setState(() {
+      _zoom = 15;
+      final centerPixels = _coordToWorldPixels(centerCoord, 15);
+      final driverPixels = _coordToWorldPixels(_driverCoord, 15);
       _panOffset = Offset(centerPixels.dx - driverPixels.dx, centerPixels.dy - driverPixels.dy);
     });
   }
 
   void _snapToDestination() {
-    final t = widget.progress.clamp(0.0, 1.0);
-    final centerLat = _driverCoord.lat + (_destinationCoord.lat - _driverCoord.lat) * (0.3 + 0.4 * t);
-    final centerLng = _driverCoord.lng + (_destinationCoord.lng - _driverCoord.lng) * (0.3 + 0.4 * t);
-    final centerCoord = GeoCoord(centerLat, centerLng);
-    final centerPixels = _coordToWorldPixels(centerCoord, _zoom);
-    final destPixels = _coordToWorldPixels(_destinationCoord, _zoom);
-
+    final centerCoord = GeoCoord(
+      (_driverCoord.lat + _destinationCoord.lat) / 2.0,
+      (_driverCoord.lng + _destinationCoord.lng) / 2.0,
+    );
     setState(() {
+      _zoom = 15;
+      final centerPixels = _coordToWorldPixels(centerCoord, 15);
+      final destPixels = _coordToWorldPixels(_destinationCoord, 15);
       _panOffset = Offset(centerPixels.dx - destPixels.dx, centerPixels.dy - destPixels.dy);
     });
   }
@@ -205,10 +217,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
 
         final viewportSize = Size(viewportWidth, viewportHeight);
 
-        // Center map midway between driver and destination with courier progress bias
-        final t = widget.progress.clamp(0.0, 1.0);
-        final centerLat = _driverCoord.lat + (_destinationCoord.lat - _driverCoord.lat) * (0.3 + 0.4 * t);
-        final centerLng = _driverCoord.lng + (_destinationCoord.lng - _driverCoord.lng) * (0.3 + 0.4 * t);
+        // Center map midway between driver and destination
+        final centerLat = (_driverCoord.lat + _destinationCoord.lat) / 2.0;
+        final centerLng = (_driverCoord.lng + _destinationCoord.lng) / 2.0;
         final centerCoord = GeoCoord(centerLat, centerLng);
 
         final centerPixels = _coordToWorldPixels(centerCoord, _zoom);
@@ -251,18 +262,6 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                 );
               },
             );
-
-            if (_activeLayer == RealMapLayer.dark) {
-              tileWidget = ColorFiltered(
-                colorFilter: const ColorFilter.matrix(<double>[
-                  -0.78, 0, 0, 0, 220,
-                  0, -0.78, 0, 0, 220,
-                  0, 0, -0.78, 0, 230,
-                  0, 0, 0, 1, 0,
-                ]),
-                child: tileWidget,
-              );
-            }
 
             tiles.add(
               Positioned(
@@ -583,17 +582,16 @@ class _RealMapOverlayPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(routePath, corePaint);
 
-    // 2. Draw Driver / Origin Pin (🛵 or 🏬)
+    // 2. Draw Origin Pin (🏬 or 🏁)
     final originPos = screenPoints.first;
     if (isFromBranch) {
       canvas.drawCircle(originPos, 10, Paint()..color = const Color(0xFF0284C7));
       canvas.drawCircle(originPos, 4, Paint()..color = Colors.white);
       _drawBadge(canvas, 'الفرع 🏬', originPos + const Offset(-20, -22), const Color(0xFF0369A1));
     } else {
-      canvas.drawCircle(originPos, 12, Paint()..color = const Color(0xFF0284C7));
-      canvas.drawCircle(originPos, 6, Paint()..color = const Color(0xFF38BDF8));
-      canvas.drawCircle(originPos, 3, Paint()..color = Colors.white);
-      _drawBadge(canvas, 'موقعي الحالي 🛵', originPos + const Offset(-30, -24), const Color(0xFF0284C7));
+      canvas.drawCircle(originPos, 10, Paint()..color = const Color(0xFF0284C7));
+      canvas.drawCircle(originPos, 4, Paint()..color = Colors.white);
+      _drawBadge(canvas, 'نقطة الانطلاق 🏁', originPos + const Offset(-25, -22), const Color(0xFF0284C7));
     }
 
     // 3. Draw Destination Pin (📍)

@@ -62,7 +62,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _simController;
   bool _isSimulating = false;
-  bool _is3D = true;
+  bool _is3D = false;
   bool _soundEnabled = true;
   bool _hasArrived = false;
   bool _isCompleting = false;
@@ -292,7 +292,15 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     final int currentSpeed;
     final liveSpeed = DriverLocationService.instance.lastKnownLocation?.speed.round() ?? 0;
 
-    if (progress < 0.22) {
+    if (progress < 0.12) {
+      final m = _maneuvers.first;
+      turnIcon = m.icon;
+      instruction = m.instruction;
+      nextTurn = _maneuvers.length > 1 ? _maneuvers[1].instruction : 'واصل السير نحو الوجهة';
+      metersRemaining = _totalMeters;
+      minutesRemaining = _totalEtaMinutes;
+      currentSpeed = _isSimulating ? 36 : liveSpeed;
+    } else if (progress < 0.45) {
       final m = _maneuvers.length > 1 ? _maneuvers[1] : _maneuvers.first;
       turnIcon = m.icon;
       instruction = m.instruction;
@@ -300,7 +308,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
       metersRemaining = (_totalMeters * (1.0 - progress)).round();
       minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
       currentSpeed = _isSimulating ? 38 : liveSpeed;
-    } else if (progress < 0.55) {
+    } else if (progress < 0.75) {
       final m = _maneuvers.length > 2 ? _maneuvers[2] : _maneuvers.first;
       turnIcon = m.icon;
       instruction = m.instruction;
@@ -308,14 +316,14 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
       metersRemaining = (_totalMeters * (1.0 - progress)).round();
       minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
       currentSpeed = _isSimulating ? 34 : liveSpeed;
-    } else if (progress < 0.85) {
+    } else if (progress < 0.95) {
       final m = _maneuvers.length > 3 ? _maneuvers[3] : _maneuvers.first;
       turnIcon = m.icon;
       instruction = m.instruction;
       nextTurn = _maneuvers.last.instruction;
       metersRemaining = (_totalMeters * (1.0 - progress)).round();
       minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
-      currentSpeed = _isSimulating ? 26 : liveSpeed;
+      currentSpeed = _isSimulating ? 22 : liveSpeed;
     } else {
       final m = _maneuvers.last;
       turnIcon = m.icon;

@@ -219,6 +219,7 @@ class DriverNavSheet extends StatelessWidget {
                     height: 200,
                     interactive: true,
                     is3D: false,
+                    showOverlays: false,
                   ),
                   Positioned(
                     bottom: 10,
