@@ -11,9 +11,12 @@ import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/cash_session.dart';
+import '../../domain/models/facility_settings.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_type.dart';
+import '../../domain/services/receipt_print_service.dart';
 import '../accounting/z_report_screen.dart';
+import 'open_shift_dialog.dart';
 
 /// Screen 5: Shift Board (الوردية ولوحة المبيعات اللحظية)
 ///
@@ -44,9 +47,13 @@ class _ShiftScreenState extends State<ShiftScreen> {
     super.initState();
     // Live elapsed timer ticker (1 second) - disabled in test environments
     if (ShiftScreen.enableTicker) {
-      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (mounted && (_session?.isOpen ?? false)) {
-          setState(() {});
+          if (timer.tick % 3 == 0) {
+            _loadData(silent: true);
+          } else {
+            setState(() {});
+          }
         }
       });
     }
@@ -58,13 +65,25 @@ class _ShiftScreenState extends State<ShiftScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final services = AppScope.of(context);
       final cashSessionsRepo = services.cashSessions;
       final ordersRepo = services.orders;
 
-      final session = await cashSessionsRepo?.currentSession();
+      var session = await cashSessionsRepo?.currentSession();
+      if (session == null && services.firebaseReady && services.inboundSync != null && !silent) {
+        try {
+          await services.inboundSync!.waitForInitialCollection(
+            'cashSessions',
+            timeout: const Duration(milliseconds: 1800),
+          );
+          session = await cashSessionsRepo?.currentSession();
+        } catch (_) {}
+      }
       double expected = session?.openingFloat ?? 0.0;
       if (session != null && cashSessionsRepo != null) {
         try {
@@ -74,12 +93,20 @@ class _ShiftScreenState extends State<ShiftScreen> {
         }
       }
       final orders = await ordersRepo?.listOrders() ?? [];
+      final currentSession = session;
+      final scopedOrders = currentSession == null
+          ? <Order>[]
+          : orders
+              .where((o) =>
+                  !o.createdAt.toUtc().isBefore(currentSession.openedAt.toUtc()) &&
+                  (currentSession.closedAt == null || !o.createdAt.toUtc().isAfter(currentSession.closedAt!.toUtc())))
+              .toList();
 
       if (mounted) {
         setState(() {
           _session = session;
           _expectedCash = expected;
-          _orders = orders;
+          _orders = scopedOrders;
           _isLoading = false;
         });
       }
@@ -273,6 +300,30 @@ class _ShiftScreenState extends State<ShiftScreen> {
                 ),
             ],
           ),
+          if (isOpen && session != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (session.cashierName != null && session.cashierName!.isNotEmpty) ...[
+                  const Icon(Icons.person_outline_rounded, size: 16, color: PieColors.inkSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'الكاشير المسؤول: ${session.cashierName}',
+                    style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                  ),
+                  const SizedBox(width: 14),
+                ],
+                if (session.branchName != null && session.branchName!.isNotEmpty) ...[
+                  const Icon(Icons.storefront_outlined, size: 16, color: PieColors.inkSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'الفرع: ${session.branchName}',
+                    style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                  ),
+                ],
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           const Divider(color: PieColors.border, height: 1),
           const SizedBox(height: 16),
@@ -333,95 +384,272 @@ class _ShiftScreenState extends State<ShiftScreen> {
               icon: Icons.lock_open_rounded,
               accentColor: PieColors.stateSynced,
             ),
+          const SizedBox(height: 10),
+          PieButton.secondary(
+            onPressed: _showShiftHistorySheet,
+            label: 'سجل الورديات السابقة وتقارير Z',
+            icon: Icons.history_rounded,
+            height: 44,
+          ),
         ],
       ),
     );
   }
 
   Future<void> _showOpenShiftDialog() async {
-    PieSoundService.instance.click();
-    final ctrl = TextEditingController(text: '500');
-    final confirmed = await showDialog<bool>(
+    final session = await OpenShiftDialog.show(context);
+    if (session != null && mounted) {
+      await _loadData();
+    }
+  }
+
+  Future<void> _showShiftHistorySheet() async {
+    final services = AppScope.of(context);
+    final repo = services.cashSessions;
+    final facility = await services.facility?.load() ?? const FacilitySettings();
+    if (repo == null) return;
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => Directionality(
+      isScrollControlled: true,
+      backgroundColor: PieColors.surface1,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(PieRadius.lg)),
+      ),
+      builder: (sheetContext) => Directionality(
         textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          backgroundColor: PieColors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: PieRadius.borderLg,
-            side: const BorderSide(color: PieColors.border),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.lock_open_rounded, color: PieColors.stateSynced, size: 22),
-              const SizedBox(width: 10),
-              Text('افتتاح وردية جديدة', style: PieTypography.heading),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'أدخل مبلغ العهدة الافتتاحية في درج الكاشير للبدء بالبيع:',
-                style: PieTypography.body,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: ctrl,
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                style: PieTypography.monoHeading.copyWith(color: PieColors.cashierAccent),
-                decoration: const InputDecoration(
-                  labelText: 'عهدة الافتتاح (Float)',
-                  suffixText: 'ج.م',
-                  filled: true,
-                  fillColor: PieColors.well,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [200, 500, 1000].map((amt) {
-                  return ActionChip(
-                    label: Text('+$amt ج.م'),
-                    backgroundColor: PieColors.surface2,
-                    side: const BorderSide(color: PieColors.border),
-                    onPressed: () {
-                      ctrl.text = amt.toString();
-                      PieSoundService.instance.click();
-                    },
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return FutureBuilder<List<CashSession>>(
+              future: repo.listSessions(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: PieColors.cashierAccent),
                   );
-                }).toList(),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: PieColors.cashierAccent,
-                foregroundColor: const Color(0xFF0F1117),
-              ),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('فتح الوردية الآن'),
-            ),
-          ],
+                }
+
+                final sessions = (snapshot.data ?? [])
+                  ..sort((a, b) => b.openedAt.compareTo(a.openedAt));
+
+                return Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: PieColors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.history_rounded, color: PieColors.cashierAccent),
+                              const SizedBox(width: 8),
+                              Text('سجل الورديات السابقة', style: PieTypography.heading),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: PieColors.inkSecondary),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(color: PieColors.border, height: 1),
+                    if (sessions.isEmpty)
+                      const Expanded(
+                        child: Center(
+                          child: Text('لا توجد ورديات مسجلة حتى الآن'),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.separated(
+                          controller: scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: sessions.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final s = sessions[index];
+                            final isItemOpen = s.isOpen;
+                            final openedStr =
+                                '${s.openedAt.year}-${s.openedAt.month.toString().padLeft(2, '0')}-${s.openedAt.day.toString().padLeft(2, '0')} ${s.openedAt.hour.toString().padLeft(2, '0')}:${s.openedAt.minute.toString().padLeft(2, '0')}';
+                            final closedStr = s.closedAt != null
+                                ? '${s.closedAt!.year}-${s.closedAt!.month.toString().padLeft(2, '0')}-${s.closedAt!.day.toString().padLeft(2, '0')} ${s.closedAt!.hour.toString().padLeft(2, '0')}:${s.closedAt!.minute.toString().padLeft(2, '0')}'
+                                : 'مفتوحة حالياً';
+
+                            final exp = s.expectedCash ?? s.openingFloat;
+                            final cnt = s.countedCash ?? exp;
+                            final vr = s.variance ?? (cnt - exp);
+
+                            return PieCard(
+                              padding: const EdgeInsets.all(14),
+                              surfaceColor: PieColors.surface2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'وردية #${s.id}',
+                                        style: PieTypography.bodyStrong.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isItemOpen
+                                              ? const Color(0xFF14532D)
+                                              : PieColors.surfaceOverlay,
+                                          borderRadius: PieRadius.borderSm,
+                                        ),
+                                        child: Text(
+                                          isItemOpen ? 'نشطة الآن' : 'مقفلة',
+                                          style: PieTypography.caption.copyWith(
+                                            color: isItemOpen
+                                                ? const Color(0xFF4ADE80)
+                                                : PieColors.inkSecondary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      if (s.cashierName != null && s.cashierName!.isNotEmpty) ...[
+                                        Text('الكاشير: ${s.cashierName} • ', style: PieTypography.caption),
+                                      ],
+                                      if (s.branchName != null && s.branchName!.isNotEmpty) ...[
+                                        Text('فرع: ${s.branchName} • ', style: PieTypography.caption),
+                                      ],
+                                      Expanded(
+                                        child: Text(
+                                          'من: $openedStr إلى: $closedStr',
+                                          style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const Divider(color: PieColors.border, height: 1),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('عهدة الافتتاح', style: PieTypography.caption),
+                                          PieNumeral.money(s.openingFloat, style: PieTypography.monoBody),
+                                        ],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('المجرود فعلياً', style: PieTypography.caption),
+                                          PieNumeral.money(cnt, style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w700)),
+                                        ],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text('الفارق', style: PieTypography.caption),
+                                          Text(
+                                            vr == 0
+                                                ? 'مطابق (0.00)'
+                                                : (vr > 0 ? '+${vr.toStringAsFixed(2)}' : vr.toStringAsFixed(2)),
+                                            style: PieTypography.monoBody.copyWith(
+                                              color: vr == 0
+                                                  ? const Color(0xFF4ADE80)
+                                                  : (vr > 0 ? const Color(0xFF4ADE80) : PieColors.stateError),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: PieButton.secondary(
+                                          onPressed: () {
+                                            ReceiptPrintService.printZReport(
+                                              session: s,
+                                              facility: facility,
+                                              expectedCash: exp,
+                                              countedCash: cnt,
+                                              variance: vr,
+                                              cashierName: s.cashierName,
+                                              isXReport: isItemOpen,
+                                            );
+                                          },
+                                          label: isItemOpen ? 'طباعة تقرير X' : 'طباعة تقرير Z',
+                                          icon: Icons.print_rounded,
+                                          height: 38,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        height: 38,
+                                        width: 38,
+                                        decoration: BoxDecoration(
+                                          color: PieColors.surface1,
+                                          borderRadius: PieRadius.borderMd,
+                                          border: Border.all(color: PieColors.border),
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.open_in_new_rounded, size: 18, color: PieColors.inkSecondary),
+                                          tooltip: 'فتح في نافذة مستقلة',
+                                          onPressed: () {
+                                            ReceiptPrintService.openZReportInTab(
+                                              session: s,
+                                              facility: facility,
+                                              expectedCash: exp,
+                                              countedCash: cnt,
+                                              variance: vr,
+                                              cashierName: s.cashierName,
+                                              isXReport: isItemOpen,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
-
-    if (confirmed == true && mounted) {
-      final float = double.tryParse(ctrl.text.trim()) ?? 500.0;
-      final services = AppScope.of(context);
-      await services.cashSessions?.openSession(openingFloat: float);
-      PieSoundService.instance.chime();
-      await _loadData();
-    }
   }
 
   Widget _buildChannelFilterChip(OrderType? type, String label) {

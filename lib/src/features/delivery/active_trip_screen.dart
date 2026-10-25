@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
@@ -11,7 +12,11 @@ import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/navigation/delivery_navigation.dart';
 import '../../core/sound/pie_sound_service.dart';
+import '../../core/widgets/pie_toast.dart';
+import 'driver_cockpit_nav_screen.dart';
+import 'driver_custody_collection_dialog.dart';
 import 'driver_fail_dialog.dart';
 import 'driver_identity_service.dart';
 import 'driver_nav_sheet.dart';
@@ -36,9 +41,34 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   String? _expandedStopId;
 
   Future<void> _callPhone(String phone) async {
-    final uri = Uri.parse('tel:$phone');
+    final cleanPhone = phone.replaceAll(RegExp(r'\s+'), '');
+    final uri = Uri.parse('tel:$cleanPhone');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    }
+  }
+
+  Future<void> _openWhatsApp(String phone) async {
+    var cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '20${cleanPhone.substring(1)}';
+    } else if (!cleanPhone.startsWith('20') && cleanPhone.length == 10) {
+      cleanPhone = '20$cleanPhone';
+    }
+    final uri = Uri.parse('https://wa.me/$cleanPhone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _copyToClipboard(String text, String label) {
+    Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      PieToast.show(
+        context,
+        'تم نسخ $label إلى الحافظة بنجاح',
+        icon: Icons.copy_rounded,
+      );
     }
   }
 
@@ -84,21 +114,35 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   d.settlementStatus != SettlementStatus.settled)
               .fold(0.0, (sum, d) => sum + d.amount);
 
+          final refreshWrap = (Widget child) => RefreshIndicator(
+            color: PieColors.driverAccent,
+            backgroundColor: PieColors.surfaceOverlay,
+            onRefresh: () async {
+              PieSoundService.instance.click();
+              await services.sync?.requestSync();
+              if (mounted) setState(() {});
+            },
+            child: child,
+          );
+
           if (activeDeliveries.isEmpty) {
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildTripHeader(myDriverName, activeDeliveries.length, totalCustody),
-                const SizedBox(height: 20),
-                const PieCard(
-                  padding: EdgeInsets.all(32),
-                  child: PieEmptyState(
-                    title: 'مفيش طلعات نشطة دلوقتي',
-                    description: 'كل الأوردرات المسندة ليك هتظهر هنا بمجرد تجهيزها من الفرع.',
-                    icon: Icons.two_wheeler_outlined,
+            return refreshWrap(
+              ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildTripHeader(myDriverName, activeDeliveries.length, totalCustody),
+                  const SizedBox(height: 20),
+                  const PieCard(
+                    padding: EdgeInsets.all(32),
+                    child: PieEmptyState(
+                      title: 'مفيش طلعات نشطة دلوقتي',
+                      description: 'كل الأوردرات المسندة ليك هتظهر هنا بمجرد تجهيزها من الفرع.',
+                      icon: Icons.two_wheeler_outlined,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           }
 
@@ -107,12 +151,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
           final isOnRoute = activeDeliveries.any((d) => d.state == DeliveryState.onRoute);
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Trip Header
-              _buildTripHeader(myDriverName, activeDeliveries.length, totalCustody),
-              const SizedBox(height: 16),
+          return refreshWrap(
+            ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Trip Header
+                _buildTripHeader(myDriverName, activeDeliveries.length, totalCustody),
+                const SizedBox(height: 16),
 
               // Four-phase progress indicator
               _buildFourPhaseProgress(isOnRoute),
@@ -126,11 +172,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       await deliveryRepo.updateState(d.id, DeliveryState.onRoute);
                     }
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: PieColors.surface2,
-                          content: Text('بدأت الطلعة! تم تحديث حالة الأوردرات إلى "في الطريق"'),
-                        ),
+                      PieToast.show(
+                        context,
+                        'بدأت الطلعة! تم تحديث حالة الأوردرات إلى "في الطريق"',
+                        isSuccess: true,
+                        icon: Icons.two_wheeler_rounded,
                       );
                     }
                   },
@@ -158,8 +204,9 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 const SizedBox(height: 12),
               ],
             ],
-          );
-        },
+          ),
+        );
+      },
       ),
     );
   }
@@ -214,7 +261,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('العهدة المحصلة:', style: PieTypography.caption),
+              const Text('العهدة المحصلة:', style: PieTypography.caption),
               const SizedBox(height: 2),
               PieNumeral.money(
                 custody,
@@ -388,55 +435,157 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           // Expanded Content
           if (isExpanded) ...[
             const Divider(color: PieColors.border, height: 24),
-            // Landmark & Customer Info
-            Row(
-              children: [
-                const Icon(Icons.phone_in_talk_rounded, size: 16, color: PieColors.driverAccent),
-                const SizedBox(width: 6),
-                Text('العميل: ', style: PieTypography.caption.copyWith(color: PieColors.inkSecondary)),
-                Expanded(
-                  child: Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text(
-                      '01012345678',
-                      style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+
+            // Landmark Banner if present
+            if (delivery.landmark != null && delivery.landmark!.trim().isNotEmpty) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: PieColors.surface2,
+                  borderRadius: PieRadius.borderMd,
+                  border: Border.all(color: PieColors.border),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 16, color: PieColors.driverAccent),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'علامة مميزة: ${delivery.landmark}',
+                        style: PieTypography.caption.copyWith(color: PieColors.ink),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // Customer Info & Quick Communication Row
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: PieColors.surface1,
+                borderRadius: PieRadius.borderMd,
+                border: Border.all(color: PieColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_pin_circle_outlined, size: 18, color: PieColors.driverAccent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          delivery.customerName?.isNotEmpty == true
+                              ? delivery.customerName!
+                              : 'عميل الدليفري',
+                          style: PieTypography.bodyStrong,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (delivery.customerPhone != null && delivery.customerPhone!.isNotEmpty)
+                          Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Text(
+                              delivery.customerPhone!,
+                              style: PieTypography.monoCaption.copyWith(color: PieColors.inkSecondary),
+                            ),
+                          )
+                        else
+                          Text(
+                            'الرقم غير مسجل',
+                            style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                          ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                PieButton.ghost(
-                  onPressed: () => _callPhone('01012345678'),
-                  label: 'اتصال',
-                  icon: Icons.phone_rounded,
-                  height: 36,
-                ),
-              ],
+                  if (delivery.customerPhone != null && delivery.customerPhone!.isNotEmpty) ...[
+                    // Call Button
+                    PieButton.ghost(
+                      onPressed: () => _callPhone(delivery.customerPhone!),
+                      label: 'اتصال',
+                      icon: Icons.phone_rounded,
+                      height: 36,
+                    ),
+                    const SizedBox(width: 4),
+                    // WhatsApp Button
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      tooltip: 'مراسلة عبر واتساب',
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366), size: 20),
+                      onPressed: () => _openWhatsApp(delivery.customerPhone!),
+                    ),
+                    // Copy Phone
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      tooltip: 'نسخ رقم الهاتف',
+                      icon: const Icon(Icons.copy_rounded, color: PieColors.inkSecondary, size: 16),
+                      onPressed: () => _copyToClipboard(delivery.customerPhone!, 'رقم العميل'),
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 14),
 
-            // Per-Stop Action Buttons (Ergonomic 2x2 layout)
+            // Per-Stop Action Buttons (Ergonomic layout)
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // In-App Cockpit Navigation Primary Action
+                PieButton.primary(
+                  onPressed: () => DriverCockpitNavScreen.push(context, delivery: delivery),
+                  label: 'بدء الملاحة المباشرة (Cockpit HUD) 🧭',
+                  icon: Icons.explore_rounded,
+                  accentColor: const Color(0xFF0284C7),
+                  height: 42,
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
+                      flex: 4,
                       child: PieButton.primary(
-                        onPressed: () => DriverNavSheet.show(context, delivery: delivery),
-                        label: 'الملاحة وخريطة السير',
-                        icon: Icons.navigation_rounded,
+                        onPressed: () async {
+                          final uri = deliveryNavigationUri(address: delivery.address);
+                          final launched = await openDeliveryNavigation(uri);
+                          if (!launched && context.mounted) {
+                            PieToast.show(context, 'تعذر فتح تطبيق خرائط Google تلقائياً', isError: true);
+                          }
+                        },
+                        label: 'Google (GPS) 🗺️',
+                        icon: Icons.map_rounded,
                         accentColor: PieColors.driverAccent,
                         height: 40,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    PieButton.secondary(
-                      onPressed: () => DriverReceiptSheet.show(context, delivery: delivery),
-                      label: 'عرض البون',
-                      icon: Icons.receipt_long_rounded,
-                      height: 40,
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 3,
+                      child: PieButton.secondary(
+                        onPressed: () => DriverNavSheet.show(context, delivery: delivery),
+                        label: 'خريطة السير',
+                        icon: Icons.navigation_rounded,
+                        height: 40,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 3,
+                      child: PieButton.secondary(
+                        onPressed: () => DriverReceiptSheet.show(context, delivery: delivery),
+                        label: 'عرض البون',
+                        icon: Icons.receipt_long_rounded,
+                        height: 40,
+                      ),
                     ),
                   ],
                 ),
@@ -444,9 +593,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 Row(
                   children: [
                     Expanded(
-                      flex: 3,
+                      flex: 6,
                       child: PieButton.primary(
                         onPressed: () async {
+                          final confirmed = await DriverCustodyCollectionDialog.show(context, delivery: delivery);
+                          if (confirmed != true) return;
+
                           await services.deliveries?.updateState(delivery.id, DeliveryState.delivered);
                           await services.deliveries?.recordCollection(
                             deliveryId: delivery.id,
@@ -455,25 +607,28 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                           );
                           PieSoundService.instance.chime();
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('تم تسليم الأوردر بنجاح وإيداع الكاش بالعهدة'),
-                              ),
+                            PieToast.show(
+                              context,
+                              'تم تسليم الأوردر وإيداع مبلغ ${PieTypography.formatEgp(delivery.amount)} نقداً بالعهدة بنجاح ✅',
+                              isSuccess: true,
                             );
                           }
                         },
-                        label: 'تم التسليم بنجاح',
+                        label: 'تم التسليم واستلام العهدة ✅',
                         icon: Icons.check_circle_outline_rounded,
                         accentColor: const Color(0xFF10B981),
                         height: 42,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    PieButton.destructive(
-                      onPressed: () => DriverFailDialog.show(context, delivery: delivery),
-                      label: 'تعذر التسليم',
-                      icon: Icons.cancel_outlined,
-                      height: 42,
+                    Expanded(
+                      flex: 4,
+                      child: PieButton.destructive(
+                        onPressed: () => DriverFailDialog.show(context, delivery: delivery),
+                        label: 'تعذر التسليم',
+                        icon: Icons.cancel_outlined,
+                        height: 42,
+                      ),
                     ),
                   ],
                 ),

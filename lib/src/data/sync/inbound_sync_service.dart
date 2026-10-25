@@ -82,6 +82,24 @@ class InboundSyncService {
     _listenTo(db, 'tables', LocalStores.tables, 'table');
     _listenTo(db, 'purchases', LocalStores.purchases, 'purchase');
     _listenTo(db, 'suppliers', LocalStores.suppliers, 'supplier');
+    _listenTo(db, 'drivers', LocalStores.drivers, 'driver');
+    _listenTo(db, 'delivery_zones', LocalStores.deliveryZones, 'deliveryZone');
+  }
+
+  final Map<String, Completer<void>> _collectionInitialSyncCompleters = {};
+
+  /// Awaits until the initial snapshot pass for [collectionName] has been received
+  /// and processed from Cloud Firestore, or until [timeout] elapses.
+  Future<void> waitForInitialCollection(
+    String collectionName, {
+    Duration timeout = const Duration(seconds: 2),
+  }) {
+    final completer = _collectionInitialSyncCompleters.putIfAbsent(
+      collectionName,
+      () => Completer<void>(),
+    );
+    if (completer.isCompleted) return Future.value();
+    return completer.future.timeout(timeout, onTimeout: () {});
   }
 
   void _listenTo(
@@ -90,6 +108,10 @@ class InboundSyncService {
     StoreRef<String, Map<String, Object?>> store,
     String entityType,
   ) {
+    final completer = _collectionInitialSyncCompleters.putIfAbsent(
+      collectionName,
+      () => Completer<void>(),
+    );
     try {
       final sub = firestore.collection(collectionName).snapshots().listen(
         (snapshot) async {
@@ -120,11 +142,17 @@ class InboundSyncService {
               updated = true;
             }
           }
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
           if (updated) {
             SyncMonitor.instance.refresh();
           }
         },
         onError: (err) {
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
           final errStr = err.toString();
           if (errStr.contains('BLOCKED_BY_CLIENT') ||
               errStr.contains('network') ||
@@ -143,6 +171,9 @@ class InboundSyncService {
       );
       _subscriptions.add(sub);
     } catch (e) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
       AppLogger.warn('Failed to attach inbound listener to $collectionName: $e');
     }
   }
@@ -154,6 +185,7 @@ class InboundSyncService {
       await sub.cancel();
     }
     _subscriptions.clear();
+    _collectionInitialSyncCompleters.clear();
   }
 
   /// Cancels all active Firestore listeners and auth subscriptions.

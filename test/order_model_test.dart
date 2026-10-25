@@ -46,9 +46,9 @@ void main() {
       expect(_order().syncStatus, SyncStatus.localOnly);
     });
 
-    test('defaults to dine-in and round-trips the order type', () {
-      expect(_order().orderType, OrderType.dineIn);
-      expect(Order.fromRecord(_order().toRecord()).orderType, OrderType.dineIn);
+    test('defaults to takeaway and round-trips the order type', () {
+      expect(_order().orderType, OrderType.takeaway);
+      expect(Order.fromRecord(_order().toRecord()).orderType, OrderType.takeaway);
 
       final delivery = Order(
         localId: 'local-2',
@@ -88,7 +88,7 @@ void main() {
       );
       expect(draft.createdOffline, isFalse);
       expect(draft.items, hasLength(1));
-      expect(draft.orderType, OrderType.dineIn);
+      expect(draft.orderType, OrderType.takeaway);
     });
   });
 }

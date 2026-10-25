@@ -8,6 +8,7 @@ import 'package:rms/src/data/local/outbox/outbox_status.dart';
 import 'package:rms/src/data/local/outbox/outbox_store.dart';
 import 'package:rms/src/data/repositories/local_cash_session_repository.dart';
 import 'package:rms/src/domain/models/audit_entry.dart';
+import 'package:rms/src/data/sync/record_mirror.dart';
 import 'package:rms/src/domain/models/payment.dart';
 
 int _seq = 0;
@@ -96,6 +97,23 @@ void main() {
     });
 
     now = DateTime(2026, 10, 13, 15);
+    // While delivery collection is pending, it must NOT enter the drawer
+    expect(await repo.expectedCash(session), 130); // 100 + 30
+
+    // Once settled, custody is handed over and enters the cashier drawer
+    await LocalStores.collections.record('c1').put(db.db, {
+      'id': 'c1',
+      'deliveryId': 'D1',
+      'orderRef': 'T-1',
+      'driver': 'x',
+      'amount': 20.0,
+      'method': 'cash',
+      'collectedAt': DateTime(2026, 10, 13, 14, 12).toIso8601String(),
+      'settledAt': DateTime(2026, 10, 13, 14, 30).toIso8601String(),
+      'createdOffline': true,
+      'settlementStatus': 'settled',
+      'syncStatus': 'pendingSync',
+    });
     expect(await repo.expectedCash(session), 150); // 100 + 30 + 20
   });
 
@@ -140,4 +158,40 @@ void main() {
 
     expect((await repo.listSessions()).single.syncStatus, SyncStatus.synced);
   });
+
+  test('openSession and closeSession mirror immediately to Firestore mirror', () async {
+    final mirror = _RecordingMirror();
+    final mirrorRepo = LocalCashSessionRepository(
+      db,
+      outbox: OutboxStore(db),
+      audit: audit,
+      clock: () => now,
+      mirror: mirror,
+    );
+
+    final session = await mirrorRepo.openSession(openingFloat: 350);
+    expect(mirror.writes, hasLength(1));
+    expect(mirror.writes.first.type, 'cashSession');
+    expect(mirror.writes.first.id, session.id);
+    expect(mirror.writes.first.data['status'], 'open');
+
+    await mirrorRepo.closeSession(session.id, countedCash: 350);
+    expect(mirror.writes, hasLength(2));
+    expect(mirror.writes[1].type, 'cashSession');
+    expect(mirror.writes[1].id, session.id);
+    expect(mirror.writes[1].data['status'], 'closed');
+  });
+}
+
+class _RecordingMirror implements RecordMirror {
+  final List<({String type, String id, Map<String, Object?> data})> writes = [];
+
+  @override
+  Future<void> write({
+    required String entityType,
+    required String entityId,
+    required Map<String, Object?> snapshot,
+  }) async {
+    writes.add((type: entityType, id: entityId, data: snapshot));
+  }
 }

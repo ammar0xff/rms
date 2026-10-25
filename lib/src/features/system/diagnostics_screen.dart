@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
+import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
@@ -25,11 +28,84 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   List<OutboxEntry> _entries = [];
   bool _isLoading = true;
   String _selectedFilter = 'all'; // 'all', 'pending', 'error', 'synced'
+  bool _allowSignUp = true;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _signUpSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadEntries());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_signUpSub == null) {
+      final services = AppScope.of(context);
+      services.facility?.load().then((f) {
+        if (mounted) {
+          setState(() => _allowSignUp = f.allowSignUp);
+        }
+      });
+      if (services.firebaseReady) {
+        _signUpSub = FirebaseFirestore.instance
+            .collection('public_settings')
+            .doc('auth')
+            .snapshots()
+            .listen((snap) {
+          if (mounted && snap.exists && snap.data() != null) {
+            final val = snap.data()!['allowSignUp'] as bool?;
+            if (val != null) {
+              setState(() => _allowSignUp = val);
+            }
+          }
+        }, onError: (_) {});
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _signUpSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _toggleSignUp(bool value) async {
+    setState(() => _allowSignUp = value);
+    PieSoundService.instance.pop();
+
+    final services = AppScope.of(context);
+    final repo = services.facility;
+    if (repo != null) {
+      final current = await repo.load();
+      await repo.save(current.copyWith(allowSignUp: value));
+    }
+
+    if (services.firebaseReady) {
+      try {
+        await FirebaseFirestore.instance.collection('public_settings').doc('auth').set({
+          'allowSignUp': value,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedBy': services.auth.currentUser?.email ?? 'developer',
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Error updating public_settings/auth: $e');
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: value ? PieColors.stateSynced : PieColors.stateError,
+          content: Text(
+            value
+                ? 'تم تفعيل تسجيل الموظفين الجدد (Sign Up Enabled)'
+                : 'تم إيقاف وتعطيل تسجيل الموظفين الجدد (Sign Up Disabled)',
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   Future<void> _loadEntries() async {
@@ -240,6 +316,48 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: _allowSignUp
+                      ? 'تسجيل الموظفين مفعّل (انقر للتعطيل)'
+                      : 'تسجيل الموظفين معطّل (انقر للتفعيل)',
+                  child: InkWell(
+                    onTap: () => _toggleSignUp(!_allowSignUp),
+                    borderRadius: PieRadius.borderSm,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _allowSignUp
+                            ? PieColors.stateSynced.withValues(alpha: 0.15)
+                            : PieColors.stateError.withValues(alpha: 0.15),
+                        borderRadius: PieRadius.borderSm,
+                        border: Border.all(
+                          color: _allowSignUp
+                              ? PieColors.stateSynced.withValues(alpha: 0.4)
+                              : PieColors.stateError.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _allowSignUp ? Icons.person_add_rounded : Icons.person_off_rounded,
+                            size: 16,
+                            color: _allowSignUp ? PieColors.stateSynced : PieColors.stateError,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _allowSignUp ? 'تسجيل الموظفين: مفعّل' : 'تسجيل الموظفين: مغلق',
+                            style: PieTypography.caption.copyWith(
+                              color: _allowSignUp ? PieColors.stateSynced : PieColors.stateError,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),

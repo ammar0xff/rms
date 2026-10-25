@@ -77,114 +77,125 @@ class PieScaffold extends StatelessWidget {
           automaticallyImplyLeading: false,
           centerTitle: false,
           titleSpacing: isDesktop ? 16 : 8,
+          actionsPadding: EdgeInsets.symmetric(horizontal: isDesktop ? 8 : 4),
           bottom: const PreferredSize(
             preferredSize: Size.fromHeight(1),
             child: Divider(color: PieColors.border, height: 1, thickness: 1),
           ),
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Role Identity Badge
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: PieColors.surfaceFor(role),
-                    borderRadius: PieRadius.borderSm,
-                    border: Border.all(color: PieColors.borderFor(role), width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: roleAccent,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          role.label,
-                          style: PieTypography.label.copyWith(
+          title: ClipRect(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Role Identity Badge
+                Tooltip(
+                  message: role.label,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 8 : (title != null && title!.isNotEmpty ? 6 : 8),
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: PieColors.surfaceFor(role),
+                      borderRadius: PieRadius.borderSm,
+                      border: Border.all(color: PieColors.borderFor(role), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
                             color: roleAccent,
-                            fontWeight: FontWeight.w700,
+                            shape: BoxShape.circle,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              if (isDesktop) ...[
-                const SizedBox(width: 10),
-                FutureBuilder<BranchModel?>(
-                  future: services.branches?.activeBranch(),
-                  builder: (context, branchSnap) {
-                    final branch = branchSnap.data;
-                    final branchName = branch?.name ?? 'فرع المعادي';
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: PieColors.surface2,
-                        borderRadius: PieRadius.borderSm,
-                        border: Border.all(color: PieColors.borderMuted),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.storefront_outlined,
-                            size: 14,
-                            color: PieColors.inkSecondary,
-                          ),
-                          const SizedBox(width: 5),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 160),
+                        if (isDesktop || title == null || title!.isEmpty) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
                             child: Text(
-                              branchName,
-                              style: PieTypography.caption.copyWith(
-                                color: PieColors.ink,
-                                fontWeight: FontWeight.w600,
+                              role.label,
+                              style: PieTypography.label.copyWith(
+                                color: roleAccent,
+                                fontWeight: FontWeight.w700,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
-                      ),
-                    );
-                  },
-                ),
-              ],
-              if (title != null && title!.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                Text(
-                  '·',
-                  style: TextStyle(
-                    color: PieColors.border,
-                    fontSize: isDesktop ? 16 : 14,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    title!,
-                    style: (isDesktop ? PieTypography.subheading : PieTypography.bodyStrong).copyWith(
-                      color: PieColors.ink,
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+
+                if (isDesktop) ...[
+                  const SizedBox(width: 10),
+                  FutureBuilder<BranchModel?>(
+                    future: services.branches?.activeBranch(),
+                    builder: (context, branchSnap) {
+                      final branch = branchSnap.data;
+                      final branchName = branch?.name ?? 'فرع المعادي';
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: PieColors.surface2,
+                          borderRadius: PieRadius.borderSm,
+                          border: Border.all(color: PieColors.borderMuted),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.storefront_outlined,
+                              size: 14,
+                              color: PieColors.inkSecondary,
+                            ),
+                            const SizedBox(width: 5),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 160),
+                              child: Text(
+                                branchName,
+                                style: PieTypography.caption.copyWith(
+                                  color: PieColors.ink,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+                if (title != null && title!.isNotEmpty) ...[
+                  SizedBox(width: isDesktop ? 8 : 4),
+                  if (isDesktop) ...[
+                    Text(
+                      '·',
+                      style: TextStyle(
+                        color: PieColors.border,
+                        fontSize: isDesktop ? 16 : 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      title!,
+                      style: (isDesktop ? PieTypography.subheading : PieTypography.bodyStrong).copyWith(
+                        color: PieColors.ink,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           actions: [
             // Honest Sync Chip (Clickable for sync diagnostic / offline toggle)
@@ -214,7 +225,9 @@ class PieScaffold extends StatelessWidget {
             if (onRoleSwitch != null)
               PopupMenuButton<AppRole>(
                 tooltip: 'تبديل الدور الوظيفي',
-                icon: const Icon(Icons.swap_horiz_rounded, color: PieColors.inkSecondary),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                icon: const Icon(Icons.swap_horiz_rounded, color: PieColors.inkSecondary, size: 20),
                 color: PieColors.surfaceOverlay,
                 shape: const RoundedRectangleBorder(
                   borderRadius: PieRadius.borderMd,

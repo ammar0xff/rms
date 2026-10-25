@@ -1,5 +1,6 @@
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/models/delivery_zone.dart';
 import '../../domain/models/payment.dart';
 
 /// Result of attempting to assign a driver while offline.
@@ -33,11 +34,25 @@ abstract class DeliveryRepository {
 
   Future<void> cacheDrivers(List<DriverModel> drivers, {bool replace = true});
 
+  /// Lists manager-configured delivery zones with static delivery fees.
+  Future<List<DeliveryZone>> listZones();
+
+  /// Creates or updates a delivery zone and mirrors it to Firestore if online.
+  Future<void> saveZone(DeliveryZone zone);
+
+  /// Removes a delivery zone.
+  Future<void> deleteZone(String zoneId);
+
   /// Creates a job for a newly placed delivery order and returns it.
   Future<DeliveryModel> createDelivery({
     required String orderRef,
     required String address,
     required double amount,
+    String? customerName,
+    String? customerPhone,
+    String? landmark,
+    String? zoneName,
+    double? zoneFee,
     bool createdOffline = false,
   });
 

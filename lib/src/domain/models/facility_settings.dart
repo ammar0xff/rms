@@ -9,7 +9,7 @@ class FacilitySettings {
     this.taxId = '',
     this.commercialRegister = '',
     this.vatRate = 0.14,
-    this.serviceRate = 0.12,
+    this.serviceRate = 0.0,
     this.receiptFooter = '',
     this.themePreset = 'amber',
     this.printerCodepage = 'UTF-8',
@@ -22,6 +22,7 @@ class FacilitySettings {
     this.activeBranchId = 'BR-01',
     this.activeBranchName = 'بوابة الشمال',
     this.simulateOffline = false,
+    this.allowSignUp = true,
   });
 
   final String nameAr;
@@ -47,6 +48,7 @@ class FacilitySettings {
   final String activeBranchId;
   final String activeBranchName;
   final bool simulateOffline;
+  final bool allowSignUp;
 
   FacilitySettings copyWith({
     String? nameAr,
@@ -68,6 +70,7 @@ class FacilitySettings {
     String? activeBranchId,
     String? activeBranchName,
     bool? simulateOffline,
+    bool? allowSignUp,
   }) =>
       FacilitySettings(
         nameAr: nameAr ?? this.nameAr,
@@ -89,6 +92,7 @@ class FacilitySettings {
         activeBranchId: activeBranchId ?? this.activeBranchId,
         activeBranchName: activeBranchName ?? this.activeBranchName,
         simulateOffline: simulateOffline ?? this.simulateOffline,
+        allowSignUp: allowSignUp ?? this.allowSignUp,
       );
 
   Map<String, Object?> toRecord() => {
@@ -111,6 +115,7 @@ class FacilitySettings {
         'activeBranchId': activeBranchId,
         'activeBranchName': activeBranchName,
         'simulateOffline': simulateOffline,
+        'allowSignUp': allowSignUp,
       };
 
   static FacilitySettings fromRecord(Map<String, Object?> record) =>
@@ -121,7 +126,7 @@ class FacilitySettings {
         taxId: record['taxId'] as String? ?? '',
         commercialRegister: record['commercialRegister'] as String? ?? '',
         vatRate: (record['vatRate'] as num?)?.toDouble() ?? 0.14,
-        serviceRate: (record['serviceRate'] as num?)?.toDouble() ?? 0.12,
+        serviceRate: (record['serviceRate'] as num?)?.toDouble() ?? 0.0,
         receiptFooter: record['receiptFooter'] as String? ?? '',
         themePreset: record['themePreset'] as String? ?? 'amber',
         printerCodepage: record['printerCodepage'] as String? ?? 'UTF-8',
@@ -134,5 +139,6 @@ class FacilitySettings {
         activeBranchId: record['activeBranchId'] as String? ?? 'BR-01',
         activeBranchName: record['activeBranchName'] as String? ?? 'بوابة الشمال',
         simulateOffline: record['simulateOffline'] as bool? ?? false,
+        allowSignUp: record['allowSignUp'] as bool? ?? true,
       );
 }

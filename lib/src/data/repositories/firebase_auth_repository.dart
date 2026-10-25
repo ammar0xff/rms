@@ -37,6 +37,7 @@ abstract interface class AuthBackend {
     String? displayName,
   });
   Future<void> signOut();
+  Future<void> updateProfile({String? displayName, String? newPassword});
 }
 
 /// Infers an operator role from their email address convention.
@@ -155,6 +156,23 @@ class _FirebaseAuthBackend implements AuthBackend {
     roles.clear();
     return _auth.signOut();
   }
+
+  @override
+  Future<void> updateProfile({String? displayName, String? newPassword}) async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        if (displayName != null && displayName.isNotEmpty) {
+          await user.updateDisplayName(displayName);
+        }
+        if (newPassword != null && newPassword.isNotEmpty) {
+          await user.updatePassword(newPassword);
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      throw AuthBackendFailure(e.code);
+    }
+  }
 }
 
 /// Backend-backed authentication using Firebase Auth (email/password).
@@ -247,6 +265,21 @@ class FirebaseAuthRepository implements AuthRepository {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      if (resolvedRole == AppRole.driver) {
+        final driverName = (displayName != null && displayName.trim().isNotEmpty)
+            ? displayName.trim()
+            : (email.trim() == 'driver@pie.eg'
+                ? 'كابتن توصيل'
+                : 'كابتن ${email.trim().split('@').first}');
+        await db.collection('drivers').doc(user.uid).set({
+          'id': user.uid,
+          'name': driverName,
+          'available': true,
+          'email': user.email ?? email.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
     } catch (_) {}
 
     final backend = _backend;
@@ -256,6 +289,25 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _backend.signOut();
+
+  @override
+  Future<void> updateProfile({String? displayName, String? newPassword}) async {
+    final user = _backend.currentUser;
+    try {
+      await _backend.updateProfile(displayName: displayName, newPassword: newPassword);
+    } on AuthBackendFailure catch (e) {
+      throw AuthException(authFailureMessage(e.code));
+    }
+    if (user != null && displayName != null && displayName.isNotEmpty) {
+      try {
+        final db = _firestore ?? FirebaseFirestore.instance;
+        await db.collection('users').doc(user.uid).set({
+          'displayName': displayName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
+  }
 
   /// Reads the operator's role from `users/{uid}`. If missing or without a role,
   /// infers from the email convention and initializes the user profile doc.
@@ -270,35 +322,69 @@ class FirebaseAuthRepository implements AuthRepository {
       final data = doc.data();
       final parsedRole = AppRole.tryParse(data?['role']);
 
-      if (parsedRole != null) {
-        final backend = _backend;
-        if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = parsedRole;
-        return parsedRole;
-      }
-
-      // No role on the document, by design. The rules let an operator create
-      // and maintain their own profile but refuse a self-assigned `role`,
-      // because that field is what `isPrivileged()` reads — writing it would be
-      // a privilege escalation, not a profile. Sending it anyway would get the
-      // whole write denied and leave no profile at all. Until a manager assigns
-      // a real role, the email inference below stands in, which is what this
-      // method has always fallen back to.
       final inferredRole = inferRoleFromEmail(user.email);
-      try {
-        await docRef.set({
-          'uid': user.uid,
-          'email': user.email ?? '',
-          'displayName':
-              user.displayName ?? (user.email?.split('@').first ?? ''),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } catch (_) {
-        // Non-fatal if offline or Firestore uninitialized
+      if (parsedRole == null) {
+        try {
+          await docRef.set({
+            'uid': user.uid,
+            'email': user.email ?? '',
+            'displayName':
+                user.displayName ?? (user.email?.split('@').first ?? ''),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (_) {}
       }
 
       final backend = _backend;
-      if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = inferredRole;
-      return inferredRole;
+      final resolved = parsedRole ?? inferredRole;
+      if (backend is _FirebaseAuthBackend) backend.roles[user.uid] = resolved;
+
+      // Auto-ensure driver record exists for couriers
+      if (resolved == AppRole.driver) {
+        try {
+          final driverDoc = await db.collection('drivers').doc(user.uid).get();
+          if (!driverDoc.exists) {
+            final rawName = user.displayName?.trim() ?? (data?['displayName'] as String?)?.trim() ?? '';
+            final driverName = rawName.isNotEmpty
+                ? rawName
+                : (user.email == 'driver@pie.eg'
+                    ? 'كابتن توصيل'
+                    : 'كابتن ${user.email?.split('@').first ?? 'الفرع'}');
+            await db.collection('drivers').doc(user.uid).set({
+              'id': user.uid,
+              'name': driverName,
+              'available': true,
+              'email': user.email ?? '',
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
+        } catch (_) {}
+      }
+
+      // Privileged operators sync all existing drivers from /users to /drivers
+      if (resolved == AppRole.manager || resolved == AppRole.developer) {
+        try {
+          final driverUsers = await db.collection('users').where('role', isEqualTo: 'driver').get();
+          for (final dDoc in driverUsers.docs) {
+            final uData = dDoc.data();
+            final uid = dDoc.id;
+            final uName = (uData['displayName'] as String?)?.trim();
+            final uEmail = (uData['email'] as String?)?.trim() ?? '';
+            final name = (uName != null && uName.isNotEmpty)
+                ? uName
+                : (uEmail == 'driver@pie.eg' ? 'كابتن توصيل' : 'كابتن ${uEmail.split('@').first}');
+            await db.collection('drivers').doc(uid).set({
+              'id': uid,
+              'name': name,
+              'available': true,
+              'email': uEmail,
+            }, SetOptions(merge: true));
+          }
+        } catch (_) {}
+      }
+
+      return resolved;
     } catch (_) {
       final role = inferRoleFromEmail(user.email);
       final backend = _backend;

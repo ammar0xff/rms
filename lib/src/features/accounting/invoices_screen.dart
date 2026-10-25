@@ -261,8 +261,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                   children: [
                     _buildChannelFilterChip(null, 'الكل'),
                     const SizedBox(width: 6),
-                    _buildChannelFilterChip(OrderType.dineIn, 'صالة'),
-                    const SizedBox(width: 6),
                     _buildChannelFilterChip(OrderType.takeaway, 'تيك أواي'),
                     const SizedBox(width: 6),
                     _buildChannelFilterChip(OrderType.delivery, 'دليفري'),
@@ -420,7 +418,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         : (order.provisionalOrderNumber.isNotEmpty ? order.provisionalOrderNumber : order.localId);
     final safeTotal = order.total.isFinite ? order.total : 0.0;
     final safeSubtotal = order.subtotal.isFinite ? order.subtotal : 0.0;
-    final safeService = order.serviceAmount.isFinite ? order.serviceAmount : 0.0;
     final safeTax = order.taxAmount.isFinite ? order.taxAmount : 0.0;
 
     return Padding(
@@ -501,10 +498,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           const Divider(color: PieColors.border, height: 20),
           // Breakdown
           _buildReceiptRow('المجموع الجزئي', safeSubtotal),
-          if (safeService > 0)
-            _buildReceiptRow('خدمة الصالة', safeService),
           if (safeTax > 0)
             _buildReceiptRow('ضريبة القيمة المضافة', safeTax),
+          if (order.deliveryFee > 0)
+            _buildReceiptRow('خدمة التوصيل', order.deliveryFee),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

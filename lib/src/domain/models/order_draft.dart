@@ -7,16 +7,18 @@ class OrderDraft {
   const OrderDraft({
     required this.items,
     this.createdOffline = false,
-    this.orderType = OrderType.dineIn,
+    this.orderType = OrderType.takeaway,
     this.taxAmount = 0.0,
     this.discountAmount = 0.0,
     this.serviceAmount = 0.0,
+    this.deliveryFee = 0.0,
   });
 
   final List<OrderItem> items;
   final double taxAmount;
   final double discountAmount;
   final double serviceAmount;
+  final double deliveryFee;
   final bool createdOffline;
   final OrderType orderType;
 }

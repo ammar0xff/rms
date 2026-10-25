@@ -40,6 +40,16 @@ class DriverSession {
 
       final emailLocal = (user.email ?? '').trim().toLowerCase().split('@').first;
       if (emailLocal.isNotEmpty) {
+        // Explicit match for default pilot account (driver@pie.eg)
+        if (emailLocal == 'driver' || (user.email?.toLowerCase().trim() == 'driver@pie.eg')) {
+          for (final d in drivers) {
+            if (d.name == 'كابتن توصيل' || d.name.contains('توصيل')) {
+              return d.name;
+            }
+          }
+          return 'كابتن توصيل';
+        }
+
         for (final d in drivers) {
           final dLower = d.name.toLowerCase();
           if (emailLocal == dLower ||

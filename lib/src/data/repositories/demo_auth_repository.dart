@@ -84,6 +84,17 @@ class DemoAuthRepository implements AuthRepository {
   @override
   Future<AppRole> roleFor(AppUser user) async => _inferRole(user.email);
 
+  @override
+  Future<void> updateProfile({String? displayName, String? newPassword}) async {
+    if (_current != null) {
+      final updated = _current!.copyWith(
+        displayName: displayName ?? _current!.displayName,
+      );
+      _current = updated;
+      _controller.add(updated);
+    }
+  }
+
   static AppRole _inferRole(String? email) {
     final local = (email ?? '').trim().toLowerCase().split('@').first;
     for (final entry in const [

@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
-import '../auth/sign_in_screen.dart';
 
 /// Full-featured animated splash screen for PIE Operations.
 class SplashScreen extends StatefulWidget {

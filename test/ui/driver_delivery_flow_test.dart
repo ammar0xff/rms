@@ -6,10 +6,14 @@ import 'package:rms/src/domain/models/collection.dart';
 import 'package:rms/src/domain/models/delivery.dart';
 import 'package:rms/src/features/delivery/active_trip_screen.dart';
 import 'package:rms/src/features/delivery/custody_settlement_screen.dart';
+import 'package:rms/src/features/delivery/driver_cockpit_nav_screen.dart';
 import 'package:rms/src/features/delivery/driver_fail_dialog.dart';
 import 'package:rms/src/features/delivery/driver_identity_service.dart';
 import 'package:rms/src/features/delivery/driver_nav_sheet.dart';
+import 'package:rms/src/features/delivery/driver_profile_screen.dart';
 import 'package:rms/src/features/delivery/driver_receipt_sheet.dart';
+import 'package:rms/src/features/delivery/driver_settings_screen.dart';
+import 'package:rms/src/features/delivery/widgets/driver_nav_map_canvas.dart';
 
 import 'package:rms/src/data/repositories/local_delivery_repository.dart';
 import '../helpers/test_bootstrap.dart';
@@ -35,7 +39,7 @@ void main() {
       expect(find.text('محطات التوصيل (1)'), findsOneWidget);
 
       // Open navigation sheet
-      final navBtn = find.text('الملاحة وخريطة السير');
+      final navBtn = find.textContaining('خريطة السير');
       expect(navBtn, findsOneWidget);
       await tester.tap(navBtn);
       await tester.pumpFewFrames();
@@ -73,9 +77,15 @@ void main() {
       expect(find.byType(DriverReceiptSheet), findsNothing);
 
       // Complete delivery
-      final deliverBtn = find.text('تم التسليم بنجاح');
+      final deliverBtn = find.textContaining('تم التسليم');
       expect(deliverBtn, findsOneWidget);
       await tester.tap(deliverBtn);
+      await tester.pumpFewFrames();
+
+      // Verify custody confirmation dialog appears and confirm custody receipt
+      final confirmCustodyBtn = find.textContaining('استلمت النقدية وأكدت العهدة');
+      expect(confirmCustodyBtn, findsOneWidget);
+      await tester.tap(confirmCustodyBtn);
       await tester.pumpFewFrames();
 
       // Verify delivery marked delivered in DB
@@ -193,6 +203,225 @@ void main() {
         expect(stop.state, DeliveryState.failed);
         expect(stop.failedReason, DeliveryFailureReason.noAnswer);
       });
+    });
+
+    testWidgets('Active Trip Flow: customer phone, WhatsApp, and Google Maps direct actions render',
+        (WidgetTester tester) async {
+      tester.setMobileSize();
+      addTearDown(tester.resetTestSize);
+
+      DriverSession.instance.activeDriverName = 'مروان ر.';
+      addTearDown(() => DriverSession.instance.activeDriverName = null);
+
+      final services = await createTestServices(tester: tester, initialRole: AppRole.driver);
+
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Verify customer phone and name from seeded delivery DL-0093
+      expect(find.text('01012345678'), findsOneWidget);
+      expect(find.text('م. أحمد الشريف'), findsOneWidget);
+      expect(find.textContaining('بجوار صيدلية العزبي'), findsOneWidget);
+
+      // Verify communication buttons
+      expect(find.text('اتصال'), findsOneWidget);
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+
+      // Open navigation sheet and verify Google Maps direct GPS button
+      final navBtn = find.textContaining('خريطة السير');
+      await tester.tap(navBtn);
+      await tester.pumpFewFrames();
+
+      expect(find.byType(DriverNavSheet), findsOneWidget);
+      expect(find.text('فتح في خرائط Google (GPS مباشر)'), findsOneWidget);
+      expect(
+        find.descendant(of: find.byType(DriverNavSheet), matching: find.byIcon(Icons.map_rounded)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Driver Profile Flow: vehicle selector, sound toggle, and PWA cache update',
+        (WidgetTester tester) async {
+      tester.setMobileSize();
+      addTearDown(tester.resetTestSize);
+
+      DriverSession.instance.activeDriverName = 'مروان ر.';
+      addTearDown(() => DriverSession.instance.activeDriverName = null);
+
+      final services = await createTestServices(tester: tester, initialRole: AppRole.driver);
+
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Navigate to 'ملفي وحالتي' tab (Index 3)
+      final profileTab = find.text('ملفي وحالتي');
+      expect(profileTab, findsOneWidget);
+      await tester.tap(profileTab);
+      await tester.pumpFewFrames();
+
+      expect(find.byType(DriverProfileScreen), findsOneWidget);
+
+      // Verify vehicle selector options
+      expect(find.text('موتوسيكل 🛵'), findsOneWidget);
+      expect(find.text('سكوتر 🛴'), findsOneWidget);
+
+      // Tap scooter
+      await tester.tap(find.text('سكوتر 🛴'));
+      await tester.pumpFewFrames();
+
+      // Verify Sound effects toggle & PWA cache update button
+      await tester.scrollUntilVisible(
+        find.text('المؤثرات والتنبيهات الصوتية'),
+        200.0,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('المؤثرات والتنبيهات الصوتية'), findsOneWidget);
+      expect(find.text('تحديث كاش المتصفح (PWA)'), findsOneWidget);
+
+      final updateBtn = find.text('تحديث الآن');
+      await tester.scrollUntilVisible(
+        updateBtn,
+        200.0,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Drag a bit further to bring the button well inside the viewport
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
+      await tester.pumpFewFrames();
+
+      expect(updateBtn, findsOneWidget);
+      await tester.tap(updateBtn);
+      await tester.pump();
+
+      // Verify snackbar
+      expect(find.textContaining('جاري مسح كاش المتصفح'), findsOneWidget);
+
+      // Advance past 300ms delay to clean up pending timer
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpFewFrames();
+    });
+
+    testWidgets('Fancy In-App Built-in Navigation Flow: opens cockpit HUD, tests 3D toggle and telemetry',
+        (WidgetTester tester) async {
+      tester.setMobileSize();
+      addTearDown(tester.resetTestSize);
+
+      DriverSession.instance.activeDriverName = 'مروان ر.';
+      addTearDown(() => DriverSession.instance.activeDriverName = null);
+
+      final services = await createTestServices(tester: tester, initialRole: AppRole.driver);
+
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Open Built-in Navigation from stop card
+      final inAppNavBtn = find.text('بدء الملاحة المباشرة (Cockpit HUD) 🧭');
+      expect(inAppNavBtn, findsOneWidget);
+      await tester.tap(inAppNavBtn);
+      await tester.pumpFewFrames();
+
+      // Verify DriverCockpitNavScreen is pushed
+      expect(find.byType(DriverCockpitNavScreen), findsOneWidget);
+      expect(find.byType(DriverNavMapCanvas), findsOneWidget);
+
+      // Verify Turn-by-Turn guidance banner
+      expect(find.textContaining('انعطف يميناً بعد 250 متراً'), findsOneWidget);
+
+      // Verify Speedometer & Telemetry
+      expect(find.text('كم/س'), findsOneWidget);
+      expect(find.text('حد 60'), findsOneWidget);
+      expect(find.textContaining('دقيقة'), findsOneWidget);
+
+      // Verify 3D toggle button & tap it
+      expect(find.text('📐 3D'), findsOneWidget);
+      await tester.tap(find.text('📐 3D'));
+      await tester.pumpFewFrames();
+      expect(find.text('🗺️ 2D'), findsOneWidget);
+
+      // Verify Simulation button (play / pause)
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.pause_rounded));
+      await tester.pumpFewFrames();
+
+      // Verify Cash Collection reminder in HUD
+      expect(find.text('المطلوب تحصيله كاش عند الباب:'), findsOneWidget);
+
+      // Close cockpit navigation
+      final closeBtn = find.byTooltip('إغلاق الملاحة');
+      expect(closeBtn, findsOneWidget);
+      await tester.tap(closeBtn);
+      await tester.pumpFewFrames();
+
+      expect(find.byType(DriverCockpitNavScreen), findsNothing);
+    });
+
+    testWidgets(
+        'Driver Settings Tab Flow: navigates to settings, edits profile, toggles preferences and updates cache',
+        (WidgetTester tester) async {
+      tester.setMobileSize();
+      addTearDown(tester.resetTestSize);
+
+      DriverSession.instance.activeDriverName = 'مروان ر.';
+      addTearDown(() => DriverSession.instance.activeDriverName = null);
+
+      final services = await createTestServices(tester: tester, initialRole: AppRole.driver);
+
+      await tester.pumpWidget(RmsApp(services: services));
+      await tester.pumpFewFrames();
+
+      // Verify 'إعدادات الكابتن' nav tab exists and tap it
+      final settingsTab = find.text('إعدادات الكابتن');
+      expect(settingsTab, findsOneWidget);
+      await tester.tap(settingsTab);
+      await tester.pumpFewFrames();
+
+      // Verify DriverSettingsScreen is displayed
+      expect(find.byType(DriverSettingsScreen), findsOneWidget);
+      expect(find.text('إعدادات الكابتن وتفضيلات القيادة'), findsOneWidget);
+
+      // Verify Profile card & edit name
+      expect(find.text('بيانات الكابتن وملف الحساب'), findsOneWidget);
+      final nameField = find.widgetWithText(TextField, 'اسم الكابتن');
+      expect(nameField, findsOneWidget);
+      await tester.enterText(nameField, 'كابتن مروان البطل');
+      final saveNameBtn = find.text('حفظ الاسم');
+      await tester.tap(saveNameBtn);
+      await tester.pumpFewFrames();
+      expect(find.text('تم حفظ بيانات الحساب بنجاح'), findsOneWidget);
+
+      // Verify Preferences: vehicle selection & navigation mode
+      final scooterBtn = find.text('سكوتر 🛴');
+      await tester.ensureVisible(scooterBtn);
+      await tester.pumpFewFrames();
+      expect(scooterBtn, findsOneWidget);
+      await tester.tap(scooterBtn);
+      await tester.pumpFewFrames();
+
+      // Save preferences
+      final savePrefBtn = find.text('حفظ تفضيلات القيادة');
+      await tester.ensureVisible(savePrefBtn);
+      await tester.pumpFewFrames();
+      expect(savePrefBtn, findsOneWidget);
+      await tester.tap(savePrefBtn);
+      await tester.pumpFewFrames();
+      expect(find.text('تم حفظ تفضيلات القيادة بنجاح'), findsOneWidget);
+
+      // Dismiss SnackBar so its overlay doesn't intercept taps
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpFewFrames();
+
+      // Verify Platform & Updates card & PWA Cache Buster
+      final updateNowBtn = find.text('تحديث الآن');
+      await tester.ensureVisible(updateNowBtn);
+      await tester.pumpFewFrames();
+      expect(updateNowBtn, findsOneWidget);
+      await tester.tap(updateNowBtn);
+      await tester.pump();
+      expect(find.textContaining('جاري تنظيف كاش المتصفح'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpFewFrames();
     });
   });
 }

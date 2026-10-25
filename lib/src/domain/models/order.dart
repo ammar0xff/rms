@@ -8,10 +8,11 @@ class Order {
     required this.items,
     required this.createdOffline,
     required this.createdAt,
-    this.orderType = OrderType.dineIn,
+    this.orderType = OrderType.takeaway,
     this.taxAmount = 0.0,
     this.discountAmount = 0.0,
     this.serviceAmount = 0.0,
+    this.deliveryFee = 0.0,
     this.serverId,
     this.canonicalOrderNumber,
     this.localRevision = 1,
@@ -27,6 +28,7 @@ class Order {
   final bool createdOffline;
   final DateTime createdAt;
   final OrderType orderType;
+  final double deliveryFee;
 
   /// Tax charged on top of the items, rounded to cents at creation. Stored on
   /// the order (rather than recomputed at each reader) so the payment, the
@@ -55,7 +57,8 @@ class Order {
   double get subtotal =>
       items.fold(0, (sum, item) => sum + item.unitPrice * item.quantity);
 
-  double get total => subtotal - discountAmount + taxAmount + serviceAmount;
+  double get total =>
+      subtotal - discountAmount + taxAmount + serviceAmount + deliveryFee;
 
   Map<String, Object?> toRecord() => {
         'localId': localId,
@@ -67,6 +70,7 @@ class Order {
         'taxAmount': taxAmount,
         'discountAmount': discountAmount,
         'serviceAmount': serviceAmount,
+        'deliveryFee': deliveryFee,
         'serverId': serverId,
         'canonicalOrderNumber': canonicalOrderNumber,
         'localRevision': localRevision,
@@ -88,16 +92,17 @@ class Order {
             : (DateTime.tryParse(record['createdAt'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0)),
         orderType: () {
           final s = record['orderType'] as String?;
-          if (s == null) return OrderType.dineIn;
+          if (s == null) return OrderType.takeaway;
           try {
             return OrderType.values.byName(s);
           } catch (_) {
-            return OrderType.dineIn;
+            return OrderType.takeaway;
           }
         }(),
         taxAmount: (record['taxAmount'] as num?)?.toDouble() ?? 0.0,
         discountAmount: (record['discountAmount'] as num?)?.toDouble() ?? 0.0,
         serviceAmount: (record['serviceAmount'] as num?)?.toDouble() ?? 0.0,
+        deliveryFee: (record['deliveryFee'] as num?)?.toDouble() ?? 0.0,
         serverId: record['serverId'] as String?,
         canonicalOrderNumber: record['canonicalOrderNumber'] as String?,
         localRevision: record['localRevision'] as int? ?? 1,

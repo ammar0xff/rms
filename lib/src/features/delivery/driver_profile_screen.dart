@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/di/app_services.dart';
+import '../../core/pwa/pwa_cache_service.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
@@ -7,6 +8,8 @@ import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_numeral.dart';
+import '../../core/widgets/pie_toast.dart';
+import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import 'driver_identity_service.dart';
 
@@ -17,6 +20,7 @@ import 'driver_identity_service.dart';
 /// - Real-time availability toggle: "متاح للاستلام" vs "في استراحة"
 /// - Personal shift KPIs: Delivered stops, cash in hand, active trips
 /// - Driver persona selector for quick terminal handovers
+/// - Vehicle selector & Driver Settings (PWA updates, Sound effects)
 class DriverProfileScreen extends StatefulWidget {
   const DriverProfileScreen({super.key});
 
@@ -26,6 +30,27 @@ class DriverProfileScreen extends StatefulWidget {
 
 class _DriverProfileScreenState extends State<DriverProfileScreen> {
   bool _isUpdating = false;
+  bool _isClearingCache = false;
+  String _selectedVehicle = 'موتوسيكل';
+
+  Future<void> _clearBrowserCache() async {
+    setState(() => _isClearingCache = true);
+    PieSoundService.instance.click();
+
+    PieToast.show(
+      context,
+      'جاري مسح كاش المتصفح وتحديث تطبيق الكابتن...',
+      icon: Icons.refresh_rounded,
+      duration: const Duration(seconds: 4),
+    );
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    PwaCacheService.instance.clearCacheAndReload();
+
+    if (mounted) {
+      setState(() => _isClearingCache = false);
+    }
+  }
 
   Future<void> _toggleAvailability(
     DriverModel? currentDriver,
@@ -69,18 +94,13 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
       PieSoundService.playOrderPlaced();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: PieColors.surface2,
-            content: Text(
-              targetAvailable
-                  ? 'أنت الآن متاح بالفرع وجاهز لاستلام طلعات جديدة'
-                  : 'تم تفعيل وضع الاستراحة. لن يتم إسناد طلعات جديدة لك تلقائياً',
-              style: PieTypography.body.copyWith(
-                color: targetAvailable ? const Color(0xFF4ADE80) : PieColors.inkSecondary,
-              ),
-            ),
-          ),
+        PieToast.show(
+          context,
+          targetAvailable
+              ? 'أنت الآن متاح بالفرع وجاهز لاستلام طلعات جديدة'
+              : 'تم تفعيل وضع الاستراحة. لن يتم إسناد طلعات جديدة لك تلقائياً',
+          isSuccess: targetAvailable,
+          icon: targetAvailable ? Icons.check_circle_outline : Icons.pause_circle_outline,
         );
       }
     } finally {
@@ -140,10 +160,11 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                         d.state == DeliveryState.returned)
                     .toList();
 
-                final totalCustodyInHand = deliveredStops.fold(
-                  0.0,
-                  (sum, d) => sum + d.amount,
-                );
+                final totalCustodyInHand = myDeliveries
+                    .where((d) =>
+                        d.state == DeliveryState.delivered &&
+                        d.settlementStatus != SettlementStatus.settled)
+                    .fold(0.0, (sum, d) => sum + d.amount);
 
                 return FutureBuilder(
                   future: branchRepo?.activeBranch(),
@@ -275,24 +296,27 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'حالة التواجد في الفرع',
-                                        style: PieTypography.subheading,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        isAvailable
-                                            ? 'الكاشير يقدر يسندلك أوردرات دلوقتي'
-                                            : 'تم إيقاف تسكين الأوردرات مؤقتاً',
-                                        style: PieTypography.caption.copyWith(
-                                          color: PieColors.inkSecondary,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'حالة التواجد في الفرع',
+                                          style: PieTypography.subheading,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          isAvailable
+                                              ? 'الكاشير يقدر يسندلك أوردرات دلوقتي'
+                                              : 'تم إيقاف تسكين الأوردرات مؤقتاً',
+                                          style: PieTypography.caption.copyWith(
+                                            color: PieColors.inkSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
                                   PieButton.primary(
                                     onPressed: _isUpdating
                                         ? null
@@ -424,7 +448,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('إجمالي نقدية العهدة في حوزتي',
+                                    const Text('إجمالي نقدية العهدة في حوزتي',
                                         style: PieTypography.caption),
                                     const SizedBox(height: 2),
                                     PieNumeral.money(
@@ -441,6 +465,50 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                               ),
                             ],
                           ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Vehicle Selector
+                        Text(
+                          'وسيلة التوصيل',
+                          style: PieTypography.subheading.copyWith(
+                            color: PieColors.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ('موتوسيكل 🛵', 'موتوسيكل'),
+                            ('سكوتر 🛴', 'سكوتر'),
+                            ('دراجة 🚲', 'دراجة'),
+                            ('سيارة 🚗', 'سيارة'),
+                          ].map((v) {
+                            final isSel = _selectedVehicle == v.$2;
+                            return ChoiceChip(
+                              label: Text(
+                                v.$1,
+                                style: PieTypography.body.copyWith(
+                                  color: isSel ? PieColors.driverAccent : PieColors.inkSecondary,
+                                  fontWeight: isSel ? FontWeight.w700 : FontWeight.normal,
+                                ),
+                              ),
+                              selected: isSel,
+                              selectedColor: PieColors.driverSurface,
+                              backgroundColor: PieColors.surface2,
+                              side: BorderSide(
+                                color: isSel ? PieColors.driverAccent : PieColors.border,
+                              ),
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setState(() => _selectedVehicle = v.$2);
+                                  PieSoundService.instance.click();
+                                }
+                              },
+                            );
+                          }).toList(),
                         ),
                         const SizedBox(height: 20),
 
@@ -494,7 +562,95 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                               );
                             }).toList(),
                           ),
+                          const SizedBox(height: 20),
                         ],
+
+                        // Driver App & Device Settings Card
+                        Text(
+                          'إعدادات وتحديثات التطبيق (PWA)',
+                          style: PieTypography.subheading.copyWith(
+                            color: PieColors.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        PieCard(
+                          padding: const EdgeInsets.all(16),
+                          surfaceColor: PieColors.surface2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Sound effects toggle
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.volume_up_rounded, color: PieColors.driverAccent, size: 20),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('المؤثرات والتنبيهات الصوتية', style: PieTypography.bodyStrong),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'أصوات استلام الطلعات، الأوردرات والتسليم',
+                                                style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Switch(
+                                    value: PieSoundService.instance.enabled,
+                                    activeThumbColor: PieColors.driverAccent,
+                                    onChanged: (val) {
+                                      setState(() {
+                                        PieSoundService.instance.enabled = val;
+                                      });
+                                      if (val) PieSoundService.instance.click();
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const Divider(color: PieColors.border, height: 24),
+                              // PWA Cache Buster Button
+                              Row(
+                                children: [
+                                  const Icon(Icons.cached_rounded, color: PieColors.driverAccent, size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('تحديث كاش المتصفح (PWA)', style: PieTypography.bodyStrong),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'يجلب أحدث نسخة مرفوعة على السيرفر ويمسح التخزين القديم فوراً',
+                                          style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  PieButton.primary(
+                                    onPressed: _isClearingCache ? null : _clearBrowserCache,
+                                    label: _isClearingCache ? 'جاري التحديث...' : 'تحديث الآن',
+                                    icon: Icons.refresh_rounded,
+                                    accentColor: PieColors.driverAccent,
+                                    height: 38,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                       ],
                     );
                   },

@@ -7,6 +7,7 @@ import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
+import '../../core/widgets/pie_toast.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/facility_settings.dart';
 import '../../domain/models/order.dart';
@@ -95,11 +96,29 @@ class DriverReceiptSheet extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'العلامة المميزة: بجوار محطة المترو - عمارة 14 الدور 3',
-                    style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
-                  ),
+                  if (delivery.landmark != null && delivery.landmark!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'العلامة المميزة: ${delivery.landmark}',
+                      style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                    ),
+                  ],
+                  if (delivery.customerName != null || delivery.customerPhone != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline_rounded, size: 14, color: PieColors.inkMuted),
+                        const SizedBox(width: 6),
+                        Text(
+                          [
+                            if (delivery.customerName != null) delivery.customerName!,
+                            if (delivery.customerPhone != null) delivery.customerPhone!,
+                          ].join(' • '),
+                          style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -255,12 +274,10 @@ class DriverReceiptSheet extends StatelessWidget {
 
                       final facility = await services.facility?.load() ?? const FacilitySettings();
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: PieColors.surface2,
-                            content: Text('جاري إرسال أمر طباعة بون السائق #${delivery.orderRef}...'),
-                            duration: const Duration(seconds: 2),
-                          ),
+                        PieToast.show(
+                          context,
+                          'جاري إرسال أمر طباعة بون السائق #${delivery.orderRef}...',
+                          icon: Icons.print_rounded,
                         );
                       }
 

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../core/di/app_services.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_numeral.dart';
+import '../../core/widgets/pie_toast.dart';
+import '../../domain/models/delivery_zone.dart';
 import '../../domain/models/order_type.dart';
 import '../../domain/models/payment.dart';
 
@@ -14,6 +17,8 @@ typedef PosCheckoutCallback = Future<void> Function(
   String? customerPhone,
   String? deliveryAddress,
   double? tenderedAmount,
+  String? zoneName,
+  double? zoneFee,
 });
 
 /// Checkout & Tender Dialog (الدفع وإنهاء الفاتورة)
@@ -83,16 +88,41 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
 
+  List<DeliveryZone> _availableZones = [];
+  DeliveryZone? _selectedZone;
+  bool _loadingZones = false;
+
   bool _attemptedSettle = false;
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _tenderedInput = widget.totalAmount.toStringAsFixed(0);
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
+    if (_isDelivery) {
+      _loadingZones = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadDeliveryZones());
+    } else {
+      _tenderedInput = widget.totalAmount.toStringAsFixed(0);
+    }
+  }
+
+  Future<void> _loadDeliveryZones() async {
+    final services = AppScope.of(context);
+    final zones = await services.deliveries?.listZones() ?? [];
+    if (mounted) {
+      final activeZones = zones.where((z) => z.active).toList();
+      setState(() {
+        _availableZones = activeZones;
+        _loadingZones = false;
+        if (activeZones.isNotEmpty) {
+          _selectedZone = activeZones.first;
+        }
+        _tenderedInput = _effectiveTotal.toStringAsFixed(0);
+      });
+    }
   }
 
   @override
@@ -104,6 +134,9 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
   }
 
   bool get _isDelivery => widget.orderType == OrderType.delivery;
+
+  double get _deliveryFee => _isDelivery ? (_selectedZone?.fee ?? 0.0) : 0.0;
+  double get _effectiveTotal => widget.totalAmount + _deliveryFee;
 
   bool get _isNameValid {
     if (!_isDelivery) return true;
@@ -122,23 +155,28 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
     return _addressController.text.trim().isNotEmpty;
   }
 
-  bool get _isCustomerValid => _isNameValid && _isPhoneValid && _isAddressValid;
+  bool get _isCustomerValid {
+    if (!_isDelivery) return true;
+    final hasZone = _availableZones.isEmpty || _selectedZone != null;
+    return _isNameValid && _isPhoneValid && _isAddressValid && hasZone;
+  }
 
   double get _tenderedAmount {
-    if (_tenderedInput.isEmpty) return widget.totalAmount;
-    return double.tryParse(_tenderedInput) ?? widget.totalAmount;
+    if (_tenderedInput.isEmpty) return _effectiveTotal;
+    return double.tryParse(_tenderedInput) ?? _effectiveTotal;
   }
 
   double get _changeDue {
     if (_selectedMethod != PaymentMethod.cash) return 0.0;
-    final diff = _tenderedAmount - widget.totalAmount;
+    final diff = _tenderedAmount - _effectiveTotal;
     return diff > 0 ? diff : 0.0;
   }
 
   bool get _canSettle {
     if (!_isCustomerValid) return false;
     if (_selectedMethod == PaymentMethod.card) return true;
-    return _tenderedAmount >= widget.totalAmount;
+    if (_isDelivery && _selectedMethod == PaymentMethod.cash) return true;
+    return _tenderedAmount >= _effectiveTotal;
   }
 
   void _onKeypadTap(String key) {
@@ -166,30 +204,24 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
 
     if (!_isCustomerValid) {
       PieSoundService.instance.beep();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: PieColors.stateErrorBg,
-          content: Text(
-            _isDelivery
-                ? 'يرجى إدخال اسم العميل ورقم الهاتف وعنوان التوصيل بدقة'
-                : 'بيانات غير مكتملة',
-            style: PieTypography.body.copyWith(color: PieColors.stateError),
-          ),
-        ),
+      PieToast.show(
+        context,
+        _isDelivery
+            ? (_selectedZone == null && _availableZones.isNotEmpty
+                ? 'يرجى اختيار منطقة التوصيل المعتمدة لحساب الرسوم'
+                : 'يرجى إدخال اسم العميل ورقم الهاتف وعنوان التوصيل بدقة')
+            : 'بيانات غير مكتملة',
+        isError: true,
       );
       return;
     }
 
     if (!_canSettle) {
       PieSoundService.instance.beep();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: PieColors.stateErrorBg,
-          content: Text(
-            'المبلغ المستلم (${PieTypography.formatEgp(_tenderedAmount)}) أقل من إجمالي الفاتورة (${PieTypography.formatEgp(widget.totalAmount)})',
-            style: PieTypography.body.copyWith(color: PieColors.stateError),
-          ),
-        ),
+      PieToast.show(
+        context,
+        'المبلغ المستلم (${PieTypography.formatEgp(_tenderedAmount)}) أقل من إجمالي الفاتورة (${PieTypography.formatEgp(_effectiveTotal)})',
+        isError: true,
       );
       return;
     }
@@ -198,26 +230,42 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
     PieSoundService.instance.chime();
 
     try {
+      final cashRepo = AppScope.of(context).cashSessions;
+      if (cashRepo != null) {
+        final currentSession = await cashRepo.currentSession();
+        if (currentSession == null || !currentSession.isOpen) {
+          PieSoundService.instance.beep();
+          if (mounted) {
+            PieToast.show(
+              context,
+              'لا يمكن إتمام الدفع: الوردية الحالية مغلقة. يرجى فتح وردية أولاً.',
+              isError: true,
+            );
+          }
+          return;
+        }
+      }
+
       await widget.onComplete(
         _selectedMethod,
         customerName: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
         customerPhone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         deliveryAddress: _isDelivery ? _addressController.text.trim() : null,
-        tenderedAmount: _tenderedAmount,
+        tenderedAmount: (_isDelivery && _selectedMethod == PaymentMethod.cash)
+            ? _effectiveTotal
+            : _tenderedAmount,
+        zoneName: _selectedZone?.name,
+        zoneFee: _deliveryFee,
       );
       if (mounted) {
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: PieColors.stateErrorBg,
-            content: Text(
-              'تعذر إتمام الدفع: $e',
-              style: PieTypography.body.copyWith(color: PieColors.stateError),
-            ),
-          ),
+        PieToast.show(
+          context,
+          'تعذر إتمام الدفع: $e',
+          isError: true,
         );
       }
     } finally {
@@ -324,9 +372,11 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                 onPressed: _isSubmitting ? null : _handleSettle,
                 label: _isSubmitting
                     ? 'جاري حفظ الطلب...'
-                    : _selectedMethod == PaymentMethod.cash && _changeDue > 0
-                        ? 'إنهاء الدفع • الباقي: ${PieTypography.formatEgp(_changeDue)}'
-                        : 'إنهاء الدفع وحفظ الطلب • ${PieTypography.formatEgp(widget.totalAmount)}',
+                    : (_isDelivery && _selectedMethod == PaymentMethod.cash)
+                        ? 'تأكيد وحفظ أوردر الدليفري • ${PieTypography.formatEgp(_effectiveTotal)}'
+                        : _selectedMethod == PaymentMethod.cash && _changeDue > 0
+                            ? 'إنهاء الدفع • الباقي: ${PieTypography.formatEgp(_changeDue)}'
+                            : 'إنهاء الدفع وحفظ الطلب • ${PieTypography.formatEgp(_effectiveTotal)}',
                 accentColor: PieColors.cashierAccent,
                 height: 52,
               ),
@@ -353,7 +403,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           setState(() {
             _selectedMethod = method;
             if (method == PaymentMethod.cash && _tenderedInput.isEmpty) {
-              _tenderedInput = widget.totalAmount.toStringAsFixed(0);
+              _tenderedInput = _effectiveTotal.toStringAsFixed(0);
             }
           });
         },
@@ -475,6 +525,8 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           ),
           if (_isDelivery) ...[
             const SizedBox(height: 8),
+            _buildZoneSelector(),
+            const SizedBox(height: 8),
             _buildTextField(
               controller: _addressController,
               label: 'عنوان التوصيل بالتفصيل',
@@ -486,6 +538,142 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildZoneSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'منطقة ورسوم التوصيل (محددة من الإدارة)',
+                style: PieTypography.caption.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: PieColors.inkSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (_selectedZone != null) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: PieColors.driverSurface,
+                  borderRadius: PieRadius.borderSm,
+                  border: Border.all(color: PieColors.driverBorder),
+                ),
+                child: Text(
+                  '${_selectedZone!.fee.toStringAsFixed(0)} ج.م (ثابت)',
+                  style: PieTypography.monoCaption.copyWith(
+                    color: PieColors.driverAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: PieColors.surface2,
+            borderRadius: PieRadius.borderMd,
+            border: Border.all(
+              color: (_attemptedSettle && _selectedZone == null && _availableZones.isNotEmpty)
+                  ? PieColors.stateError
+                  : PieColors.border,
+            ),
+          ),
+          child: _loadingZones
+              ? const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: PieColors.cashierAccent),
+                  ),
+                )
+              : _availableZones.isEmpty
+                  ? Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, size: 16, color: PieColors.inkMuted),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'لا توجد مناطق توصيل معرفة. (رسوم التوصيل: 0 ج.م)',
+                            style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+                          ),
+                        ),
+                      ],
+                    )
+                  : DropdownButtonHideUnderline(
+                      child: DropdownButton<DeliveryZone>(
+                        isExpanded: true,
+                        value: _selectedZone,
+                        dropdownColor: PieColors.surfaceOverlay,
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: PieColors.inkSecondary),
+                        items: _availableZones.map((zone) {
+                          return DropdownMenuItem<DeliveryZone>(
+                            value: zone,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.location_on_outlined, size: 16, color: PieColors.driverAccent),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          zone.name,
+                                          style: PieTypography.body,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: PieColors.surface3,
+                                    borderRadius: PieRadius.borderSm,
+                                  ),
+                                  child: Text(
+                                    '${zone.fee.toStringAsFixed(0)} ج.م',
+                                    style: PieTypography.caption.copyWith(
+                                      color: PieColors.cashierAccent,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newZone) {
+                          if (newZone != null) {
+                            PieSoundService.instance.click();
+                            setState(() {
+                              _selectedZone = newZone;
+                              if (_selectedMethod == PaymentMethod.cash) {
+                                _tenderedInput = _effectiveTotal.toStringAsFixed(0);
+                              }
+                            });
+                          }
+                        },
+                      ),
+                    ),
+        ),
+      ],
     );
   }
 
@@ -579,7 +767,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                 _buildCustomerSection(),
                 const SizedBox(height: 12),
                 _buildBillBreakdownCard(),
-                if (_selectedMethod == PaymentMethod.cash) ...[
+                if (_selectedMethod == PaymentMethod.cash && !_isDelivery) ...[
                   const SizedBox(height: 12),
                   _buildCashTenderCard(),
                 ],
@@ -588,38 +776,14 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           ),
         ),
         const SizedBox(width: 14),
-        // Right Column: Keypad & Quick chips
+        // Right Column: Keypad & Quick chips OR Delivery COD Card OR Card Terminal Card
         Expanded(
           flex: 5,
           child: _selectedMethod == PaymentMethod.cash
-              ? SingleChildScrollView(child: _buildKeypadSection())
-              : Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: PieColors.surface1,
-                      borderRadius: PieRadius.borderMd,
-                      border: Border.all(color: PieColors.border),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.check_circle_outline, size: 48, color: PieColors.cashierAccent),
-                        const SizedBox(height: 12),
-                        Text(
-                          'جاهز لخصم البطاقة (POS Terminal)',
-                          style: PieTypography.bodyStrong,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'مرر البطاقة على نقطة البيع ثم اضغط إنهاء الدفع',
-                          style: PieTypography.caption,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              ? (_isDelivery
+                  ? Center(child: _buildDeliveryCodCard())
+                  : SingleChildScrollView(child: _buildKeypadSection()))
+              : Center(child: _buildCardTerminalCard()),
         ),
       ],
     );
@@ -633,11 +797,106 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
         _buildBillBreakdownCard(),
         if (_selectedMethod == PaymentMethod.cash) ...[
           const SizedBox(height: 12),
-          _buildCashTenderCard(),
+          if (_isDelivery)
+            _buildDeliveryCodCard()
+          else ...[
+            _buildCashTenderCard(),
+            const SizedBox(height: 12),
+            _buildKeypadSection(),
+          ],
+        ] else ...[
           const SizedBox(height: 12),
-          _buildKeypadSection(),
+          _buildCardTerminalCard(),
         ],
       ],
+    );
+  }
+
+  Widget _buildDeliveryCodCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: PieColors.surface1,
+        borderRadius: PieRadius.borderMd,
+        border: Border.all(color: PieColors.driverBorder),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: PieColors.driverSurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.two_wheeler_rounded, size: 40, color: PieColors.driverAccent),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'تحصيل كاش عند الاستلام (COD)',
+            style: PieTypography.bodyStrong.copyWith(color: PieColors.ink),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'المبلغ المطلوب تحصيله من العميل بواسطة الطيار:\n${PieTypography.formatEgp(_effectiveTotal)}',
+            style: PieTypography.subheading.copyWith(
+              color: PieColors.cashierAccent,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: PieColors.surface2,
+              borderRadius: PieRadius.borderSm,
+              border: Border.all(color: PieColors.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 16, color: PieColors.driverAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'أموال طلبات الدليفري الكاش لا تدخل درج الكاشير الآن، بل تُسجل كعهدة مالية في ذمة الطيار ويتم توريدها لاحقاً في شاشة إدارة الأسطول.',
+                    style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardTerminalCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: PieColors.surface1,
+        borderRadius: PieRadius.borderMd,
+        border: Border.all(color: PieColors.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle_outline, size: 48, color: PieColors.cashierAccent),
+          const SizedBox(height: 12),
+          Text(
+            'جاهز لخصم البطاقة (POS Terminal)',
+            style: PieTypography.bodyStrong,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'مرر البطاقة على نقطة البيع ثم اضغط إنهاء الدفع',
+            style: PieTypography.caption,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -654,10 +913,12 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
           _buildBreakdownRow('المجموع الجزئي', widget.subtotal),
           if (widget.discountAmount > 0)
             _buildBreakdownRow('الخصم', -widget.discountAmount, isNegative: true),
-          if (widget.serviceAmount > 0)
-            _buildBreakdownRow('خدمة صالة', widget.serviceAmount),
           if (widget.taxAmount > 0)
-            _buildBreakdownRow('ضريبة القيمة المضافة (14%)', widget.taxAmount),
+            _buildBreakdownRow('ضريبة القيمة المضافة', widget.taxAmount),
+          if (widget.serviceAmount > 0)
+            _buildBreakdownRow('خدمة الصالة', widget.serviceAmount),
+          if (_isDelivery && _selectedZone != null)
+            _buildBreakdownRow('خدمة التوصيل (${_selectedZone!.name})', _deliveryFee),
           const Divider(color: PieColors.border, height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -671,7 +932,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
               ),
               const SizedBox(width: 8),
               PieNumeral.money(
-                widget.totalAmount,
+                _effectiveTotal,
                 style: PieTypography.monoHeading.copyWith(
                   color: PieColors.cashierAccent,
                   fontWeight: FontWeight.w700,
@@ -740,9 +1001,9 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
   }
 
   Widget _buildKeypadSection() {
-    final next50 = (widget.totalAmount / 50).ceil() * 50.0;
-    final next100 = (widget.totalAmount / 100).ceil() * 100.0;
-    final next200 = (widget.totalAmount / 200).ceil() * 200.0;
+    final next50 = (_effectiveTotal / 50).ceil() * 50.0;
+    final next100 = (_effectiveTotal / 100).ceil() * 100.0;
+    final next200 = (_effectiveTotal / 200).ceil() * 200.0;
 
     return Column(
       children: [
@@ -756,9 +1017,9 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
               backgroundColor: PieColors.surface2,
               side: const BorderSide(color: PieColors.border),
               labelStyle: PieTypography.caption.copyWith(color: PieColors.cashierAccent),
-              onPressed: () => _onQuickChipTap(widget.totalAmount),
+              onPressed: () => _onQuickChipTap(_effectiveTotal),
             ),
-            if (next50 != widget.totalAmount)
+            if (next50 != _effectiveTotal)
               ActionChip(
                 label: Text('${next50.toInt()} ج.م'),
                 backgroundColor: PieColors.surface2,
@@ -766,7 +1027,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                 labelStyle: PieTypography.caption,
                 onPressed: () => _onQuickChipTap(next50),
               ),
-            if (next100 != next50 && next100 != widget.totalAmount)
+            if (next100 != next50 && next100 != _effectiveTotal)
               ActionChip(
                 label: Text('${next100.toInt()} ج.م'),
                 backgroundColor: PieColors.surface2,
@@ -774,7 +1035,7 @@ class _PosCheckoutDialogState extends State<PosCheckoutDialog> {
                 labelStyle: PieTypography.caption,
                 onPressed: () => _onQuickChipTap(next100),
               ),
-            if (next200 != next100 && next200 != widget.totalAmount)
+            if (next200 != next100 && next200 != _effectiveTotal)
               ActionChip(
                 label: Text('${next200.toInt()} ج.م'),
                 backgroundColor: PieColors.surface2,

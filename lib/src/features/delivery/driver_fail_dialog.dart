@@ -3,6 +3,7 @@ import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
+import '../../core/widgets/pie_toast.dart';
 import '../../domain/models/delivery.dart';
 
 /// Screen 11: Failed Delivery & Return Flow (تعذر التسليم ومرتجع الأوردر)
@@ -92,14 +93,11 @@ class _DriverFailDialogState extends State<DriverFailDialog> {
                   );
                   if (mounted) {
                     Navigator.of(context).pop(true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: PieColors.surface2,
-                        content: Text(
-                          'تم تسجيل تعذر التسليم (${_selectedReason.label}) وبدء خط العودة للفرع',
-                          style: PieTypography.body.copyWith(color: PieColors.stateError),
-                        ),
-                      ),
+                    PieToast.show(
+                      context,
+                      'تم تسجيل تعذر التسليم (${_selectedReason.label}) وبدء خط العودة للفرع',
+                      isError: true,
+                      icon: Icons.assignment_return_rounded,
                     );
                   }
                 },

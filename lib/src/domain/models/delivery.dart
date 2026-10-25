@@ -1,5 +1,6 @@
 import '../../data/local/outbox/outbox_status.dart';
 import 'collection.dart';
+export 'collection.dart';
 
 /// Operational lifecycle of a delivery job.
 ///
@@ -53,6 +54,11 @@ class DeliveryModel {
     required this.state,
     required this.createdAt,
     this.driver = unassignedDriver,
+    this.customerName,
+    this.customerPhone,
+    this.landmark,
+    this.zoneName,
+    this.zoneFee,
     this.offline = false,
     this.settlementStatus = SettlementStatus.pending,
     this.localRevision = 1,
@@ -71,6 +77,15 @@ class DeliveryModel {
 
   String driver;
   DeliveryState state;
+
+  /// Optional customer identity and contact info for the courier in transit.
+  final String? customerName;
+  final String? customerPhone;
+  final String? landmark;
+
+  /// Regional delivery zone name and static fee configured by manager.
+  final String? zoneName;
+  final double? zoneFee;
 
   /// Whether this job was created while the device was offline.
   bool offline;
@@ -100,6 +115,11 @@ class DeliveryModel {
         'state': state.name,
         'createdAt': createdAt.toIso8601String(),
         'driver': driver,
+        'customerName': customerName,
+        'customerPhone': customerPhone,
+        'landmark': landmark,
+        'zoneName': zoneName,
+        'zoneFee': zoneFee,
         'offline': offline,
         'settlementStatus': settlementStatus.name,
         'localRevision': localRevision,
@@ -116,6 +136,11 @@ class DeliveryModel {
         state: DeliveryState.values.byName(record['state'] as String),
         createdAt: DateTime.parse(record['createdAt'] as String),
         driver: record['driver'] as String? ?? unassignedDriver,
+        customerName: record['customerName'] as String?,
+        customerPhone: record['customerPhone'] as String?,
+        landmark: record['landmark'] as String?,
+        zoneName: record['zoneName'] as String?,
+        zoneFee: (record['zoneFee'] as num?)?.toDouble(),
         offline: record['offline'] as bool? ?? false,
         settlementStatus: SettlementStatus.values
             .byName(record['settlementStatus'] as String? ?? 'pending'),
@@ -150,8 +175,8 @@ class DriverModel {
       };
 
   static DriverModel fromRecord(Map<String, Object?> record) => DriverModel(
-        id: record['id'] as String,
-        name: record['name'] as String,
+        id: (record['id'] ?? record['uid'] ?? '') as String,
+        name: (record['name'] ?? record['displayName'] ?? record['email'] ?? 'كابتن توصيل') as String,
         available: record['available'] as bool? ?? true,
       );
 }

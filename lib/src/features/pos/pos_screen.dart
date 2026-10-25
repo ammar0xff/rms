@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/di/app_services.dart';
 import '../../core/theme/pie_colors.dart';
 import '../../core/theme/pie_radius.dart';
@@ -9,15 +10,20 @@ import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_grab_handle.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../core/sound/pie_sound_service.dart';
+import '../../data/repositories/cash_session_repository.dart';
+import '../../domain/models/cash_session.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
 import '../../core/logging/app_logger.dart';
 import '../../domain/models/order_type.dart';
+import '../../domain/models/cashier_user_settings.dart';
+import '../../domain/models/facility_settings.dart';
 import '../../domain/models/payment.dart';
 import '../../domain/services/kitchen_ticket_factory.dart';
 import '../../domain/services/receipt_print_service.dart';
+import '../shift/open_shift_dialog.dart';
 import 'pos_checkout_dialog.dart';
 import 'pos_customise_sheet.dart';
 import 'pos_receipt_success_dialog.dart';
@@ -42,18 +48,197 @@ class _PosScreenState extends State<PosScreen> {
   String _selectedCategory = 'الكل';
   final List<OrderItem> _cartItems = [];
 
-  // Service charge and tax configuration (standard Cairo rates, takeaway/delivery)
-  double get _serviceRate => 0.0;
-  double get _taxRate => 0.14;
+  CashSession? _currentSession;
+  double _expectedCash = 0.0;
+  bool _isLoadingSession = true;
+  StreamSubscription<CashSession?>? _sessionSubscription;
+  Timer? _sessionRefreshTimer;
+
+  FacilitySettings? _facility;
+  CashierUserSettings _userSettings = const CashierUserSettings();
+  bool _preferencesLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionRefreshTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted && _isShiftOpen) {
+        _refreshExpectedCash();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _subscribeToSession();
+    if (!_preferencesLoaded) {
+      _preferencesLoaded = true;
+      _loadPreferences();
+    }
+  }
+
+  Future<void> _loadPreferences() async {
+    final services = AppScope.of(context);
+    final user = services.auth.currentUser;
+    final f = await services.facility?.load();
+    final u = await CashierUserSettings.load(services.database, user?.uid);
+    if (mounted) {
+      setState(() {
+        _facility = f;
+        _userSettings = u;
+        if (_cartItems.isEmpty) {
+          _selectedChannel = u.defaultOrderType;
+        }
+      });
+    }
+  }
+
+  void _subscribeToSession() {
+    final services = AppScope.of(context);
+    final repo = services.cashSessions;
+    if (repo == null) {
+      if (_isLoadingSession || _currentSession != null) {
+        setState(() {
+          _currentSession = null;
+          _isLoadingSession = false;
+          _expectedCash = 0.0;
+        });
+      }
+      return;
+    }
+
+    _sessionSubscription?.cancel();
+    _sessionSubscription = repo.watchCurrentSession().listen((session) {
+      if (mounted) {
+        setState(() {
+          _currentSession = session;
+          if (session != null) {
+            _isLoadingSession = false;
+          }
+        });
+        _refreshExpectedCash();
+      }
+    });
+
+    _resolveInitialSession(services, repo);
+  }
+
+  Future<void> _resolveInitialSession(
+    AppServices services,
+    CashSessionRepository repo,
+  ) async {
+    try {
+      final local = await repo.currentSession();
+      if (local != null) {
+        if (mounted) {
+          setState(() {
+            _currentSession = local;
+            _isLoadingSession = false;
+          });
+          _refreshExpectedCash();
+        }
+        return;
+      }
+    } catch (_) {}
+
+    if (services.firebaseReady && services.inboundSync != null) {
+      try {
+        await services.inboundSync!.waitForInitialCollection(
+          'cashSessions',
+          timeout: const Duration(milliseconds: 1800),
+        );
+        final synced = await repo.currentSession();
+        if (mounted) {
+          setState(() {
+            _currentSession = synced;
+            _isLoadingSession = false;
+          });
+          _refreshExpectedCash();
+          return;
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingSession = false;
+      });
+    }
+  }
+
+  Future<void> _refreshExpectedCash() async {
+    final repo = AppScope.of(context).cashSessions;
+    final session = _currentSession;
+    if (repo == null || session == null || !session.isOpen) {
+      if (mounted && _expectedCash != 0.0) {
+        setState(() => _expectedCash = 0.0);
+      }
+      return;
+    }
+    try {
+      final expected = await repo.expectedCash(session);
+      if (mounted) {
+        setState(() => _expectedCash = expected);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _sessionRefreshTimer?.cancel();
+    _sessionSubscription?.cancel();
+    super.dispose();
+  }
+
+  bool get _isShiftOpen => _currentSession != null && _currentSession!.isOpen;
+
+  Future<void> _promptOpenShift() async {
+    PieSoundService.instance.beep();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: PieColors.statePendingBg,
+        duration: const Duration(seconds: 4),
+        content: Text(
+          'الوردية الحالية مغلقة — يرجى فتح الوردية للبدء بعمليات البيع',
+          style: PieTypography.body.copyWith(color: PieColors.statePending),
+        ),
+        action: SnackBarAction(
+          label: 'فتح الوردية',
+          textColor: PieColors.cashierAccent,
+          onPressed: () async {
+            final session = await OpenShiftDialog.show(context);
+            if (session != null && mounted) {
+              setState(() {
+                _currentSession = session;
+                _isLoadingSession = false;
+              });
+              _refreshExpectedCash();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  // Tax configuration (dynamically linked to FacilitySettings, falling back to Egyptian standard rates)
+  double get _taxRate => _facility?.vatRate ?? 0.14;
 
   double get _subtotal =>
       _cartItems.fold(0, (sum, item) => sum + (item.unitPrice * item.quantity));
 
-  double get _serviceAmount => _subtotal * _serviceRate;
-  double get _taxAmount => (_subtotal + _serviceAmount) * _taxRate;
-  double get _totalAmount => _subtotal + _serviceAmount + _taxAmount;
+  double get _serviceAmount => 0.0;
+  double get _taxAmount => _subtotal * _taxRate;
+  double get _totalAmount => _subtotal + _taxAmount;
 
   void _addItem(MenuItemModel item) {
+    if (!_isShiftOpen) {
+      _promptOpenShift();
+      return;
+    }
+    if (_userSettings.hapticFeedback) {
+      HapticFeedback.selectionClick();
+    }
     PieSoundService.instance.beep();
     if (item.modifierGroups.isNotEmpty) {
       PosCustomiseSheet.show(
@@ -141,6 +326,10 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _startCheckout() async {
+    if (!_isShiftOpen) {
+      _promptOpenShift();
+      return;
+    }
     if (_cartItems.isEmpty) return;
 
     final services = AppScope.of(context);
@@ -148,6 +337,9 @@ class _PosScreenState extends State<PosScreen> {
     String? resolvedPaymentMethod;
     double? resolvedTendered;
     double? resolvedChange;
+    String? resolvedCustomerName;
+    String? resolvedCustomerPhone;
+    String? resolvedDeliveryAddress;
 
     final didCheckout = await PosCheckoutDialog.show(
       context,
@@ -157,7 +349,15 @@ class _PosScreenState extends State<PosScreen> {
       serviceAmount: _serviceAmount,
       discountAmount: 0.0,
       orderType: _selectedChannel,
-      onComplete: (paymentMethod, {customerName, customerPhone, deliveryAddress, tenderedAmount}) async {
+      onComplete: (
+        paymentMethod, {
+        customerName,
+        customerPhone,
+        deliveryAddress,
+        tenderedAmount,
+        zoneName,
+        zoneFee,
+      }) async {
         if (services.orders == null) {
           throw StateError('قاعدة البيانات غير متاحة حالياً، تعذر حفظ الفاتورة');
         }
@@ -169,32 +369,40 @@ class _PosScreenState extends State<PosScreen> {
           taxAmount: _taxAmount,
           serviceAmount: _serviceAmount,
           discountAmount: 0.0,
+          deliveryFee: zoneFee ?? 0.0,
           createdOffline: services.sync?.isOnline != true,
         );
 
         final createdOrder = await services.orders!.createOrder(draft);
         createdOrderResult = createdOrder;
         resolvedPaymentMethod = paymentMethod == PaymentMethod.card ? 'فيزا / بطاقة' : 'نقدي';
-        resolvedTendered = tenderedAmount ?? _totalAmount;
-        resolvedChange = (paymentMethod == PaymentMethod.cash && (tenderedAmount ?? _totalAmount) > _totalAmount)
-            ? ((tenderedAmount ?? _totalAmount) - _totalAmount)
+        resolvedTendered = tenderedAmount ?? createdOrder.total;
+        resolvedChange = (paymentMethod == PaymentMethod.cash && (tenderedAmount ?? createdOrder.total) > createdOrder.total)
+            ? ((tenderedAmount ?? createdOrder.total) - createdOrder.total)
             : 0.0;
+        resolvedCustomerName = customerName;
+        resolvedCustomerPhone = customerPhone;
+        resolvedDeliveryAddress = deliveryAddress;
 
         final orderRef = createdOrder.canonicalOrderNumber ?? createdOrder.provisionalOrderNumber;
 
-        // Record payment & delivery if successful
-        if (services.payments != null) {
+        // Record payment for in-store orders (takeaway) or prepaid cards.
+        // For cash delivery orders, payment is Cash On Delivery (COD) collected
+        // on the road by the courier and ONLY enters the cashier drawer upon settlement.
+        final isCashDelivery = _selectedChannel == OrderType.delivery && paymentMethod == PaymentMethod.cash;
+        if (services.payments != null && !isCashDelivery) {
           try {
             await services.payments!.recordPayment(
               PaymentDraft(
                 orderLocalId: createdOrder.localId,
                 orderRef: orderRef,
-                amount: _totalAmount,
+                amount: createdOrder.total,
                 method: paymentMethod,
                 tendered: tenderedAmount,
                 createdOffline: services.sync?.isOnline != true,
               ),
             );
+            _refreshExpectedCash();
           } catch (e) {
             AppLogger.warn('Payment record warning: $e');
           }
@@ -217,7 +425,12 @@ class _PosScreenState extends State<PosScreen> {
           final delivery = await services.deliveries?.createDelivery(
             orderRef: orderRef,
             address: deliveryAddress?.isNotEmpty == true ? deliveryAddress! : 'العنوان غير محدد',
-            amount: _totalAmount,
+            amount: createdOrder.total,
+            customerName: customerName,
+            customerPhone: customerPhone,
+            landmark: deliveryAddress,
+            zoneName: zoneName,
+            zoneFee: zoneFee,
             createdOffline: services.sync?.isOnline != true,
           );
 
@@ -233,15 +446,22 @@ class _PosScreenState extends State<PosScreen> {
       },
     );
 
+    if (didCheckout == true) {
+      _refreshExpectedCash();
+    }
+
     if (didCheckout == true && createdOrderResult != null && mounted) {
       final createdOrder = createdOrderResult!;
       final orderRef = createdOrder.canonicalOrderNumber ?? createdOrder.provisionalOrderNumber;
       final facility = await services.facility?.load();
 
-      // Clear the cart on successful checkout
-      setState(() {
-        _cartItems.clear();
-      });
+      // Clear the cart on successful checkout (if fastCheckoutAutoClear enabled)
+      if (_userSettings.fastCheckoutAutoClear) {
+        setState(() {
+          _cartItems.clear();
+          _selectedChannel = _userSettings.defaultOrderType;
+        });
+      }
 
       // Immediate print trigger on checkout
       ReceiptPrintService.printOrder(
@@ -251,6 +471,9 @@ class _PosScreenState extends State<PosScreen> {
         paymentMethod: resolvedPaymentMethod,
         paidAmount: resolvedTendered,
         changeDue: resolvedChange,
+        customerName: resolvedCustomerName,
+        customerPhone: resolvedCustomerPhone,
+        deliveryAddress: resolvedDeliveryAddress,
       );
 
       // Kitchen Ticket dispatch to KDS store and thermal printer
@@ -264,8 +487,8 @@ class _PosScreenState extends State<PosScreen> {
         AppLogger.warn('Kitchen ticket dispatch error: $e');
       }
 
-      // Show immediate confirmation & print dialog
-      if (mounted) {
+      // Show immediate confirmation & print dialog if enabled in user preferences
+      if (mounted && _userSettings.autoOpenReceipt) {
         await PosReceiptSuccessDialog.show(
           context,
           order: createdOrder,
@@ -339,6 +562,22 @@ class _PosScreenState extends State<PosScreen> {
     final isDesktop = screenWidth >= 900;
     final services = AppScope.of(context);
 
+    if (_isLoadingSession) {
+      return const Directionality(
+        textDirection: TextDirection.rtl,
+        child: Center(
+          child: CircularProgressIndicator(color: PieColors.cashierAccent),
+        ),
+      );
+    }
+
+    if (!_isShiftOpen) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: _buildShiftRequiredGate(isDesktop),
+      );
+    }
+
     return FutureBuilder<List<MenuItemModel>>(
       future: services.menu?.listMenu(),
       builder: (context, snapshot) {
@@ -353,8 +592,8 @@ class _PosScreenState extends State<PosScreen> {
           textDirection: TextDirection.rtl,
           child: Column(
             children: [
-              // Service Channel Header
-              _buildChannelBar(),
+              // Mobile-only Channel Header (on desktop it is docked above the cart)
+              if (!isDesktop) _buildChannelBar(),
 
               // Main Canvas
               Expanded(
@@ -399,28 +638,188 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  Widget _buildShiftRequiredGate(bool isDesktop) {
+    return Container(
+      color: PieColors.canvas,
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 580),
+            padding: EdgeInsets.all(isDesktop ? 36 : 24),
+            decoration: BoxDecoration(
+              color: PieColors.surface1,
+              borderRadius: PieRadius.borderLg,
+              border: Border.all(color: PieColors.cashierAccent.withValues(alpha: 0.35), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Glowing Icon Header
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: PieColors.cashierSurface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: PieColors.cashierAccent.withValues(alpha: 0.5), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: PieColors.cashierAccent.withValues(alpha: 0.2),
+                        blurRadius: 18,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.lock_clock_rounded,
+                    color: PieColors.cashierAccent,
+                    size: 38,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Title
+                const Text(
+                  'الوردية مغلقة — يرجى فتح الوردية للبدء',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: PieColors.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Description
+                Text(
+                  'نظام نقطة البيع مقفل ومحمي. لا يمكن إنشاء أي طلبات جديدة، أو إضافة أصناف إلى السلة، أو محاسبة العملاء حتى يتم افتتاح وردية كاشير وتعيين مبلغ العهدة النقدية في الدرج.',
+                  textAlign: TextAlign.center,
+                  style: PieTypography.body.copyWith(
+                    color: PieColors.inkSecondary,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Status info box
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: PieColors.surface2,
+                    borderRadius: PieRadius.borderMd,
+                    border: Border.all(color: PieColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, color: PieColors.statePending, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'حالة درج النقدية: مقفل ومؤمّن | حماية المبيعات: مفعلة',
+                          style: PieTypography.caption.copyWith(
+                            color: PieColors.statePending,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Action Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: PieColors.cashierAccent,
+                      foregroundColor: const Color(0xFF0F1117),
+                      shape: const RoundedRectangleBorder(borderRadius: PieRadius.borderMd),
+                      elevation: 2,
+                    ),
+                    icon: const Icon(Icons.lock_open_rounded, size: 22),
+                    label: const Text(
+                      'افتتاح الوردية وتعيين العهدة الآن',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: () async {
+                      final session = await OpenShiftDialog.show(context);
+                      if (session != null && mounted) {
+                        setState(() {
+                          _currentSession = session;
+                          _isLoadingSession = false;
+                        });
+                        _refreshExpectedCash();
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Footer note
+                Text(
+                  'سيتم تسجيل وقت فتح الوردية واسم الكاشير ومبلغ العهدة النقدية تلقائياً في سجلات التدقيق.',
+                  textAlign: TextAlign.center,
+                  style: PieTypography.caption.copyWith(
+                    color: PieColors.inkMuted,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildChannelBar() {
     return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: const BoxDecoration(
         color: PieColors.surface1,
         border: Border(bottom: BorderSide(color: PieColors.border, width: 1)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'نوع الطلب:',
-              style: PieTypography.caption.copyWith(color: PieColors.inkMuted),
+      child: Row(
+        children: [
+          Text(
+            'نوع الطلب:',
+            style: PieTypography.caption.copyWith(
+              color: PieColors.inkMuted,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 10),
-            _buildChannelChip(OrderType.takeaway, 'تيك أواي (استلام)', Icons.shopping_bag_outlined),
-            const SizedBox(width: 8),
-            _buildChannelChip(OrderType.delivery, 'دليفري (توصيل)', Icons.two_wheeler_rounded),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildChannelChip(
+              OrderType.takeaway,
+              'تيك أواي (استلام)',
+              Icons.shopping_bag_outlined,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildChannelChip(
+              OrderType.delivery,
+              'دليفري (توصيل)',
+              Icons.two_wheeler_rounded,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -438,7 +837,7 @@ class _PosScreenState extends State<PosScreen> {
         borderRadius: PieRadius.borderMd,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected ? PieColors.cashierAccent : PieColors.surface2,
             borderRadius: PieRadius.borderMd,
@@ -448,19 +847,25 @@ class _PosScreenState extends State<PosScreen> {
             ),
           ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
-                size: 15,
+                size: 14,
                 color: isSelected ? PieColors.canvas : PieColors.inkSecondary,
               ),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: PieTypography.label.copyWith(
-                  color: isSelected ? PieColors.canvas : PieColors.ink,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: PieTypography.caption.copyWith(
+                    color: isSelected ? PieColors.canvas : PieColors.ink,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: 11.5,
+                  ),
                 ),
               ),
             ],
@@ -534,9 +939,9 @@ class _PosScreenState extends State<PosScreen> {
                 )
               : GridView.builder(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, _cartItems.isNotEmpty ? 100 : 24),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 220,
-                    mainAxisExtent: 148,
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: _userSettings.compactGridView ? 175 : 220,
+                    mainAxisExtent: _userSettings.compactGridView ? 118 : 148,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                   ),
@@ -783,6 +1188,9 @@ class _PosScreenState extends State<PosScreen> {
   Widget _buildReceiptPanel() {
     return Column(
       children: [
+        // Order Type Selector Header (Placed directly above the cart)
+        _buildChannelBar(),
+
         // Receipt Header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -915,9 +1323,7 @@ class _PosScreenState extends State<PosScreen> {
           child: Column(
             children: [
               _buildBillLine('المجموع الجزئي', _subtotal),
-              if (_serviceAmount > 0)
-                _buildBillLine('خدمة صالة (12%)', _serviceAmount),
-              _buildBillLine('ضريبة القيمة المضافة (14%)', _taxAmount),
+              _buildBillLine('ضريبة القيمة المضافة (${(_taxRate * 100).toStringAsFixed(0)}%)', _taxAmount),
               const Divider(color: PieColors.border, height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1263,9 +1669,7 @@ class _PosScreenState extends State<PosScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _buildBillLine('المجموع الجزئي', _subtotal),
-                            if (_serviceAmount > 0)
-                              _buildBillLine('خدمة صالة (12%)', _serviceAmount),
-                            _buildBillLine('ضريبة القيمة المضافة (14%)', _taxAmount),
+                            _buildBillLine('ضريبة القيمة المضافة (${(_taxRate * 100).toStringAsFixed(0)}%)', _taxAmount),
                             const Divider(color: PieColors.border, height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1427,9 +1831,21 @@ class _PosScreenState extends State<PosScreen> {
                             borderRadius: PieRadius.borderMd,
                           ),
                           child: Center(
-                            child: Text(
-                              'لا يوجد كباتن مسجلين بالنظام حالياً',
-                              style: PieTypography.body.copyWith(color: PieColors.inkMuted),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.two_wheeler_outlined, color: PieColors.inkMuted, size: 28),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'لا يوجد كباتن مسجلين بالنظام حالياً',
+                                  style: PieTypography.bodyStrong.copyWith(color: PieColors.inkMuted),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'يرجى مراجعة مدير الفرع لتسجيل طيارين وتعيينهم',
+                                  style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                                ),
+                              ],
                             ),
                           ),
                         ),

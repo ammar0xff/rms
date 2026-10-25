@@ -28,6 +28,9 @@ class ReceiptPrintService {
     String? paymentMethod,
     double? paidAmount,
     double? changeDue,
+    String? customerName,
+    String? customerPhone,
+    String? deliveryAddress,
   }) async {
     final ref = (order.canonicalOrderNumber?.isNotEmpty == true)
         ? order.canonicalOrderNumber!
@@ -39,6 +42,7 @@ class ReceiptPrintService {
     final safeSubtotal = order.subtotal.isFinite ? order.subtotal : 0.0;
     final safeTax = order.taxAmount.isFinite ? order.taxAmount : 0.0;
     final safeService = order.serviceAmount.isFinite ? order.serviceAmount : 0.0;
+    final safeDeliveryFee = order.deliveryFee.isFinite ? order.deliveryFee : 0.0;
 
     final payload = {
       'orderRef': ref,
@@ -46,7 +50,11 @@ class ReceiptPrintService {
       'subtotal': safeSubtotal,
       'tax': safeTax,
       'service': safeService,
+      'deliveryFee': safeDeliveryFee,
       'method': paymentMethod ?? 'نقدي',
+      if (customerName != null) 'customerName': customerName,
+      if (customerPhone != null) 'customerPhone': customerPhone,
+      if (deliveryAddress != null) 'deliveryAddress': deliveryAddress,
       'items': order.items
           .map((i) => {
                 'name': i.name,
@@ -68,6 +76,9 @@ class ReceiptPrintService {
         paymentMethod: paymentMethod,
         paidAmount: paidAmount,
         changeDue: changeDue,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        deliveryAddress: deliveryAddress,
       );
 
       didPrint = _transport.printHtml(html);
@@ -94,6 +105,9 @@ class ReceiptPrintService {
     String? paymentMethod,
     double? paidAmount,
     double? changeDue,
+    String? customerName,
+    String? customerPhone,
+    String? deliveryAddress,
   }) {
     try {
       final html = buildReceiptHtml(
@@ -102,6 +116,9 @@ class ReceiptPrintService {
         paymentMethod: paymentMethod,
         paidAmount: paidAmount,
         changeDue: changeDue,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        deliveryAddress: deliveryAddress,
       );
       return _transport.openHtmlInTab(html);
     } catch (e) {
@@ -110,7 +127,6 @@ class ReceiptPrintService {
     }
   }
 
-
   /// Generates self-contained HTML for an 80mm/58mm thermal receipt.
   static String buildReceiptHtml({
     required Order order,
@@ -118,6 +134,9 @@ class ReceiptPrintService {
     String? paymentMethod,
     double? paidAmount,
     double? changeDue,
+    String? customerName,
+    String? customerPhone,
+    String? deliveryAddress,
   }) {
     final ref = (order.canonicalOrderNumber?.isNotEmpty == true)
         ? order.canonicalOrderNumber!
@@ -132,10 +151,8 @@ class ReceiptPrintService {
     final safeTotal = order.total.isFinite ? order.total : 0.0;
     final safeSubtotal = order.subtotal.isFinite ? order.subtotal : 0.0;
     final safeTax = order.taxAmount.isFinite ? order.taxAmount : 0.0;
-    final safeService = order.serviceAmount.isFinite ? order.serviceAmount : 0.0;
 
     final channelName = switch (order.orderType) {
-      OrderType.dineIn => 'صالة',
       OrderType.takeaway => 'تيك أواي',
       OrderType.delivery => 'دليفري',
     };
@@ -268,6 +285,9 @@ class ReceiptPrintService {
       <span>نوع الطلب:</span>
       <strong>$channelName</strong>
     </div>
+    ${customerName != null && customerName.isNotEmpty ? '<div class="meta-row"><span>العميل:</span><strong>' + _escapeHtml(customerName) + '</strong></div>' : ''}
+    ${customerPhone != null && customerPhone.isNotEmpty ? '<div class="meta-row"><span>الهاتف:</span><span dir="ltr">' + _escapeHtml(customerPhone) + '</span></div>' : ''}
+    ${deliveryAddress != null && deliveryAddress.isNotEmpty ? '<div class="meta-row"><span>العنوان:</span><span>' + _escapeHtml(deliveryAddress) + '</span></div>' : ''}
     <div class="meta-row">
       <span>التاريخ والوقت:</span>
       <span>$dateStr • $timeStr</span>
@@ -294,8 +314,8 @@ class ReceiptPrintService {
       <span>المجموع الجزئي:</span>
       <span>${safeSubtotal.toStringAsFixed(2)} $currency</span>
     </div>
-    ${safeService > 0 ? '<div class="total-row"><span>خدمة الصالة:</span><span>' + safeService.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
     ${safeTax > 0 ? '<div class="total-row"><span>ضريبة القيمة المضافة:</span><span>' + safeTax.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
+    ${order.deliveryFee > 0 ? '<div class="total-row" style="font-weight: 600;"><span>خدمة التوصيل:</span><span>' + order.deliveryFee.toStringAsFixed(2) + ' ' + currency + '</span></div>' : ''}
 
     <div class="grand-total">
       <span>الإجمالي النهائي:</span>
@@ -380,7 +400,7 @@ class ReceiptPrintService {
     }
   }
 
-  /// Triggers full printing flow for a [CashSession] Z-Report.
+  /// Triggers full printing flow for a [CashSession] Z-Report or X-Report (interim read).
   static Future<bool> printZReport({
     required CashSession session,
     FacilitySettings? facility,
@@ -389,6 +409,7 @@ class ReceiptPrintService {
     required double variance,
     Map<int, int>? counts,
     String? cashierName,
+    bool isXReport = false,
   }) async {
     try {
       final html = buildZReportHtml(
@@ -399,6 +420,7 @@ class ReceiptPrintService {
         variance: variance,
         counts: counts,
         cashierName: cashierName,
+        isXReport: isXReport,
       );
       return _transport.printHtml(html) || kIsWeb;
     } catch (e) {
@@ -407,7 +429,7 @@ class ReceiptPrintService {
     }
   }
 
-  /// Opens the Z-Report in a dedicated browser tab.
+  /// Opens the Z-Report or X-Report in a dedicated browser tab.
   static bool openZReportInTab({
     required CashSession session,
     FacilitySettings? facility,
@@ -416,6 +438,7 @@ class ReceiptPrintService {
     required double variance,
     Map<int, int>? counts,
     String? cashierName,
+    bool isXReport = false,
   }) {
     try {
       final html = buildZReportHtml(
@@ -426,6 +449,7 @@ class ReceiptPrintService {
         variance: variance,
         counts: counts,
         cashierName: cashierName,
+        isXReport: isXReport,
       );
       return _transport.openHtmlInTab(html);
     } catch (e) {
@@ -567,7 +591,7 @@ class ReceiptPrintService {
 ''';
   }
 
-  /// Generates self-contained HTML for an 80mm/58mm thermal Z-Report (تقفيل الوردية).
+  /// Generates self-contained HTML for an 80mm/58mm thermal Z-Report (تقفيل الوردية) or X-Report (قراءة مؤقتة).
   static String buildZReportHtml({
     required CashSession session,
     required FacilitySettings facility,
@@ -576,10 +600,15 @@ class ReceiptPrintService {
     required double variance,
     Map<int, int>? counts,
     String? cashierName,
+    bool isXReport = false,
   }) {
     final title = facility.receiptName.isNotEmpty
         ? facility.receiptName
         : (facility.nameAr.isNotEmpty ? facility.nameAr : 'PIE Restaurant');
+
+    final branchName = (session.branchName != null && session.branchName!.isNotEmpty)
+        ? session.branchName!
+        : facility.activeBranchName;
 
     final currency = facility.currency.isNotEmpty ? facility.currency : 'ج.م';
 
@@ -619,12 +648,25 @@ class ReceiptPrintService {
       denomsHtml.writeln('</table>');
     }
 
+    final docTitle = isXReport
+        ? 'تقرير قراءة وردية مؤقت X #${session.id}'
+        : 'تقرير تقفيل وردية Z #${session.id}';
+    final reportTitle = isXReport
+        ? 'تقرير قراءة الوردية المؤقت (X-Report)'
+        : 'تقرير تقفيل الوردية اليومي (Z-Close)';
+    final printBtnLabel = isXReport
+        ? '🖨️ طباعة قراءة الوردية المؤقتة X'
+        : '🖨️ طباعة تقرير تقفيل الوردية Z';
+    final statusBadge = isXReport
+        ? '<div style="display:inline-block; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-bottom: 4px;">⚠️ قراءة مؤقتة أثناء التشغيل (غير مقفلة)</div>'
+        : '<div style="display:inline-block; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-bottom: 4px;">✓ تقفيل نهائي معتمد</div>';
+
     return '''
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="utf-8">
-  <title>تقرير تقفيل وردية Z #${session.id}</title>
+  <title>$docTitle</title>
   <style>
     @media print {
       @page { margin: 0; size: 80mm auto; }
@@ -657,13 +699,14 @@ class ReceiptPrintService {
 </head>
 <body>
   <div class="print-actions">
-    <button onclick="window.print()" class="print-btn">🖨️ طباعة تقرير تقفيل الوردية Z</button>
+    <button onclick="window.print()" class="print-btn">$printBtnLabel</button>
   </div>
   <div class="receipt-root" dir="rtl">
     <div class="header">
       <div class="store-name">${_escapeHtml(title)}</div>
-      ${facility.activeBranchName.isNotEmpty ? '<div style="font-size: 11px;">فرع: ' + _escapeHtml(facility.activeBranchName) + '</div>' : ''}
-      <div class="report-title">تقرير تقفيل الوردية اليومي (Z-Close)</div>
+      ${branchName.isNotEmpty ? '<div style="font-size: 11px;">فرع: ' + _escapeHtml(branchName) + '</div>' : ''}
+      <div class="report-title">$reportTitle</div>
+      $statusBadge
       <div style="font-size: 10.5px; color: #555;">معرف الوردية: #${_escapeHtml(session.id)}</div>
     </div>
     <div class="divider"></div>
@@ -672,7 +715,7 @@ class ReceiptPrintService {
       <span>$openDateStr</span>
     </div>
     <div class="meta-row">
-      <span>إغلاق الوردية:</span>
+      <span>${isXReport ? 'توقيت القراءة:' : 'إغلاق الوردية:'}</span>
       <span>$closeDateStr</span>
     </div>
     ${cashierName != null && cashierName.isNotEmpty ? '<div class="meta-row"><span>مسؤول الوردية:</span><strong>' + _escapeHtml(cashierName) + '</strong></div>' : ''}
@@ -691,7 +734,7 @@ class ReceiptPrintService {
     </div>
     <div class="summary-box">
       <div class="meta-row">
-        <span>الفارق النهائي:</span>
+        <span>الفارق ${isXReport ? 'اللحظي' : 'النهائي'}:</span>
         <span>$varianceLabel</span>
       </div>
     </div>

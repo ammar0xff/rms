@@ -12,6 +12,7 @@ import '../../core/widgets/pie_empty_state.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
 import '../../domain/models/app_role.dart';
 import '../../domain/models/app_user.dart';
+import '../../domain/models/delivery.dart';
 import '../../domain/models/permissions.dart';
 
 /// Screen 22: Team roster, roles, shift status, and permission matrix.
@@ -147,6 +148,27 @@ class _TeamScreenState extends State<TeamScreen> {
           );
         }
 
+        final driverMembers = live.where((m) => m.user.role == AppRole.driver).toList();
+        if (driverMembers.isNotEmpty && services.deliveries != null) {
+          final driverModels = driverMembers.map((m) => DriverModel(
+            id: m.user.uid,
+            name: (m.user.displayName != null && m.user.displayName!.isNotEmpty)
+                ? m.user.displayName!
+                : (m.user.email?.split('@').first ?? m.user.uid),
+            available: true,
+          )).toList();
+          services.deliveries!.cacheDrivers(driverModels, replace: false);
+          if (services.firebaseReady) {
+            for (final dm in driverModels) {
+              FirebaseFirestore.instance
+                  .collection('drivers')
+                  .doc(dm.id)
+                  .set(dm.toRecord(), SetOptions(merge: true))
+                  .catchError((_) => null);
+            }
+          }
+        }
+
         setState(() {
           _members.clear();
           _members.addAll(live);
@@ -266,6 +288,23 @@ class _TeamScreenState extends State<TeamScreen> {
                               ));
                             });
                           }
+                          if (chosenRole == AppRole.driver) {
+                            final driverModel = DriverModel(
+                              id: uid,
+                              name: name,
+                              available: true,
+                            );
+                            if (services.deliveries != null) {
+                              await services.deliveries!.cacheDrivers([driverModel], replace: false);
+                            }
+                            if (services.firebaseReady) {
+                              await FirebaseFirestore.instance
+                                  .collection('drivers')
+                                  .doc(uid)
+                                  .set(driverModel.toRecord(), SetOptions(merge: true))
+                                  .catchError((_) => null);
+                            }
+                          }
                           if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
                         } catch (e) {
                           setDialogState(() => isSaving = false);
@@ -297,10 +336,38 @@ class _TeamScreenState extends State<TeamScreen> {
       builder: (ctx) => _PermissionMatrixDialog(
         member: member,
         onMemberUpdated: (newRole, newPerms) async {
+          final oldRole = member.user.role;
           setState(() {
             member.permissions = newPerms;
             member.user = member.user.copyWith(role: newRole);
           });
+          if (newRole == AppRole.driver) {
+            final driverModel = DriverModel(
+              id: member.user.uid,
+              name: (member.user.displayName != null && member.user.displayName!.isNotEmpty)
+                  ? member.user.displayName!
+                  : (member.user.email?.split('@').first ?? member.user.uid),
+              available: true,
+            );
+            if (services.deliveries != null) {
+              await services.deliveries!.cacheDrivers([driverModel], replace: false);
+            }
+            if (services.firebaseReady) {
+              await FirebaseFirestore.instance
+                  .collection('drivers')
+                  .doc(member.user.uid)
+                  .set(driverModel.toRecord(), SetOptions(merge: true))
+                  .catchError((_) => null);
+            }
+          } else if (oldRole == AppRole.driver && newRole != AppRole.driver) {
+            if (services.firebaseReady) {
+              await FirebaseFirestore.instance
+                  .collection('drivers')
+                  .doc(member.user.uid)
+                  .delete()
+                  .catchError((_) => null);
+            }
+          }
           if (services.firebaseReady) {
             try {
               await FirebaseFirestore.instance.collection('users').doc(member.user.uid).set({

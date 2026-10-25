@@ -50,6 +50,16 @@ class _Backend implements AuthBackend {
     signedIn = null;
     controller.add(null);
   }
+
+  @override
+  Future<void> updateProfile({String? displayName, String? newPassword}) async {
+    calls.add('updateProfile:$displayName:$newPassword');
+    final code = failure;
+    if (code != null) throw AuthBackendFailure(code);
+    if (signedIn != null && displayName != null) {
+      signedIn = signedIn!.copyWith(displayName: displayName);
+    }
+  }
 }
 
 const _user = AppUser(uid: 'u-1', email: 'am@example.com');

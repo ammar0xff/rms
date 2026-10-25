@@ -162,8 +162,6 @@ class _TriageScreenState extends State<TriageScreen> {
     required int delayedCount,
   }) {
     final isDelayed = delayedCount > 0;
-    final dineInOrders =
-        activeOrders.where((o) => o.orderType == OrderType.dineIn).length;
     final takeawayOrders =
         activeOrders.where((o) => o.orderType == OrderType.takeaway).length;
     final deliveryOrders = deliveries
@@ -236,7 +234,6 @@ class _TriageScreenState extends State<TriageScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildBranchMetric('أوردرات الصالة', '$dineInOrders'),
               _buildBranchMetric('أوردرات التيك أواي', '$takeawayOrders'),
               _buildBranchMetric('أوردرات الدليفري', '$deliveryOrders'),
             ],

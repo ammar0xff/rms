@@ -92,7 +92,7 @@ void main() {
           orderRef: 'ORD-9999',
           amount: 85.0,
           reason: 'إلغاء الطلب بناء على رغبة العميل',
-          requestedBy: 'كاشير الصالة',
+          requestedBy: 'كاشير الكاونتر',
         );
       });
 

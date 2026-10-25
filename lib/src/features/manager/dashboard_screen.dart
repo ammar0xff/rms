@@ -53,9 +53,6 @@ class DashboardScreen extends StatelessWidget {
             final avgTicket = activeOrders.isEmpty ? 0.0 : netSales / activeOrders.length;
 
             // Channel Breakdown calculations
-            final dineInTotal = activeOrders
-                .where((o) => o.orderType == OrderType.dineIn)
-                .fold(0.0, (sum, o) => sum + o.total);
             final takeawayTotal = activeOrders
                 .where((o) => o.orderType == OrderType.takeaway)
                 .fold(0.0, (sum, o) => sum + o.total);
@@ -99,7 +96,6 @@ class DashboardScreen extends StatelessWidget {
                 // Sales Channel Breakdown Card
                 _buildChannelBreakdownCard(
                   total: netSales,
-                  dineIn: dineInTotal,
                   takeaway: takeawayTotal,
                   delivery: deliveryTotal,
                 ),
@@ -293,12 +289,10 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildChannelBreakdownCard({
     required double total,
-    required double dineIn,
     required double takeaway,
     required double delivery,
   }) {
     final hasSales = total > 0;
-    final dineInPct = hasSales ? (dineIn / total) : 0.0;
     final takeawayPct = hasSales ? (takeaway / total) : 0.0;
     final deliveryPct = hasSales ? (delivery / total) : 0.0;
 
@@ -320,11 +314,6 @@ class DashboardScreen extends StatelessWidget {
               child: hasSales
                   ? Row(
                       children: [
-                        if (dineInPct > 0)
-                          Expanded(
-                            flex: (dineInPct * 100).toInt().clamp(1, 100),
-                            child: Container(color: const Color(0xFF60A5FA)),
-                          ),
                         if (takeawayPct > 0)
                           Expanded(
                             flex: (takeawayPct * 100).toInt().clamp(1, 100),
@@ -345,7 +334,6 @@ class DashboardScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildChannelStat('صالة', dineIn, const Color(0xFF60A5FA)),
               _buildChannelStat('تيك أواي', takeaway, const Color(0xFFFBBF24)),
               _buildChannelStat('دليفري', delivery, PieColors.driverAccent),
             ],

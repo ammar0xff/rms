@@ -5,6 +5,8 @@ import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/cash_session.dart';
+import '../../domain/models/collection.dart';
+import '../../domain/models/order_type.dart';
 import '../../domain/models/payment.dart';
 import '../../domain/money.dart';
 import '../local/audit_log.dart';
@@ -84,8 +86,35 @@ class LocalCashSessionRepository implements CashSessionRepository {
   }
 
   @override
+  Stream<CashSession?> watchCurrentSession() {
+    return LocalStores.cashSessions
+        .query(
+          finder: Finder(
+            filter: Filter.equals('status', CashSessionStatus.open.name),
+          ),
+        )
+        .onSnapshots(_db.db)
+        .map((snapshots) {
+      if (snapshots.isEmpty) return null;
+      final sessions = <CashSession>[];
+      for (final s in snapshots) {
+        try {
+          sessions.add(CashSession.fromRecord(s.value));
+        } catch (_) {}
+      }
+      if (sessions.isEmpty) return null;
+      sessions.sort((a, b) => b.openedAt.compareTo(a.openedAt));
+      return sessions.first;
+    });
+  }
+
+  @override
   Future<CashSession> openSession({
     required double openingFloat,
+    String? cashierUid,
+    String? cashierName,
+    String? branchId,
+    String? branchName,
     bool createdOffline = false,
   }) async {
     final now = _clock();
@@ -94,6 +123,10 @@ class LocalCashSessionRepository implements CashSessionRepository {
       id: id,
       openedAt: now,
       openingFloat: openingFloat,
+      cashierUid: cashierUid,
+      cashierName: cashierName,
+      branchId: branchId,
+      branchName: branchName,
       createdOffline: createdOffline,
     );
     await _db.transaction((txn) async {
@@ -115,6 +148,10 @@ class LocalCashSessionRepository implements CashSessionRepository {
             'id': id,
             'openingFloat': openingFloat,
             'openedAt': now.toIso8601String(),
+            if (cashierUid != null) 'cashierUid': cashierUid,
+            if (cashierName != null) 'cashierName': cashierName,
+            if (branchId != null) 'branchId': branchId,
+            if (branchName != null) 'branchName': branchName,
           },
         ),
       );
@@ -125,14 +162,23 @@ class LocalCashSessionRepository implements CashSessionRepository {
           action: AuditAction.openCashSession,
           entityType: 'cashSession',
           entityId: id,
-          summary: 'فتح جلسة برأس مال ${openingFloat.toStringAsFixed(2)}',
+          summary:
+              'فتح جلسة برأس مال ${openingFloat.toStringAsFixed(2)}${cashierName != null ? ' بواسطة $cashierName' : ''}${branchName != null ? ' (فرع $branchName)' : ''}',
           at: now,
+          actor: cashierName ?? cashierUid ?? 'system',
           amount: openingFloat,
           createdOffline: createdOffline,
         ),
       );
     });
-    return await currentSession() ?? session;
+    final result = await currentSession() ?? session;
+    await mirrorRecord(
+      _mirror,
+      entityType: 'cashSession',
+      entityId: result.id,
+      snapshot: result.toRecord(),
+    );
+    return result;
   }
 
   @override
@@ -140,6 +186,8 @@ class LocalCashSessionRepository implements CashSessionRepository {
     String id, {
     required double countedCash,
     String? note,
+    String? cashierUid,
+    String? cashierName,
   }) async {
     final now = _clock();
     CashSession? closed;
@@ -172,9 +220,15 @@ class LocalCashSessionRepository implements CashSessionRepository {
             'countedCash': countedCash,
             'expectedCash': expected,
             'variance': variance,
+            if (cashierUid != null || session.cashierUid != null)
+              'cashierUid': cashierUid ?? session.cashierUid,
+            if (cashierName != null || session.cashierName != null)
+              'cashierName': cashierName ?? session.cashierName,
           },
         ),
       );
+      final closingActor =
+          cashierName ?? session.cashierName ?? cashierUid ?? session.cashierUid ?? 'system';
       await _audit.append(
         txn,
         AuditEntry(
@@ -183,8 +237,9 @@ class LocalCashSessionRepository implements CashSessionRepository {
           entityType: 'cashSession',
           entityId: id,
           summary:
-              'إغلاق جلسة · متوقع ${expected.toStringAsFixed(2)} · فرق ${variance.toStringAsFixed(2)}',
+              'إغلاق جلسة · متوقع ${expected.toStringAsFixed(2)} · فرق ${variance.toStringAsFixed(2)}${closingActor != 'system' ? ' بواسطة $closingActor' : ''}',
           at: now,
+          actor: closingActor,
           amount: variance,
           createdOffline: true,
         ),
@@ -195,6 +250,12 @@ class LocalCashSessionRepository implements CashSessionRepository {
     if (result == null) {
       throw StateError('cash session $id not found');
     }
+    await mirrorRecord(
+      _mirror,
+      entityType: 'cashSession',
+      entityId: id,
+      snapshot: result.toRecord(),
+    );
     return result;
   }
 
@@ -209,35 +270,55 @@ class LocalCashSessionRepository implements CashSessionRepository {
     DateTime asOf,
   ) async {
     var total = session.openingFloat;
-    final from = session.openedAt.toIso8601String();
-    final to = asOf.toIso8601String();
+    final openedUtc = session.openedAt.toUtc();
+    final asOfUtc = asOf.toUtc();
 
-    final payments = await LocalStores.payments.find(
+    final allPayments = await LocalStores.payments.find(
       txn,
       finder: Finder(
-        filter: Filter.and([
-          Filter.greaterThanOrEquals('createdAt', from),
-          Filter.lessThanOrEquals('createdAt', to),
-          Filter.equals('method', PaymentMethod.cash.name),
-        ]),
+        filter: Filter.equals('method', PaymentMethod.cash.name),
       ),
     );
-    for (final snapshot in payments) {
-      total += (snapshot.value['amount'] as num?)?.toDouble() ?? 0;
+    for (final snapshot in allPayments) {
+      final map = snapshot.value;
+      // Skip if payment is for a delivery order (delivery cash enters drawer only via settled collections)
+      final orderLocalId = map['orderLocalId'] as String?;
+      if (orderLocalId != null) {
+        final orderRecord = await LocalStores.orders.record(orderLocalId).get(txn);
+        if (orderRecord != null && orderRecord['orderType'] == OrderType.delivery.name) {
+          continue;
+        }
+      }
+      final createdAtRaw = map['createdAt'];
+      if (createdAtRaw == null) continue;
+      final createdAt = DateTime.tryParse(createdAtRaw.toString());
+      if (createdAt == null) continue;
+      final createdUtc = createdAt.toUtc();
+      if (!createdUtc.isBefore(openedUtc) && !createdUtc.isAfter(asOfUtc)) {
+        total += (map['amount'] as num?)?.toDouble() ?? 0.0;
+      }
     }
 
-    final collections = await LocalStores.collections.find(
+    final allCollections = await LocalStores.collections.find(
       txn,
       finder: Finder(
-        filter: Filter.and([
-          Filter.greaterThanOrEquals('collectedAt', from),
-          Filter.lessThanOrEquals('collectedAt', to),
-          Filter.equals('method', PaymentMethod.cash.name),
-        ]),
+        filter: Filter.equals('method', PaymentMethod.cash.name),
       ),
     );
-    for (final snapshot in collections) {
-      total += (snapshot.value['amount'] as num?)?.toDouble() ?? 0;
+    for (final snapshot in allCollections) {
+      final map = snapshot.value;
+      // Delivery cash enters drawer ONLY when custody has been handed over and settled
+      if (map['settlementStatus'] != SettlementStatus.settled.name) {
+        continue;
+      }
+      final settledAtRaw = map['settledAt'] ?? map['collectedAt'];
+      if (settledAtRaw == null) continue;
+      final settledAt = DateTime.tryParse(settledAtRaw.toString());
+      if (settledAt == null) continue;
+      final settledUtc = settledAt.toUtc();
+      if (!settledUtc.isBefore(openedUtc) && !settledUtc.isAfter(asOfUtc)) {
+        total += (map['amount'] as num?)?.toDouble() ?? 0.0;
+      }
     }
 
     return total;

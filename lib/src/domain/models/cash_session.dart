@@ -25,6 +25,10 @@ class CashSession {
     this.expectedCash,
     this.status = CashSessionStatus.open,
     this.note,
+    this.cashierUid,
+    this.cashierName,
+    this.branchId,
+    this.branchName,
     this.createdOffline = false,
     this.syncStatus = SyncStatus.pendingSync,
   });
@@ -37,6 +41,10 @@ class CashSession {
   double? expectedCash;
   CashSessionStatus status;
   String? note;
+  final String? cashierUid;
+  final String? cashierName;
+  final String? branchId;
+  final String? branchName;
   final bool createdOffline;
   SyncStatus syncStatus;
 
@@ -58,6 +66,10 @@ class CashSession {
         'expectedCash': expectedCash,
         'status': status.name,
         'note': note,
+        'cashierUid': cashierUid,
+        'cashierName': cashierName,
+        'branchId': branchId,
+        'branchName': branchName,
         'createdOffline': createdOffline,
         'syncStatus': syncStatus.name,
       };
@@ -83,6 +95,10 @@ class CashSession {
           }
         }(),
         note: record['note'] as String?,
+        cashierUid: record['cashierUid'] as String?,
+        cashierName: record['cashierName'] as String?,
+        branchId: record['branchId'] as String?,
+        branchName: record['branchName'] as String?,
         createdOffline: record['createdOffline'] as bool? ?? false,
         syncStatus: () {
           final s = record['syncStatus'] as String?;
@@ -93,5 +109,38 @@ class CashSession {
             return SyncStatus.pendingSync;
           }
         }(),
+      );
+
+  CashSession copyWith({
+    String? id,
+    DateTime? openedAt,
+    double? openingFloat,
+    DateTime? closedAt,
+    double? countedCash,
+    double? expectedCash,
+    CashSessionStatus? status,
+    String? note,
+    String? cashierUid,
+    String? cashierName,
+    String? branchId,
+    String? branchName,
+    bool? createdOffline,
+    SyncStatus? syncStatus,
+  }) =>
+      CashSession(
+        id: id ?? this.id,
+        openedAt: openedAt ?? this.openedAt,
+        openingFloat: openingFloat ?? this.openingFloat,
+        closedAt: closedAt ?? this.closedAt,
+        countedCash: countedCash ?? this.countedCash,
+        expectedCash: expectedCash ?? this.expectedCash,
+        status: status ?? this.status,
+        note: note ?? this.note,
+        cashierUid: cashierUid ?? this.cashierUid,
+        cashierName: cashierName ?? this.cashierName,
+        branchId: branchId ?? this.branchId,
+        branchName: branchName ?? this.branchName,
+        createdOffline: createdOffline ?? this.createdOffline,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
 }

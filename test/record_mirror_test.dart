@@ -60,11 +60,12 @@ void main() {
       expect(mirrorCollectionFor('stockMovement'), 'stockMovements');
       expect(mirrorCollectionFor('inventoryItem'), 'inventoryItems');
       expect(mirrorCollectionFor('cashSession'), 'cashSessions');
-      expect(mirrorCollectionFor('approval'), 'approvals');
+      expect(mirrorCollectionFor('driver'), 'drivers');
+      expect(mirrorCollectionFor('deliveryZone'), 'delivery_zones');
     });
 
     test('returns null for unmapped types', () {
-      expect(mirrorCollectionFor('driver'), isNull);
+      expect(mirrorCollectionFor('unknown_entity'), isNull);
       expect(mirrorCollectionFor(''), isNull);
     });
   });

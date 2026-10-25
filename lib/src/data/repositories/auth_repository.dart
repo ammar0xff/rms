@@ -29,6 +29,9 @@ abstract class AuthRepository {
   /// fall back to [AppRole.cashier], because a role lookup failure must not
   /// lock anyone out — nor silently promote them.
   Future<AppRole> roleFor(AppUser user);
+
+  /// Updates the currently signed-in operator's profile (name and/or password).
+  Future<void> updateProfile({String? displayName, String? newPassword});
 }
 
 class AuthException implements Exception {

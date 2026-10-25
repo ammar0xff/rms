@@ -87,4 +87,8 @@ abstract final class LocalStores {
   /// health-check, acknowledgement and rollback outcomes).
   static final StoreRef<String, Map<String, Object?>> releaseAuditEvents =
       stringMapStoreFactory.store('release_audit_events');
+
+  /// Delivery zones and static region-based delivery fees configured by manager.
+  static final StoreRef<String, Map<String, Object?>> deliveryZones =
+      stringMapStoreFactory.store('delivery_zones');
 }

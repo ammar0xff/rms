@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart' hide Filter, Transaction;
 import 'package:sembast/sembast.dart';
 import 'package:uuid/uuid.dart';
 
@@ -7,6 +8,7 @@ import '../../domain/assignment/delivery_assignment.dart';
 import '../../domain/models/audit_entry.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
+import '../../domain/models/delivery_zone.dart';
 import '../../domain/models/payment.dart';
 import '../local/audit_log.dart';
 import '../sync/record_mirror.dart';
@@ -57,6 +59,63 @@ class LocalDeliveryRepository implements DeliveryRepository {
     return deliveries;
   }
 
+  static const List<DeliveryZone> defaultDeliveryZones = [
+    DeliveryZone(id: 'zone-1', name: 'وسط البلد / المحطة', fee: 15.0, estimatedMinutes: 20),
+    DeliveryZone(id: 'zone-2', name: 'حي الأربعين / المثلث', fee: 20.0, estimatedMinutes: 25),
+    DeliveryZone(id: 'zone-3', name: 'حي فيصل / مساكن الباسل', fee: 25.0, estimatedMinutes: 30),
+    DeliveryZone(id: 'zone-4', name: 'حي السويس / بورتوفيق', fee: 30.0, estimatedMinutes: 35),
+    DeliveryZone(id: 'zone-5', name: 'الصباح / الملاحة', fee: 35.0, estimatedMinutes: 40),
+    DeliveryZone(id: 'zone-6', name: 'العين السخنة', fee: 60.0, estimatedMinutes: 50),
+  ];
+
+  @override
+  Future<List<DeliveryZone>> listZones() async {
+    final snapshots = await LocalStores.deliveryZones.find(_db.db);
+    if (snapshots.isEmpty) {
+      await _db.transaction((txn) async {
+        for (final z in defaultDeliveryZones) {
+          await LocalStores.deliveryZones.record(z.id).put(txn, z.toRecord());
+        }
+      });
+      // Best-effort remote mirror if online
+      for (final z in defaultDeliveryZones) {
+        mirrorRecord(
+          _mirror,
+          entityType: 'deliveryZone',
+          entityId: z.id,
+          snapshot: z.toMap(),
+        );
+      }
+      final reloaded = await LocalStores.deliveryZones.find(_db.db);
+      return reloaded.map((s) => DeliveryZone.fromRecord(s.value)).toList();
+    }
+    return snapshots.map((s) => DeliveryZone.fromRecord(s.value)).toList();
+  }
+
+  @override
+  Future<void> saveZone(DeliveryZone zone) async {
+    await LocalStores.deliveryZones.record(zone.id).put(_db.db, zone.toRecord());
+    await mirrorRecord(
+      _mirror,
+      entityType: 'deliveryZone',
+      entityId: zone.id,
+      snapshot: zone.toMap(),
+    );
+  }
+
+  @override
+  Future<void> deleteZone(String zoneId) async {
+    await LocalStores.deliveryZones.record(zoneId).delete(_db.db);
+    if (_mirror is FirestoreRecordMirror) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('delivery_zones')
+            .doc(zoneId)
+            .delete();
+      } catch (_) {}
+    }
+  }
+
   @override
   Future<List<DriverModel>> listDrivers() async {
     final snapshots = await LocalStores.drivers.find(_db.db);
@@ -84,6 +143,14 @@ class LocalDeliveryRepository implements DeliveryRepository {
         await LocalStores.drivers.record(driver.id).put(txn, driver.toRecord());
       }
     });
+    for (final driver in drivers) {
+      mirrorRecord(
+        _mirror,
+        entityType: 'driver',
+        entityId: driver.id,
+        snapshot: driver.toRecord(),
+      );
+    }
   }
 
   @override
@@ -91,6 +158,11 @@ class LocalDeliveryRepository implements DeliveryRepository {
     required String orderRef,
     required String address,
     required double amount,
+    String? customerName,
+    String? customerPhone,
+    String? landmark,
+    String? zoneName,
+    double? zoneFee,
     bool createdOffline = false,
   }) async {
     final id = _uuid.v4();
@@ -102,6 +174,11 @@ class LocalDeliveryRepository implements DeliveryRepository {
       amount: amount,
       state: DeliveryState.waiting,
       createdAt: now,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      landmark: landmark,
+      zoneName: zoneName,
+      zoneFee: zoneFee,
       offline: createdOffline,
     );
     await _db.transaction((txn) async {
@@ -117,6 +194,11 @@ class LocalDeliveryRepository implements DeliveryRepository {
             'orderRef': orderRef,
             'address': address,
             'amount': amount,
+            if (customerName != null) 'customerName': customerName,
+            if (customerPhone != null) 'customerPhone': customerPhone,
+            if (landmark != null) 'landmark': landmark,
+            if (zoneName != null) 'zoneName': zoneName,
+            if (zoneFee != null) 'zoneFee': zoneFee,
           },
         ),
       );
@@ -506,8 +588,11 @@ class LocalDeliveryRepository implements DeliveryRepository {
       final existing = await record.get(txn);
       if (existing == null) return;
       final delivery = DeliveryModel.fromRecord(existing);
-      if (!delivery.state.isDelivered) return;
       if (delivery.settlementStatus == SettlementStatus.settled) return;
+
+      if (!delivery.state.isDelivered) {
+        delivery.state = DeliveryState.delivered;
+      }
 
       final pending = await LocalStores.collections.find(
         txn,
@@ -518,10 +603,45 @@ class LocalDeliveryRepository implements DeliveryRepository {
           ]),
         ),
       );
-      final outstanding = pending.fold<double>(
-        0,
-        (sum, s) => sum + ((s.value['amount'] as num?)?.toDouble() ?? 0),
-      );
+      final outstanding = pending.isNotEmpty
+          ? pending.fold<double>(
+              0,
+              (total, s) => total + ((s.value['amount'] as num?)?.toDouble() ?? 0),
+            )
+          : delivery.amount;
+
+      // Mark delivery settled locally immediately
+      delivery.settlementStatus = SettlementStatus.settled;
+      delivery.localRevision += 1;
+      delivery.syncStatus = SyncStatus.pendingSync;
+      await record.put(txn, delivery.toRecord());
+
+      // Mark collections settled locally immediately so expectedCash receives the money
+      if (pending.isNotEmpty) {
+        for (final snapshot in pending) {
+          final col = CollectionModel.fromRecord(snapshot.value);
+          col.settlementStatus = SettlementStatus.settled;
+          col.settledAt = now;
+          col.syncStatus = SyncStatus.pendingSync;
+          await LocalStores.collections.record(col.id).put(txn, col.toRecord());
+        }
+      } else {
+        final colId = _uuid.v4();
+        final col = CollectionModel(
+          id: colId,
+          deliveryId: deliveryId,
+          orderRef: delivery.orderRef,
+          driver: delivery.driver,
+          amount: delivery.amount,
+          method: PaymentMethod.cash,
+          collectedAt: now,
+          settledAt: now,
+          settlementStatus: SettlementStatus.settled,
+          createdOffline: true,
+          syncStatus: SyncStatus.pendingSync,
+        );
+        await LocalStores.collections.record(colId).put(txn, col.toRecord());
+      }
 
       await _outbox.append(
         txn,
@@ -628,6 +748,7 @@ class LocalDeliveryRepository implements DeliveryRepository {
         final collection = CollectionModel.fromRecord(snapshot.value);
         if (collection.settlementStatus == SettlementStatus.settled) continue;
         collection.settlementStatus = SettlementStatus.settled;
+        collection.settledAt ??= _clock();
         collection.syncStatus = SyncStatus.synced;
         await LocalStores.collections
             .record(collection.id)

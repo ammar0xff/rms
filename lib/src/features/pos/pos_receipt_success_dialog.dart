@@ -5,7 +5,6 @@ import '../../core/theme/pie_radius.dart';
 import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_badge.dart';
 import '../../core/widgets/pie_button.dart';
-import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/facility_settings.dart';
 import '../../domain/models/order.dart';
@@ -117,7 +116,6 @@ class _PosReceiptSuccessDialogState extends State<PosReceiptSuccessDialog> {
     final safeTotal = order.total.isFinite ? order.total : 0.0;
     final safeSubtotal = order.subtotal.isFinite ? order.subtotal : 0.0;
     final safeTax = order.taxAmount.isFinite ? order.taxAmount : 0.0;
-    final safeService = order.serviceAmount.isFinite ? order.serviceAmount : 0.0;
 
     final dateStr =
         '${order.createdAt.year}-${order.createdAt.month.toString().padLeft(2, '0')}-${order.createdAt.day.toString().padLeft(2, '0')}';
@@ -298,8 +296,7 @@ class _PosReceiptSuccessDialogState extends State<PosReceiptSuccessDialog> {
 
                       // Subtotal & Tax
                       _buildSummaryRow('المجموع الجزئي', safeSubtotal),
-                      if (safeService > 0) _buildSummaryRow('خدمة الصالة', safeService),
-                      if (safeTax > 0) _buildSummaryRow('ضريبة القيمة المضافة (14%)', safeTax),
+                      if (safeTax > 0) _buildSummaryRow('ضريبة القيمة المضافة', safeTax),
                       const Divider(color: PieColors.border, height: 16),
 
                       // Total

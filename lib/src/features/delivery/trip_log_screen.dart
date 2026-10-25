@@ -61,14 +61,28 @@ class _TripLogScreenState extends State<TripLogScreen> {
 
             var filtered = myDeliveries;
             if (_selectedFilter != null) {
-              filtered =
-                  filtered.where((d) => d.state == _selectedFilter).toList();
+              if (_selectedFilter == DeliveryState.failed) {
+                filtered = filtered
+                    .where((d) =>
+                        d.state == DeliveryState.failed ||
+                        d.state == DeliveryState.returned)
+                    .toList();
+              } else {
+                filtered =
+                    filtered.where((d) => d.state == _selectedFilter).toList();
+              }
             }
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Daily KPI summary
+            return RefreshIndicator(
+              onRefresh: () async {
+                await services.sync?.requestSync();
+                if (mounted) setState(() {});
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Daily KPI summary
                 PieCard(
                   padding: const EdgeInsets.all(18),
                   surfaceColor: PieColors.surface2,
@@ -100,7 +114,7 @@ class _TripLogScreenState extends State<TripLogScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _buildFilterChip(null, 'الكل (${allDeliveries.length})'),
+                      _buildFilterChip(null, 'الكل (${myDeliveries.length})'),
                       const SizedBox(width: 6),
                       _buildFilterChip(DeliveryState.delivered, 'اتسلّم (${deliveredList.length})'),
                       const SizedBox(width: 6),
@@ -171,8 +185,9 @@ class _TripLogScreenState extends State<TripLogScreen> {
                     const SizedBox(height: 10),
                   ],
               ],
-            );
-          },
+            ),
+          );
+        },
         ),
     );
   }

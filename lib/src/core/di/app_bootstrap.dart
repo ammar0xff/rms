@@ -249,7 +249,7 @@ Future<AppServices> _resolveAuth(
     await _primeBranchData(branches);
   } else {
     // Production / real mode: purge any legacy demo data from local store
-    await _purgeLegacyDemoData(database);
+    await purgeLegacyDemoData(database);
   }
 
   // Built here rather than alongside the other repositories: it needs
@@ -602,6 +602,9 @@ Future<void> _primeDeliveryData(LocalDeliveryRepository? deliveries) async {
         amount: 27.50,
         state: DeliveryState.onRoute,
         driver: 'مروان ر.',
+        customerName: 'م. أحمد الشريف',
+        customerPhone: '01012345678',
+        landmark: 'بجوار صيدلية العزبي - الدور الثالث',
         createdAt: now.subtract(const Duration(minutes: 24)),
         syncStatus: SyncStatus.synced,
       ),
@@ -612,6 +615,9 @@ Future<void> _primeDeliveryData(LocalDeliveryRepository? deliveries) async {
         amount: 34.00,
         state: DeliveryState.assigned,
         driver: 'سارة ك.',
+        customerName: 'أ. دينا محمود',
+        customerPhone: '01123456789',
+        landmark: 'فيلا 11 - بجوار مسجد النور',
         offline: true,
         createdAt: now.subtract(const Duration(minutes: 18)),
         syncStatus: SyncStatus.synced,
@@ -622,6 +628,9 @@ Future<void> _primeDeliveryData(LocalDeliveryRepository? deliveries) async {
         address: '7 شارع الأرز',
         amount: 21.50,
         state: DeliveryState.waiting,
+        customerName: 'د. كريم فهمي',
+        customerPhone: '01234567890',
+        landmark: 'عمارة الأطباء - مدخل أ',
         createdAt: now.subtract(const Duration(minutes: 8)),
         syncStatus: SyncStatus.synced,
       ),
@@ -632,6 +641,9 @@ Future<void> _primeDeliveryData(LocalDeliveryRepository? deliveries) async {
         amount: 18.00,
         state: DeliveryState.delivered,
         driver: 'مروان ر.',
+        customerName: 'م. طارق يحيى',
+        customerPhone: '01512345678',
+        landmark: 'أمام بنك مصر',
         offline: true,
         settlementStatus: SettlementStatus.pending,
         createdAt: now.subtract(const Duration(minutes: 40)),
@@ -644,6 +656,9 @@ Future<void> _primeDeliveryData(LocalDeliveryRepository? deliveries) async {
         amount: 44.00,
         state: DeliveryState.delivered,
         driver: 'سارة ك.',
+        customerName: 'أ. رانيا عثمان',
+        customerPhone: '01099887766',
+        landmark: 'برج الزيتون الطبي',
         settlementStatus: SettlementStatus.settled,
         createdAt: now.subtract(const Duration(minutes: 62)),
         syncStatus: SyncStatus.synced,
@@ -1060,10 +1075,12 @@ Future<void> _primeUpdateManifest(LocalUpdateRepository? updates) async {
 }
 
 /// Purges any residual mock/demo records from local storage when operating in production mode.
-Future<void> _purgeLegacyDemoData(LocalDatabase? database) async {
+Future<void> purgeLegacyDemoData(LocalDatabase? database) async {
   if (database == null) return;
   try {
     final stores = [
+      'orders',
+      'customers',
       'deliveries',
       'collections',
       'kitchen_tickets',
@@ -1074,22 +1091,39 @@ Future<void> _purgeLegacyDemoData(LocalDatabase? database) async {
       'stock_movements',
       'purchase_orders',
       'suppliers',
+      'drivers',
     ];
     for (final name in stores) {
       final store = stringMapStoreFactory.store(name);
       final records = await store.find(database.db);
       for (final rec in records) {
         final id = rec.key;
+        final data = rec.value;
+        final nameVal = data['name'] as String? ?? '';
+        final driverVal = data['driver'] as String? ?? '';
+        final isMockCourierName = nameVal.contains('مروان') ||
+            nameVal.contains('سارة ك') ||
+            nameVal.contains('ديڤ') ||
+            driverVal.contains('مروان') ||
+            driverVal.contains('سارة ك') ||
+            driverVal.contains('ديڤ');
+
         if (id.startsWith('DL-009') ||
             id.startsWith('COL-009') ||
             id.startsWith('KT-22') ||
+            id.startsWith('ORD-482') ||
+            id.startsWith('T-01') ||
             id.startsWith('seed-') ||
             id == 'CS-0001' ||
             id == 'AP-0001' ||
             id.startsWith('INV-00') ||
             id.startsWith('MV-00') ||
             id.startsWith('PO-2024-') ||
-            id.startsWith('SP-00')) {
+            id.startsWith('SP-00') ||
+            id == 'd1' ||
+            id == 'd2' ||
+            id == 'd3' ||
+            isMockCourierName) {
           await store.record(id).delete(database.db);
         }
       }

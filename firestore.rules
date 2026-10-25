@@ -73,6 +73,14 @@ service cloud.firestore {
       allow read, write: if signedIn() && isPrivileged();
     }
 
+    // Public configuration flags (e.g. signup enabled/disabled).
+    // Readable by anyone (including unauthenticated visitors on sign-in),
+    // writable only by privileged operators (manager, developer).
+    match /public_settings/{id} {
+      allow read: if true;
+      allow write: if signedIn() && isPrivileged();
+    }
+
     // Offline outbox drain: the sync engine's write path.
     match /sync_operations/{id} {
       allow read, write: if signedIn();
@@ -125,6 +133,19 @@ service cloud.firestore {
     }
     match /tables/{id} {
       allow read, write: if signedIn();
+    }
+
+    // Branch couriers roster: readable by all signed-in staff,
+    // writable by privileged operators (manager, developer) OR by the courier themself.
+    match /drivers/{id} {
+      allow read: if signedIn();
+      allow write: if signedIn() && (isPrivileged() || request.auth.uid == id);
+    }
+
+    // Delivery zones and region-based fees configured by manager: readable by all staff, writable only by privileged operators (manager, developer).
+    match /delivery_zones/{id} {
+      allow read: if signedIn();
+      allow write: if signedIn() && isPrivileged();
     }
 
     // Server-assigned order numbers. The reservation is a client-side

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/di/app_services.dart';
@@ -31,6 +33,8 @@ class _SignInScreenState extends State<SignInScreen> {
   final _nameCtrl = TextEditingController();
 
   bool _isSignUp = false;
+  bool _allowSignUp = true;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _signUpSub;
   AppRole _selectedRole = AppRole.cashier;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -43,6 +47,37 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!_initializedDefaults) {
       _initializedDefaults = true;
       final services = AppScope.of(context);
+      // Load fallback from facility settings
+      services.facility?.load().then((f) {
+        if (mounted) {
+          setState(() {
+            _allowSignUp = f.allowSignUp;
+            if (!f.allowSignUp && _isSignUp) {
+              _isSignUp = false;
+            }
+          });
+        }
+      });
+      // Listen to public_settings/auth in Firestore
+      if (services.firebaseReady) {
+        _signUpSub = FirebaseFirestore.instance
+            .collection('public_settings')
+            .doc('auth')
+            .snapshots()
+            .listen((snap) {
+          if (mounted && snap.exists && snap.data() != null) {
+            final val = snap.data()!['allowSignUp'] as bool?;
+            if (val != null) {
+              setState(() {
+                _allowSignUp = val;
+                if (!val && _isSignUp) {
+                  _isSignUp = false;
+                }
+              });
+            }
+          }
+        }, onError: (_) {});
+      }
       // Only populate demo defaults when running in local offline demo mode
       if (services.isDemo) {
         _emailCtrl.text = 'cashier@pie.eg';
@@ -53,6 +88,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   void dispose() {
+    _signUpSub?.cancel();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _nameCtrl.dispose();
@@ -75,6 +111,12 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _submit() async {
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
+
+    if (_isSignUp && !_allowSignUp) {
+      PieSoundService.instance.alert();
+      setState(() => _errorMessage = 'التسجيل مغلق حالياً من قِبل إدارة النظام.');
+      return;
+    }
 
     if (email.isEmpty || pass.isEmpty) {
       PieSoundService.instance.alert();
@@ -276,31 +318,31 @@ class _SignInScreenState extends State<SignInScreen> {
 
           // Feature Highlights
           _buildFeatureRow(
-            icon: Icons.bolt_rounded,
+            icon: const _LightningIcon(color: PieColors.cashierAccent, size: 20),
             color: PieColors.cashierAccent,
             title: 'سرعة فائقة ومعالجة فورية',
             desc: 'بناء وتمرير الطلبات وتوزيعها على شاشات المطبخ فورياً دون تأخير.',
           ),
           const SizedBox(height: 16),
           _buildFeatureRow(
-            icon: Icons.wifi_off_rounded,
+            icon: const Icon(Icons.cloud_off_rounded, color: Color(0xFF38BDF8), size: 20),
             color: const Color(0xFF38BDF8),
             title: 'معمارية محلية أولاً (Offline-First)',
             desc: 'تسجيل البيع وإصدار الفواتير بدون إنترنت مع مزامنة سحابية هادئة وتلقائية.',
           ),
           const SizedBox(height: 16),
           _buildFeatureRow(
-            icon: Icons.security_rounded,
+            icon: const _ShieldSecurityIcon(color: Color(0xFF4ADE80), size: 20),
             color: const Color(0xFF4ADE80),
             title: 'إدارة الأدوار والصلاحيات',
             desc: 'واجهات متخصصة لكل من الكاشير، طيار التوصيل، مدير الفرع، ومسؤول النظام.',
           ),
           const SizedBox(height: 16),
           _buildFeatureRow(
-            icon: Icons.print_rounded,
+            icon: const Icon(Icons.print_rounded, color: Color(0xFFA78BFA), size: 20),
             color: const Color(0xFFA78BFA),
             title: 'طباعة حرارية متوافقة (ESC/POS)',
-            desc: 'طباعة إيصالات الصالة، تذاكر المطبخ، وبونات الدليفري، وتقارير الوردية Z.',
+            desc: 'طباعة إيصالات الكاشير، تذاكر المطبخ، وبونات الدليفري، وتقارير الوردية Z.',
           ),
 
           const Spacer(),
@@ -316,7 +358,7 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Widget _buildFeatureRow({
-    required IconData icon,
+    required Widget icon,
     required Color color,
     required String title,
     required String desc,
@@ -332,7 +374,7 @@ class _SignInScreenState extends State<SignInScreen> {
             borderRadius: PieRadius.borderMd,
             border: Border.all(color: color.withValues(alpha: 0.25)),
           ),
-          child: Icon(icon, color: color, size: 20),
+          child: Center(child: icon),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -418,105 +460,165 @@ class _SignInScreenState extends State<SignInScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Segmented Mode Switcher (Sign In / Register)
-          Container(
-            decoration: BoxDecoration(
-              color: PieColors.well,
-              borderRadius: PieRadius.borderMd,
-              border: Border.all(color: PieColors.border),
-            ),
-            padding: const EdgeInsets.all(4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      PieSoundService.instance.click();
-                      setState(() {
-                        _isSignUp = false;
-                        _errorMessage = null;
-                      });
-                    },
-                    borderRadius: PieRadius.borderSm,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: !_isSignUp ? PieColors.surface3 : Colors.transparent,
-                        borderRadius: PieRadius.borderSm,
-                        border: Border.all(
-                          color: !_isSignUp ? PieColors.cashierAccent.withValues(alpha: 0.4) : Colors.transparent,
+          // Segmented Mode Switcher (Sign In / Register) or Locked Header
+          if (_allowSignUp)
+            Container(
+              decoration: BoxDecoration(
+                color: PieColors.well,
+                borderRadius: PieRadius.borderMd,
+                border: Border.all(color: PieColors.border),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        PieSoundService.instance.click();
+                        setState(() {
+                          _isSignUp = false;
+                          _errorMessage = null;
+                        });
+                      },
+                      borderRadius: PieRadius.borderSm,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: !_isSignUp ? PieColors.surface3 : Colors.transparent,
+                          borderRadius: PieRadius.borderSm,
+                          border: Border.all(
+                            color: !_isSignUp ? PieColors.cashierAccent.withValues(alpha: 0.4) : Colors.transparent,
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.login_rounded,
-                              size: 16,
-                              color: !_isSignUp ? PieColors.cashierAccent : PieColors.inkMuted,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'تسجيل الدخول',
-                              style: PieTypography.body.copyWith(
-                                fontWeight: !_isSignUp ? FontWeight.w700 : FontWeight.w500,
-                                color: !_isSignUp ? PieColors.ink : PieColors.inkMuted,
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.login_rounded,
+                                size: 16,
+                                color: !_isSignUp ? PieColors.cashierAccent : PieColors.inkMuted,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'تسجيل الدخول',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: PieTypography.body.copyWith(
+                                    fontWeight: !_isSignUp ? FontWeight.w700 : FontWeight.w500,
+                                    color: !_isSignUp ? PieColors.ink : PieColors.inkMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      PieSoundService.instance.click();
-                      setState(() {
-                        _isSignUp = true;
-                        _errorMessage = null;
-                      });
-                    },
-                    borderRadius: PieRadius.borderSm,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _isSignUp ? PieColors.surface3 : Colors.transparent,
-                        borderRadius: PieRadius.borderSm,
-                        border: Border.all(
-                          color: _isSignUp ? PieColors.cashierAccent.withValues(alpha: 0.4) : Colors.transparent,
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        PieSoundService.instance.click();
+                        setState(() {
+                          _isSignUp = true;
+                          _errorMessage = null;
+                        });
+                      },
+                      borderRadius: PieRadius.borderSm,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _isSignUp ? PieColors.surface3 : Colors.transparent,
+                          borderRadius: PieRadius.borderSm,
+                          border: Border.all(
+                            color: _isSignUp ? PieColors.cashierAccent.withValues(alpha: 0.4) : Colors.transparent,
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.person_add_rounded,
-                              size: 16,
-                              color: _isSignUp ? PieColors.cashierAccent : PieColors.inkMuted,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'إنشاء حساب موظف',
-                              style: PieTypography.body.copyWith(
-                                fontWeight: _isSignUp ? FontWeight.w700 : FontWeight.w500,
-                                color: _isSignUp ? PieColors.ink : PieColors.inkMuted,
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.person_add_rounded,
+                                size: 16,
+                                color: _isSignUp ? PieColors.cashierAccent : PieColors.inkMuted,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'إنشاء حساب موظف',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: PieTypography.body.copyWith(
+                                    fontWeight: _isSignUp ? FontWeight.w700 : FontWeight.w500,
+                                    color: _isSignUp ? PieColors.ink : PieColors.inkMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: PieColors.well,
+                borderRadius: PieRadius.borderMd,
+                border: Border.all(color: PieColors.border),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.login_rounded, size: 20, color: PieColors.cashierAccent),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'تسجيل الدخول للمحطة',
+                            style: PieTypography.h3.copyWith(color: PieColors.ink),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: PieColors.stateError.withValues(alpha: 0.12),
+                      borderRadius: PieRadius.borderSm,
+                      border: Border.all(color: PieColors.stateError.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.lock_outline_rounded, size: 13, color: PieColors.stateError),
+                        const SizedBox(width: 4),
+                        Text(
+                          'التسجيل مغلق',
+                          style: PieTypography.caption.copyWith(
+                            color: PieColors.stateError,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
 
           const SizedBox(height: 24),
 
@@ -550,11 +652,13 @@ class _SignInScreenState extends State<SignInScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'الدخول السريع للأدوار الميدانية:',
-                  style: PieTypography.caption.copyWith(
-                    color: PieColors.inkSecondary,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    'الدخول السريع للأدوار الميدانية:',
+                    style: PieTypography.caption.copyWith(
+                      color: PieColors.inkSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 Container(
@@ -752,7 +856,7 @@ class _SignInScreenState extends State<SignInScreen> {
             Expanded(
               child: _buildSelectableRoleChip(
                 role: AppRole.cashier,
-                label: 'كاشير الصالة',
+                label: 'كاشير الكاونتر',
                 icon: Icons.point_of_sale_rounded,
                 accent: PieColors.cashierAccent,
               ),
@@ -893,3 +997,113 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 }
+
+/// Standalone GPU vector lightning icon (completely independent of web font tree-shaking & caching).
+class _LightningIcon extends StatelessWidget {
+  const _LightningIcon({required this.color, this.size = 20});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _LightningPainter(color),
+      ),
+    );
+  }
+}
+
+class _LightningPainter extends CustomPainter {
+  const _LightningPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final w = size.width;
+    final h = size.height;
+    final path = Path()
+      ..moveTo(w * 0.58, 0)
+      ..lineTo(w * 0.18, h * 0.54)
+      ..lineTo(w * 0.50, h * 0.54)
+      ..lineTo(w * 0.42, h)
+      ..lineTo(w * 0.82, h * 0.46)
+      ..lineTo(w * 0.50, h * 0.46)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_LightningPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// Standalone GPU vector shield security icon (completely independent of web font tree-shaking & caching).
+class _ShieldSecurityIcon extends StatelessWidget {
+  const _ShieldSecurityIcon({required this.color, this.size = 20});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _ShieldSecurityPainter(color),
+      ),
+    );
+  }
+}
+
+class _ShieldSecurityPainter extends CustomPainter {
+  const _ShieldSecurityPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final shieldPath = Path()
+      ..moveTo(w * 0.5, h * 0.05)
+      ..lineTo(w * 0.90, h * 0.20)
+      ..cubicTo(w * 0.90, h * 0.62, w * 0.5, h * 0.95, w * 0.5, h * 0.95)
+      ..cubicTo(w * 0.5, h * 0.95, w * 0.10, h * 0.62, w * 0.10, h * 0.20)
+      ..close();
+
+    final fill = Paint()
+      ..color = color.withValues(alpha: 0.22)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(shieldPath, fill);
+
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(shieldPath, stroke);
+
+    final checkPath = Path()
+      ..moveTo(w * 0.32, h * 0.48)
+      ..lineTo(w * 0.45, h * 0.62)
+      ..lineTo(w * 0.70, h * 0.36);
+
+    final checkPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(checkPath, checkPaint);
+  }
+
+  @override
+  bool shouldRepaint(_ShieldSecurityPainter oldDelegate) => oldDelegate.color != color;
+}
+

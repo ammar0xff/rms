@@ -29,6 +29,7 @@ class CollectionModel {
     required this.amount,
     required this.method,
     required this.collectedAt,
+    this.settledAt,
     this.createdOffline = false,
     this.settlementStatus = SettlementStatus.pending,
     this.syncStatus = SyncStatus.pendingSync,
@@ -41,6 +42,7 @@ class CollectionModel {
   final double amount;
   final PaymentMethod method;
   final DateTime collectedAt;
+  DateTime? settledAt;
 
   /// Whether this collection was recorded while the device was offline.
   final bool createdOffline;
@@ -56,6 +58,7 @@ class CollectionModel {
         'amount': amount,
         'method': method.name,
         'collectedAt': collectedAt.toIso8601String(),
+        if (settledAt != null) 'settledAt': settledAt!.toIso8601String(),
         'createdOffline': createdOffline,
         'settlementStatus': settlementStatus.name,
         'syncStatus': syncStatus.name,
@@ -70,6 +73,9 @@ class CollectionModel {
         amount: (record['amount'] as num).toDouble(),
         method: PaymentMethod.values.byName(record['method'] as String),
         collectedAt: DateTime.parse(record['collectedAt'] as String),
+        settledAt: record['settledAt'] != null
+            ? DateTime.tryParse(record['settledAt'] as String)
+            : null,
         createdOffline: record['createdOffline'] as bool? ?? false,
         settlementStatus: SettlementStatus.values
             .byName(record['settlementStatus'] as String),

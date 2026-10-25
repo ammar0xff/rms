@@ -54,6 +54,7 @@ class LocalOrderRepository implements OrderRepository {
       taxAmount: draft.taxAmount,
       discountAmount: draft.discountAmount,
       serviceAmount: draft.serviceAmount,
+      deliveryFee: draft.deliveryFee,
       syncStatus: SyncStatus.pendingSync,
     );
     final entry = OutboxEntry(

@@ -101,23 +101,18 @@ class PieBadge extends StatelessWidget {
         icon: Icons.cloud_upload_outlined,
       );
     }
-    return const PieBadge(
-      label: 'متزامن',
+    return PieBadge(
+      label: compact ? '' : 'متزامن',
       color: PieColors.stateSynced,
       backgroundColor: PieColors.stateSyncedBg,
       icon: Icons.check_circle_outline_rounded,
+      padding: compact ? const EdgeInsets.all(5) : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );
   }
 
   /// Channel badge: Hall, Takeaway, Delivery
   factory PieBadge.channel(OrderType channel) {
     return switch (channel) {
-      OrderType.dineIn => const PieBadge(
-          label: 'صالة',
-          color: Color(0xFF60A5FA),
-          backgroundColor: Color(0xFF172554),
-          icon: Icons.table_restaurant_rounded,
-        ),
       OrderType.takeaway => const PieBadge(
           label: 'تيك أواي',
           color: Color(0xFFFBBF24),
@@ -216,15 +211,16 @@ class PieBadge extends StatelessWidget {
         children: [
           if (icon != null) ...[
             Icon(icon, size: 13, color: fg),
-            const SizedBox(width: 4),
+            if (label.isNotEmpty) const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: PieTypography.caption.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w600,
+          if (label.isNotEmpty)
+            Text(
+              label,
+              style: PieTypography.caption.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
         ],
       ),
     );

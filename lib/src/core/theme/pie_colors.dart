@@ -92,6 +92,9 @@ abstract final class PieColors {
   static const Color statePending = Color(0xFFEAB308); // Ochre
   static const Color statePendingBg = Color(0xFF332502);
 
+  /// Warning state (ochre / amber)
+  static const Color stateWarning = statePending;
+
   /// Data conflict requiring three-way merge
   static const Color stateConflict = Color(0xFFF97316); // Amber-Orange
   static const Color stateConflictBg = Color(0xFF3B1703);

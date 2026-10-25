@@ -193,11 +193,11 @@ abstract final class MockData {
   ];
 
   static const orders = <PosOrder>[
-    PosOrder(number: 'ORD-4821', type: 'صالة', total: 42.50, status: 'بيتجهز', sync: SyncState.synced, time: '12:41'),
+    PosOrder(number: 'ORD-4821', type: 'تيك أواي', total: 42.50, status: 'بيتجهز', sync: SyncState.synced, time: '12:41'),
     PosOrder(number: 'T-019', type: 'تيك أواي', total: 18.00, status: 'جاهز', sync: SyncState.pending, time: '12:44', provisional: true),
     PosOrder(number: 'ORD-4820', type: 'توصيل', total: 27.50, status: 'في الطريق', sync: SyncState.synced, time: '12:33'),
     PosOrder(number: 'T-018', type: 'تيك أواي', total: 9.50, status: 'خلصان', sync: SyncState.conflict, time: '12:20', provisional: true),
-    PosOrder(number: 'ORD-4819', type: 'صالة', total: 63.00, status: 'خلصان', sync: SyncState.synced, time: '12:05'),
+    PosOrder(number: 'ORD-4819', type: 'تيك أواي', total: 63.00, status: 'خلصان', sync: SyncState.synced, time: '12:05'),
   ];
 
   static const tickets = <KitchenTicket>[

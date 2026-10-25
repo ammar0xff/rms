@@ -8,6 +8,7 @@ import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
+import '../../core/widgets/pie_toast.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/delivery.dart';
 import 'driver_identity_service.dart';
@@ -139,14 +140,11 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
               _locallySettledStopIds.add(stop.id);
             }
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: PieColors.surface2,
-              content: Text(
-                'تم توريد عهدة ${PieTypography.formatEgp(totalAmount)} بالكامل للكاشير بنجاح',
-                style: PieTypography.body.copyWith(color: const Color(0xFF4ADE80)),
-              ),
-            ),
+          PieToast.show(
+            context,
+            'تم توريد عهدة ${PieTypography.formatEgp(totalAmount)} بالكامل للكاشير بنجاح',
+            isSuccess: true,
+            icon: Icons.payments_rounded,
           );
         }
       } finally {
@@ -197,10 +195,16 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
             final totalCustody =
                 deliveredStops.fold(0.0, (sum, d) => sum + d.amount);
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Handover Code & Custody Total Hero Card
+            return RefreshIndicator(
+              onRefresh: () async {
+                await services.sync?.requestSync();
+                if (mounted) setState(() {});
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Handover Code & Custody Total Hero Card
                 PieCard(
                   padding: const EdgeInsets.all(20),
                   surfaceColor: PieColors.surface2,
@@ -352,8 +356,9 @@ class _CustodySettlementScreenState extends State<CustodySettlementScreen> {
                     const SizedBox(height: 10),
                   ],
               ],
-            );
-          },
+            ),
+          );
+        },
         ),
     );
   }

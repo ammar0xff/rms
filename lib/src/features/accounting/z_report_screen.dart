@@ -9,6 +9,7 @@ import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/cash_session.dart';
 import '../../domain/models/facility_settings.dart';
 import '../../domain/services/receipt_print_service.dart';
+import '../shift/open_shift_dialog.dart';
 
 /// Screen 6: Cash Count & Z-Close Report (جرد الكاش وتقفيل الوردية)
 ///
@@ -25,6 +26,12 @@ class ZReportScreen extends StatefulWidget {
 }
 
 class _ZReportScreenState extends State<ZReportScreen> {
+  // Post-close retained state for reprint preservation
+  CashSession? _lastClosedSession;
+  double _lastExpectedCash = 0.0;
+  double _lastCountedCash = 0.0;
+  double _lastVariance = 0.0;
+
   // Egyptian denominations count
   final Map<int, int> _counts = {
     200: 0,
@@ -60,10 +67,11 @@ class _ZReportScreenState extends State<ZReportScreen> {
     double countedCash,
     double variance, {
     bool inTab = false,
+    bool isXReport = false,
   }) async {
     final services = AppScope.of(context);
     final facility = await services.facility?.load() ?? const FacilitySettings();
-    final user = services.auth?.currentUser;
+    final user = services.auth.currentUser;
     final cashierName = user?.displayName ?? user?.email ?? 'الكاشير';
 
     if (inTab) {
@@ -75,14 +83,19 @@ class _ZReportScreenState extends State<ZReportScreen> {
         variance: variance,
         counts: _counts,
         cashierName: cashierName,
+        isXReport: isXReport,
       );
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: PieColors.surface2,
-            content: Text('جاري إرسال أمر طباعة تقرير تقفيل الوردية Z...'),
-            duration: Duration(seconds: 2),
+            content: Text(
+              isXReport
+                  ? 'جاري إرسال أمر طباعة تقرير القراءة المؤقتة X...'
+                  : 'جاري إرسال أمر طباعة تقرير تقفيل الوردية Z...',
+            ),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -94,11 +107,26 @@ class _ZReportScreenState extends State<ZReportScreen> {
         variance: variance,
         counts: _counts,
         cashierName: cashierName,
+        isXReport: isXReport,
       );
     }
   }
 
-  Future<void> _performZClose(CashSession session) async {
+  Future<({CashSession? session, double expectedCash})> _loadSessionData(AppServices services) async {
+    final session = await services.cashSessions?.currentSession();
+    if (session == null) {
+      return (session: null, expectedCash: 0.0);
+    }
+    double expected = session.openingFloat;
+    try {
+      expected = await services.cashSessions?.expectedCash(session) ?? session.openingFloat;
+    } catch (_) {
+      expected = session.openingFloat;
+    }
+    return (session: session, expectedCash: expected);
+  }
+
+  Future<void> _performZClose(CashSession session, [double? preloadedExpectedCash]) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => Directionality(
@@ -128,16 +156,44 @@ class _ZReportScreenState extends State<ZReportScreen> {
     if (confirmed == true && mounted) {
       final services = AppScope.of(context);
       final countedCash = _totalCounted;
-      final expectedCash = session.expectedCash ?? session.openingFloat;
+      double expectedCash = preloadedExpectedCash ?? session.openingFloat;
+      try {
+        expectedCash = await services.cashSessions?.expectedCash(session) ?? expectedCash;
+      } catch (_) {
+        expectedCash = preloadedExpectedCash ?? session.expectedCash ?? session.openingFloat;
+      }
       final variance = countedCash - expectedCash;
+
+      final user = services.auth.currentUser;
+      final cashierName = (user?.displayName != null && user!.displayName!.isNotEmpty)
+          ? user.displayName
+          : (user?.email?.split('@').first ?? 'الكاشير');
+
+      final closedSession = session.copyWith(
+        status: CashSessionStatus.closed,
+        closedAt: DateTime.now(),
+        countedCash: countedCash,
+        expectedCash: expectedCash,
+        cashierUid: user?.uid,
+        cashierName: cashierName,
+      );
+
+      setState(() {
+        _lastClosedSession = closedSession;
+        _lastExpectedCash = expectedCash;
+        _lastCountedCash = countedCash;
+        _lastVariance = variance;
+      });
 
       await services.cashSessions?.closeSession(
         session.id,
         countedCash: countedCash,
+        cashierUid: user?.uid,
+        cashierName: cashierName,
       );
 
       // Print Z-report slip immediately
-      await _printZReport(session, expectedCash, countedCash, variance);
+      await _printZReport(closedSession, expectedCash, countedCash, variance, isXReport: false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -148,8 +204,6 @@ class _ZReportScreenState extends State<ZReportScreen> {
         );
         if (Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
-        } else {
-          setState(() {});
         }
       }
     }
@@ -159,14 +213,78 @@ class _ZReportScreenState extends State<ZReportScreen> {
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
     final isDesktop = MediaQuery.of(context).size.width >= 900;
+    final canPop = Navigator.of(context).canPop();
 
-    return Directionality(
+    final content = Directionality(
       textDirection: TextDirection.rtl,
-      child: FutureBuilder<CashSession?>(
-        future: services.cashSessions?.currentSession(),
+      child: FutureBuilder<({CashSession? session, double expectedCash})>(
+        future: _loadSessionData(services),
         builder: (context, snapshot) {
-          final session = snapshot.data;
-          final expectedCash = session?.expectedCash ?? session?.openingFloat ?? 0.0;
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: PieColors.cashierAccent),
+            );
+          }
+          final data = snapshot.data;
+          final session = data?.session;
+
+          // If no active session, but we just closed one in this screen, show post-close view!
+          if (session == null && _lastClosedSession != null) {
+            return _buildPostCloseSuccessView(_lastClosedSession!);
+          }
+
+          if (session == null && snapshot.connectionState == ConnectionState.done) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: PieCard(
+                  padding: const EdgeInsets.all(24),
+                  surfaceColor: PieColors.surface2,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_outline_rounded, size: 48, color: PieColors.inkSecondary),
+                      const SizedBox(height: 16),
+                      Text('لا توجد وردية مفتوحة حالياً', style: PieTypography.heading),
+                      const SizedBox(height: 8),
+                      Text(
+                        'لتقفيل الوردية وجرد الدرج، يجب أولاً فتح وردية نشطة من شاشة الورديات.',
+                        style: PieTypography.body.copyWith(color: PieColors.inkSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 12,
+                        runSpacing: 10,
+                        children: [
+                          PieButton.primary(
+                            onPressed: () async {
+                              final session = await OpenShiftDialog.show(context);
+                              if (session != null && mounted) {
+                                setState(() {});
+                              }
+                            },
+                            label: 'فتح وردية جديدة الآن',
+                            icon: Icons.lock_open_rounded,
+                            accentColor: PieColors.stateSynced,
+                          ),
+                          if (Navigator.of(context).canPop())
+                            PieButton.secondary(
+                              onPressed: () => Navigator.of(context).pop(),
+                              label: 'الرجوع',
+                              icon: Icons.arrow_back_rounded,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final expectedCash = data?.expectedCash ?? session?.expectedCash ?? session?.openingFloat ?? 0.0;
           final countedCash = _totalCounted;
           final variance = countedCash - expectedCash;
 
@@ -212,6 +330,223 @@ class _ZReportScreenState extends State<ZReportScreen> {
             ],
           );
         },
+      ),
+    );
+
+    if (canPop) {
+      return Scaffold(
+        backgroundColor: PieColors.canvas,
+        appBar: AppBar(
+          backgroundColor: PieColors.surface1,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: PieColors.ink),
+            tooltip: 'الرجوع',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            'تقفيل الوردية وجرد الكاش (Z-Report)',
+            style: PieTypography.subheading.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ),
+        body: content,
+      );
+    }
+
+    return content;
+  }
+
+  Widget _buildPostCloseSuccessView(CashSession session) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: PieCard(
+            padding: const EdgeInsets.all(24),
+            surfaceColor: PieColors.surface2,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Center(
+                  child: Icon(Icons.check_circle_rounded, size: 54, color: Color(0xFF10B981)),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text('تم تقفيل الوردية بنجاح (Z-Close)', style: PieTypography.heading),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    'معرف الوردية: #${session.id}${session.branchName != null ? ' • فرع ${session.branchName}' : ''}',
+                    style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Divider(color: PieColors.border),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'الرصيد الافتتاحي (عهدة الدرج):',
+                        style: PieTypography.body,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PieNumeral.money(session.openingFloat, style: PieTypography.monoBody),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'الرصيد المحسوب بالدفتر:',
+                        style: PieTypography.body,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PieNumeral.money(_lastExpectedCash, style: PieTypography.monoBody),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'الرصيد الفعلي المجرود:',
+                        style: PieTypography.bodyStrong,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PieNumeral.money(
+                      _lastCountedCash,
+                      style: PieTypography.monoHeading.copyWith(
+                        color: PieColors.cashierAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: PieColors.surface1,
+                    borderRadius: PieRadius.borderMd,
+                    border: Border.all(color: PieColors.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'الفارق النهائي:',
+                          style: PieTypography.bodyStrong,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: _lastVariance == 0
+                            ? Text(
+                                'مطابق تماماً (0.00)',
+                                style: PieTypography.monoBody.copyWith(
+                                  color: const Color(0xFF10B981),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : (_lastVariance > 0
+                                ? PieNumeral.money(
+                                    _lastVariance,
+                                    prefix: 'زيادة: +',
+                                    style: PieTypography.monoBody.copyWith(
+                                      color: const Color(0xFF10B981),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  )
+                                : PieNumeral.money(
+                                    _lastVariance.abs(),
+                                    prefix: 'عجز: -',
+                                    style: PieTypography.monoBody.copyWith(
+                                      color: PieColors.stateError,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  )),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: PieButton.primary(
+                        onPressed: () => _printZReport(
+                          session,
+                          _lastExpectedCash,
+                          _lastCountedCash,
+                          _lastVariance,
+                          isXReport: false,
+                        ),
+                        label: 'إعادة طباعة تقرير Z',
+                        icon: Icons.print_rounded,
+                        accentColor: PieColors.cashierAccent,
+                        height: 48,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: PieColors.surface1,
+                        borderRadius: PieRadius.borderMd,
+                        border: Border.all(color: PieColors.border),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.open_in_new_rounded, color: PieColors.inkSecondary),
+                        tooltip: 'فتح في نافذة مستقلة',
+                        onPressed: () => _printZReport(
+                          session,
+                          _lastExpectedCash,
+                          _lastCountedCash,
+                          _lastVariance,
+                          inTab: true,
+                          isXReport: false,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                PieButton.secondary(
+                  onPressed: () {
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop();
+                    } else {
+                      setState(() {
+                        _lastClosedSession = null;
+                      });
+                    }
+                  },
+                  label: 'إغلاق والعودة',
+                  icon: Icons.close_rounded,
+                  height: 44,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -322,8 +657,8 @@ class _ZReportScreenState extends State<ZReportScreen> {
               child: PieButton.secondary(
                 onPressed: session == null
                     ? null
-                    : () => _printZReport(session, expectedCash, countedCash, variance),
-                label: 'طباعة تقرير Z',
+                    : () => _printZReport(session, expectedCash, countedCash, variance, isXReport: true),
+                label: 'طباعة قراءة مؤقتة (X-Report)',
                 icon: Icons.print_rounded,
                 height: 48,
               ),
@@ -339,17 +674,17 @@ class _ZReportScreenState extends State<ZReportScreen> {
               ),
               child: IconButton(
                 icon: const Icon(Icons.open_in_new_rounded, color: PieColors.inkSecondary),
-                tooltip: 'فتح تقرير Z في نافذة مستقلة للطباعة',
+                tooltip: 'فتح القراءة المؤقتة X في نافذة مستقلة',
                 onPressed: session == null
                     ? null
-                    : () => _printZReport(session, expectedCash, countedCash, variance, inTab: true),
+                    : () => _printZReport(session, expectedCash, countedCash, variance, inTab: true, isXReport: true),
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
         PieButton.primary(
-          onPressed: session == null ? null : () => _performZClose(session),
+          onPressed: session == null ? null : () => _performZClose(session, expectedCash),
           label: 'إتمام تقفيل الوردية Z-Close',
           icon: Icons.lock_clock_rounded,
           accentColor: PieColors.cashierAccent,

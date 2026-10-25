@@ -1,7 +1,6 @@
 enum OrderType {
-  dineIn('صالة'),
   takeaway('تيك أواي'),
-  delivery('توصيل');
+  delivery('دليفري');
 
   const OrderType(this.label);
 

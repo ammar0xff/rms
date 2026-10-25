@@ -55,7 +55,7 @@ void main() {
 
       // Create an order with zero items and an order with full items
       final draft1 = OrderDraft(
-        orderType: OrderType.dineIn,
+        orderType: OrderType.takeaway,
         items: const [],
         taxAmount: 0.0,
         serviceAmount: 0.0,
