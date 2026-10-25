@@ -56,6 +56,7 @@ UpdateManifest _manifest({
 
 UpdateContext _context({
   String installedVersion = '1.0.0',
+  int installedBuild = 0,
   UpdatePlatform platform = UpdatePlatform.web,
   UpdateChannel channel = UpdateChannel.production,
   String architecture = '',
@@ -68,6 +69,7 @@ UpdateContext _context({
 }) =>
     UpdateContext(
       installedVersion: installedVersion,
+      installedBuild: installedBuild,
       platform: platform,
       channel: channel,
       architecture: architecture,
@@ -214,6 +216,20 @@ void main() {
         UpdateDecisionEngine.decide(
           manifest: _manifest(version: '1.0.0'),
           context: _context(),
+        ).blockReason,
+        UpdateBlockReason.alreadyInstalled,
+      );
+      expect(
+        UpdateDecisionEngine.decide(
+          manifest: _manifest(version: '1.0.0'),
+          context: _context(installedVersion: '1.0.0', installedBuild: 1),
+        ).isUpdate,
+        isTrue,
+      );
+      expect(
+        UpdateDecisionEngine.decide(
+          manifest: _manifest(version: '1.0.0'),
+          context: _context(installedVersion: '1.0.0', installedBuild: 2),
         ).blockReason,
         UpdateBlockReason.alreadyInstalled,
       );

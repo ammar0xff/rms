@@ -168,7 +168,12 @@ abstract final class UpdateDecisionEngine {
       return block(UpdateBlockReason.versionNotNewer);
     }
     if (offered == installed) {
-      return block(UpdateBlockReason.alreadyInstalled);
+      if (context.installedBuild > 0 &&
+          release.buildNumber > context.installedBuild) {
+        // Same semantic version but newer build number: eligible.
+      } else {
+        return block(UpdateBlockReason.alreadyInstalled);
+      }
     }
     if (offered < installed) {
       return block(UpdateBlockReason.versionNotNewer);
