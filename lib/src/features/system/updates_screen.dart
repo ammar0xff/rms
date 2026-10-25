@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/di/app_services.dart';
@@ -11,6 +14,8 @@ import '../../core/widgets/pie_card.dart';
 import '../../data/local/outbox/outbox_status.dart';
 import '../../domain/models/app_role.dart';
 import '../../domain/models/update_manifest.dart';
+import '../../domain/update/device_update_status.dart';
+import '../../domain/update/download_state.dart';
 
 /// Screen 24: Safe Update Gateway, unsynced-work guard (AC-35), and lifecycle progress.
 class UpdatesScreen extends StatefulWidget {
@@ -32,11 +37,18 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   UpdateManifest? _availableRelease;
   int _unsyncedOutboxCount = 0;
   bool _acknowledgedRisk = false;
+  StreamSubscription<DownloadState>? _downloadSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdate());
+  }
+
+  @override
+  void dispose() {
+    _downloadSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkUpdate() async {
@@ -97,6 +109,20 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     }
   }
 
+  Future<void> _launchDirectDownload() async {
+    final ref = _availableRelease?.artifact.reference;
+    if (ref != null && ref.isNotEmpty) {
+      final uri = Uri.tryParse(ref);
+      if (uri != null) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+    final releaseVersion = _availableRelease?.version ?? AppVersion.number;
+    final releasesUri = Uri.parse('https://github.com/ammar0xff/rms/releases/tag/v$releaseVersion');
+    await launchUrl(releasesUri, mode: LaunchMode.externalApplication);
+  }
+
   Future<void> _startUpdate() async {
     if (_unsyncedOutboxCount > 0 && !_acknowledgedRisk) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,55 +134,156 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
       return;
     }
 
+    final services = AppScope.of(context);
+    final manifest = _availableRelease;
+    if (manifest == null) return;
+
     setState(() {
       _isInstalling = true;
-      _installProgress = 0.1;
-      _installStatusText = 'جاري تنزيل حزمة التحديث...';
+      _installProgress = 0.05;
+      _installStatusText = 'بدء عملية التحديث الآمن...';
     });
 
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() {
-      _installProgress = 0.45;
-      _installStatusText = 'التحقق من صحة التوقيع الرقمي (SHA-256)...';
-    });
+    try {
+      if (services.updateRuntime != null) {
+        final runtime = services.updateRuntime!;
+        final service = await runtime.service();
+        final check = await runtime.checkManifest(manifest);
 
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() {
-      _installProgress = 0.75;
-      _installStatusText = 'فحص ترقية قاعدة البيانات المحلية ومطابقة المخطط...';
-    });
-
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() {
-      _installProgress = 1.0;
-      _installStatusText = 'اكتمل التحديث بنجاح! جاهز لإعادة التشغيل الآمن.';
-      _isInstalling = false;
-    });
-
-    if (mounted) {
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            backgroundColor: PieColors.surface2,
-            title: const Text('اكتمل تثبيت التحديث', style: TextStyle(color: PieColors.textPrimary)),
-            content: const Text(
-              'تم التحقق من سلامة البيانات وترحيل المخطط بنجاح. يلزم إعادة تشغيل التطبيق لتفعيل الإصدار الجديد.',
-              style: TextStyle(color: PieColors.textSecondary),
-            ),
-            actions: [
-              PieButton(
-                label: 'إعادة التشغيل الآن',
-                role: AppRole.developer,
-                onPressed: () => Navigator.pop(ctx),
+        if (!check.isApproved) {
+          setState(() {
+            _isInstalling = false;
+            _installStatusText = 'لا يمكن التثبيت الآن: ${check.readiness.label}';
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('لا يمكن التثبيت الآن: ${check.readiness.label}'),
+                backgroundColor: PieColors.stateError,
               ),
-            ],
+            );
+          }
+          return;
+        }
+
+        // Listen to live download progress
+        await _downloadSub?.cancel();
+        _downloadSub = service.deps.downloader.progress().listen((download) {
+          if (!mounted) return;
+          if (download.stage == DownloadStage.downloading) {
+            final progress = download.progress;
+            final mbDownloaded = (download.downloadedBytes / (1024 * 1024)).toStringAsFixed(1);
+            final mbTotal = (download.totalBytes / (1024 * 1024)).toStringAsFixed(1);
+            setState(() {
+              _installProgress = (progress * 0.75).clamp(0.05, 0.75);
+              _installStatusText = 'جاري تنزيل التحديث ($mbDownloaded MB / $mbTotal MB)...';
+            });
+          } else if (download.stage == DownloadStage.verifying) {
+            setState(() {
+              _installProgress = 0.85;
+              _installStatusText = 'التحقق من بصمة الأمان الرقمية (SHA-256)...';
+            });
+          }
+        });
+
+        setState(() {
+          _installProgress = 0.10;
+          _installStatusText = 'جاري الاتصال وتنزيل حزمة التحديث...';
+        });
+
+        final outcome = await service.apply(check);
+        await _downloadSub?.cancel();
+
+        if (!mounted) return;
+
+        if (outcome.state == UpdateLifecycleState.failed) {
+          setState(() {
+            _isInstalling = false;
+            _installProgress = 0.0;
+            _installStatusText = 'تعذر التثبيت التلقائي: ${outcome.errorMessage ?? outcome.failureReason?.name}';
+          });
+
+          // Show dialog with direct download fallback
+          showDialog<void>(
+            context: context,
+            builder: (ctx) => Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                backgroundColor: PieColors.surface2,
+                title: const Text('تثبيت يدوي للتحديث', style: TextStyle(color: PieColors.textPrimary)),
+                content: Text(
+                  'التثبيت التلقائي المباشر غير مكتمل على هذه المنصة (${outcome.errorMessage ?? outcome.failureReason?.name ?? "تثبيت النظام"}).\nيمكنك تحميل الحزمة مباشرة وتثبيتها بنقرة واحدة.',
+                  style: const TextStyle(color: PieColors.textSecondary),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('إلغاء', style: TextStyle(color: PieColors.textMuted)),
+                  ),
+                  PieButton(
+                    label: 'تحميل الحزمة مباشرة',
+                    icon: Icons.open_in_browser,
+                    role: AppRole.developer,
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _launchDirectDownload();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+          return;
+        }
+
+        // Success outcome
+        setState(() {
+          _installProgress = 1.0;
+          _installStatusText = 'اكتمل تنزيل الحزمة وتم تحويلها لمثبت النظام بنجاح.';
+          _isInstalling = false;
+        });
+
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              backgroundColor: PieColors.surface2,
+              title: const Text('بدء تثبيت التحديث', style: TextStyle(color: PieColors.textPrimary)),
+              content: const Text(
+                'تم التحقق من سلامة الحزمة وجاري بدء التثبيت عبر نظام التشغيل.\nيرجى تأكيد التثبيت عند ظهور نافذة النظام.',
+                style: TextStyle(color: PieColors.textSecondary),
+              ),
+              actions: [
+                PieButton(
+                  label: 'حسناً',
+                  role: AppRole.developer,
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
           ),
+        );
+      } else {
+        // Fallback when updateRuntime is null (e.g. demo mode)
+        await _launchDirectDownload();
+        setState(() {
+          _isInstalling = false;
+          _installProgress = 1.0;
+          _installStatusText = 'تم فتح رابط التحميل المباشر في المتصفح.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isInstalling = false;
+        _installStatusText = 'حدث خطأ: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ أثناء التحديث: $e'),
+          backgroundColor: PieColors.stateError,
         ),
       );
     }
@@ -391,7 +518,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                         label: _availableRelease == null
                             ? 'التحقق من التحديثات'
                             : (_isInstalling
-                                ? 'جاري التثبيت الآمن...'
+                                ? 'جاري التنزيل والتثبيت الآمن...'
                                 : 'تطبيق التحديث وإعادة التشغيل'),
                         icon: _availableRelease == null
                             ? Icons.refresh_rounded
@@ -405,6 +532,28 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                                 : _startUpdate),
                       ),
                     ),
+                    if (_availableRelease != null) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.download_rounded, color: PieColors.roleSystem),
+                          label: Text(
+                            'تحميل حزمة التحديث مباشرة (${_availableRelease!.platform.name.toUpperCase()})',
+                            style: PieTypography.body.copyWith(
+                              color: PieColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: PieColors.borderMedium),
+                            shape: const RoundedRectangleBorder(borderRadius: PieRadius.borderMd),
+                          ),
+                          onPressed: _launchDirectDownload,
+                        ),
+                      ),
+                    ],
                   ],
               ),
             ),

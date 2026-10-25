@@ -30,12 +30,20 @@ class MainActivity : FlutterActivity() {
                                 return@setMethodCallHandler
                             }
 
+                            // Ensure the package has .apk extension so Android PackageInstaller recognizes it properly
+                            var apkFile = file
+                            if (!file.name.endsWith(".apk", ignoreCase = true)) {
+                                val targetApk = File(file.parentFile, "${file.nameWithoutExtension}.apk")
+                                file.copyTo(targetApk, overwrite = true)
+                                apkFile = targetApk
+                            }
+
                             // A FileProvider URI is required from Android 7: passing a
                             // raw file:// to another app throws FileUriExposedException.
                             val uri: Uri = FileProvider.getUriForFile(
                                 this,
                                 "$packageName.fileprovider",
-                                file,
+                                apkFile,
                             )
 
                             val intent = Intent(Intent.ACTION_VIEW).apply {

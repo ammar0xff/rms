@@ -17,6 +17,8 @@ import '../../core/widgets/pie_toast.dart';
 import '../../domain/models/app_user.dart';
 import '../../domain/models/driver_user_settings.dart';
 import '../../domain/models/semantic_version.dart';
+import '../../domain/models/update_manifest.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'driver_identity_service.dart';
 
 /// Screen: Driver Settings & Personal Preferences (`إعدادات الكابتن`)
@@ -47,6 +49,7 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
   bool _isCheckingUpdates = false;
   bool _isClearingCache = false;
   String? _updateCheckMessage;
+  UpdateManifest? _availableUpdateManifest;
 
   // Driver user preferences state (User-level, NOT global)
   bool _isLoadingPreferences = true;
@@ -169,12 +172,14 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
     setState(() {
       _isCheckingUpdates = true;
       _updateCheckMessage = null;
+      _availableUpdateManifest = null;
     });
 
     PieSoundService.instance.click();
 
     String message =
         'أنت تعمل حالياً على أحدث إصدار متوافق لنظام التشغيل (v${AppVersion.number}). النظام يعمل بكامل الكفاءة.';
+    UpdateManifest? foundManifest;
 
     try {
       if (services.updateRuntime != null) {
@@ -188,6 +193,7 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
           final remote = SemanticVersion.tryParse(manifest.version);
           final current = SemanticVersion.tryParse(AppVersion.number);
           if (remote != null && current != null && remote > current) {
+            foundManifest = manifest;
             message =
                 'يوجد إصدار أحدث متوفر للترقية: v${manifest.version} (الإصدار الحالي v${AppVersion.number}).';
           }
@@ -201,6 +207,7 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
       setState(() {
         _isCheckingUpdates = false;
         _updateCheckMessage = message;
+        _availableUpdateManifest = foundManifest;
       });
       PieSoundService.instance.chime();
     }
@@ -863,16 +870,46 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
                 borderRadius: PieRadius.borderMd,
                 border: Border.all(color: PieColors.driverBorder),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 18, color: PieColors.driverAccent),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _updateCheckMessage!,
-                      style: PieTypography.caption.copyWith(color: PieColors.ink),
-                    ),
+                  Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 18, color: PieColors.driverAccent),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _updateCheckMessage!,
+                          style: PieTypography.caption.copyWith(color: PieColors.ink),
+                        ),
+                      ),
+                    ],
                   ),
+                  if (_availableUpdateManifest != null) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 38,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.download_rounded, size: 18),
+                        label: Text(
+                          'تحميل التحديث الآن (v${_availableUpdateManifest!.version})',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: PieColors.driverAccent,
+                          foregroundColor: Colors.white,
+                          shape: const RoundedRectangleBorder(borderRadius: PieRadius.borderSm),
+                        ),
+                        onPressed: () async {
+                          final ref = _availableUpdateManifest!.artifact.reference;
+                          final uri = Uri.tryParse(ref) ??
+                              Uri.parse('https://github.com/ammar0xff/rms/releases/tag/v${_availableUpdateManifest!.version}');
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
