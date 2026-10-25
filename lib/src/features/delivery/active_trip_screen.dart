@@ -13,6 +13,7 @@ import '../../core/widgets/pie_empty_state.dart';
 import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/navigation/delivery_navigation.dart';
+import '../../domain/navigation/driver_location_service.dart';
 import '../../core/sound/pie_sound_service.dart';
 import '../../core/widgets/pie_toast.dart';
 import 'driver_cockpit_nav_screen.dart';
@@ -46,6 +47,8 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   void initState() {
     super.initState();
     SyncMonitor.instance.addListener(_onSyncRefresh);
+    DriverLocationService.instance.checkAndRequestPermission();
+    DriverLocationService.instance.startTracking();
   }
 
   @override
@@ -424,6 +427,69 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       Text(
                         '$stopsCount محطات توصيل متبقية',
                         style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                      ),
+                      ValueListenableBuilder<LocationServiceStatus>(
+                        valueListenable: DriverLocationService.instance.statusNotifier,
+                        builder: (context, status, _) {
+                          final bool isLive = status == LocationServiceStatus.active &&
+                              DriverLocationService.instance.hasLiveGps;
+                          final bool isDenied = status == LocationServiceStatus.permissionDenied ||
+                              status == LocationServiceStatus.permissionDeniedForever;
+                          final bool isDisabled = status == LocationServiceStatus.serviceDisabled;
+
+                          final String label;
+                          final Color color;
+                          final VoidCallback? onTap;
+
+                          if (isLive) {
+                            label = '🛰️ GPS متصل';
+                            color = const Color(0xFF10B981);
+                            onTap = null;
+                          } else if (isDisabled) {
+                            label = '⚠️ GPS مغلق (اضغط للتفعيل)';
+                            color = const Color(0xFFEF4444);
+                            onTap = () async {
+                              await DriverLocationService.instance.openLocationSettings();
+                              await DriverLocationService.instance.checkAndRequestPermission();
+                            };
+                          } else if (isDenied) {
+                            label = '⚠️ مطلوب إذن الموقع (اضغط هنا)';
+                            color = const Color(0xFFF59E0B);
+                            onTap = () async {
+                              if (status == LocationServiceStatus.permissionDeniedForever) {
+                                await DriverLocationService.instance.openAppSettings();
+                              } else {
+                                await DriverLocationService.instance.checkAndRequestPermission(requestIfNotGranted: true);
+                              }
+                            };
+                          } else {
+                            label = '📡 جاري تحديد الموقع...';
+                            color = const Color(0xFF38BDF8);
+                            onTap = null;
+                          }
+
+                          return InkWell(
+                            onTap: onTap,
+                            borderRadius: BorderRadius.circular(4),
+                            child: Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: color, width: 0.8),
+                              ),
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: color,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

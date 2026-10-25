@@ -18,6 +18,8 @@ class DriverNavMapCanvas extends StatelessWidget {
     this.activeLayer,
     this.onLayerChanged,
     this.onProgressChanged,
+    this.onRouteCalculated,
+    this.mapKey,
     this.height,
   });
 
@@ -32,11 +34,14 @@ class DriverNavMapCanvas extends StatelessWidget {
   final RealMapLayer? activeLayer;
   final ValueChanged<RealMapLayer>? onLayerChanged;
   final ValueChanged<double>? onProgressChanged;
+  final ValueChanged<DrivingRoute>? onRouteCalculated;
+  final GlobalKey<RealMapTileWidgetState>? mapKey;
   final double? height;
 
   @override
   Widget build(BuildContext context) {
     return RealMapTileWidget(
+      key: mapKey,
       delivery: delivery,
       driverCoord: driverCoord,
       vehicleEmoji: vehicleEmoji,
@@ -48,6 +53,7 @@ class DriverNavMapCanvas extends StatelessWidget {
       activeLayer: activeLayer,
       onLayerChanged: onLayerChanged,
       onProgressChanged: onProgressChanged,
+      onRouteCalculated: onRouteCalculated,
       height: height,
     );
   }

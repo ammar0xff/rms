@@ -8,6 +8,9 @@
          always confirms the install, so this grants the ability to *request*
          it, not to install unattended. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Required for real-time GPS hardware location detection and turn-by-turn driver navigation -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:label="PIE Operations"

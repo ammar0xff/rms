@@ -71,6 +71,9 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   bool _isCompleting = false;
   bool _dismissedDueToStatusChange = false;
   int _lastManeuverIndex = 0;
+  final GlobalKey<RealMapTileWidgetState> _mapKey = GlobalKey<RealMapTileWidgetState>();
+  bool _hasInitialGpsFix = false;
+  GeoCoord? _lastRoutedCoord;
 
   late GeoCoord _driverCoord;
   late GeoCoord _destCoord;
@@ -84,14 +87,21 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     super.initState();
     _driverCoord = DriverLocationService.instance.effectiveCoord;
     _destCoord = DeliveryGeocoding.resolveDestination(widget.delivery);
+    _lastRoutedCoord = _driverCoord;
     _recalculateRoute();
 
-    // Query hardware GPS location
-    DriverLocationService.instance.getCurrentLocation().then((loc) {
-      if (mounted) {
-        setState(() {
-          _driverCoord = loc.coord;
-          _recalculateRoute();
+    // Request location permissions and query hardware GPS
+    DriverLocationService.instance.checkAndRequestPermission().then((status) {
+      if (status == LocationServiceStatus.active || status == LocationServiceStatus.acquiring) {
+        DriverLocationService.instance.getCurrentLocation().then((loc) {
+          if (mounted) {
+            setState(() {
+              _driverCoord = loc.coord;
+              _lastRoutedCoord = loc.coord;
+              _recalculateRoute();
+            });
+            _mapKey.currentState?.snapToDriver();
+          }
         });
       }
     });
@@ -186,8 +196,21 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     if (!_isSimulating && mounted) {
       final loc = DriverLocationService.instance.lastKnownLocation;
       if (loc != null) {
-        if ((loc.coord.lat - _driverCoord.lat).abs() > 0.00005 ||
-            (loc.coord.lng - _driverCoord.lng).abs() > 0.00005) {
+        // Auto-center map upon receiving first live GPS lock
+        if (!_hasInitialGpsFix && loc.isLiveGps) {
+          _hasInitialGpsFix = true;
+          _mapKey.currentState?.snapToDriver();
+        }
+
+        final distFromLastMeters = _lastRoutedCoord != null
+            ? DeliveryGeocoding.haversineDistanceKm(_lastRoutedCoord!, loc.coord) * 1000.0
+            : 999.0;
+
+        // Dynamic rerouting: recalculate route when courier moves > 60 meters
+        if (distFromLastMeters > 60.0 ||
+            ((loc.coord.lat - _driverCoord.lat).abs() > 0.0001 ||
+             (loc.coord.lng - _driverCoord.lng).abs() > 0.0001)) {
+          _lastRoutedCoord = loc.coord;
           setState(() {
             _driverCoord = loc.coord;
             _recalculateRoute();
@@ -384,6 +407,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
               // 1. Full-screen Real Geographic Interactive Map Tile View
               Positioned.fill(
                 child: DriverNavMapCanvas(
+                  mapKey: _mapKey,
                   delivery: widget.delivery,
                   driverCoord: _driverCoord,
                   vehicleEmoji: vehicleEmoji,
@@ -393,6 +417,18 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                   showOverlays: false,
                   activeLayer: _activeLayer,
                   onLayerChanged: (l) => setState(() => _activeLayer = l),
+                  onRouteCalculated: (route) {
+                    if (mounted && route.points.isNotEmpty) {
+                      setState(() {
+                        _totalMeters = route.distanceMeters;
+                        _totalRoadDistanceKm = route.distanceKm;
+                        _totalEtaMinutes = route.durationMinutes;
+                        if (route.maneuvers.isNotEmpty) {
+                          _maneuvers = route.maneuvers;
+                        }
+                      });
+                    }
+                  },
                 ),
               ),
 
@@ -449,31 +485,52 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                                 const SizedBox(height: 3),
                                 Row(
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: (DriverLocationService.instance.hasLiveGps
-                                                ? const Color(0xFF0284C7)
-                                                : const Color(0xFFD97706))
-                                            .withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(
-                                          color: DriverLocationService.instance.hasLiveGps
-                                              ? const Color(0xFF38BDF8)
-                                              : const Color(0xFFF59E0B),
-                                          width: 0.6,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        DriverLocationService.instance.hasLiveGps ? '🛰️ GPS متصل' : '📡 جاري التحديد',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          color: DriverLocationService.instance.hasLiveGps
-                                              ? const Color(0xFF38BDF8)
-                                              : const Color(0xFFF59E0B),
-                                        ),
-                                      ),
+                                    ValueListenableBuilder<LocationServiceStatus>(
+                                      valueListenable: DriverLocationService.instance.statusNotifier,
+                                      builder: (context, status, _) {
+                                        final bool isLive = status == LocationServiceStatus.active &&
+                                            DriverLocationService.instance.hasLiveGps;
+                                        final bool isDenied = status == LocationServiceStatus.permissionDenied ||
+                                            status == LocationServiceStatus.permissionDeniedForever;
+                                        final bool isDisabled = status == LocationServiceStatus.serviceDisabled;
+
+                                        final Color badgeBg = isLive
+                                            ? const Color(0xFF0284C7).withValues(alpha: 0.2)
+                                            : (isDenied || isDisabled)
+                                                ? const Color(0xFFDC2626).withValues(alpha: 0.2)
+                                                : const Color(0xFFD97706).withValues(alpha: 0.2);
+
+                                        final Color badgeBorder = isLive
+                                            ? const Color(0xFF38BDF8)
+                                            : (isDenied || isDisabled)
+                                                ? const Color(0xFFEF4444)
+                                                : const Color(0xFFF59E0B);
+
+                                        final String badgeText = isLive
+                                            ? '🛰️ GPS متصل'
+                                            : isDisabled
+                                                ? '⚠️ GPS مغلق'
+                                                : isDenied
+                                                    ? '⚠️ إذن الموقع مطلوب'
+                                                    : '📡 جاري التحديد';
+
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: badgeBg,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: badgeBorder, width: 0.6),
+                                          ),
+                                          child: Text(
+                                            badgeText,
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                              color: badgeBorder,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(
@@ -520,6 +577,145 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                           valueColor: const AlwaysStoppedAnimation<Color>(PieColors.driverAccent),
                           minHeight: 4,
                         ),
+                      ),
+
+                      // Interactive Location Permission & GPS Diagnostics Banner
+                      ValueListenableBuilder<LocationServiceStatus>(
+                        valueListenable: DriverLocationService.instance.statusNotifier,
+                        builder: (context, status, _) {
+                          if (status == LocationServiceStatus.active ||
+                              status == LocationServiceStatus.unknown) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final String bannerTitle;
+                          final String bannerBtn;
+                          final IconData bannerIcon;
+                          final Color bannerBg;
+                          final Color bannerBorderColor;
+                          final VoidCallback onBannerAction;
+
+                          if (status == LocationServiceStatus.serviceDisabled) {
+                            bannerTitle = 'خدمة الموقع (GPS) مغلقة على الهاتف';
+                            bannerBtn = 'تفعيل GPS 🧭';
+                            bannerIcon = Icons.location_off_rounded;
+                            bannerBg = const Color(0xFF7F1D1D).withValues(alpha: 0.95);
+                            bannerBorderColor = const Color(0xFFEF4444);
+                            onBannerAction = () async {
+                              await DriverLocationService.instance.openLocationSettings();
+                              await DriverLocationService.instance.checkAndRequestPermission();
+                            };
+                          } else if (status == LocationServiceStatus.permissionDenied) {
+                            bannerTitle = 'التطبيق بحاجة لإذن الموقع لتتبع المسار';
+                            bannerBtn = 'منح الإذن 📍';
+                            bannerIcon = Icons.security_rounded;
+                            bannerBg = const Color(0xFF78350F).withValues(alpha: 0.95);
+                            bannerBorderColor = const Color(0xFFF59E0B);
+                            onBannerAction = () async {
+                              final res = await DriverLocationService.instance
+                                  .checkAndRequestPermission(requestIfNotGranted: true);
+                              if (res == LocationServiceStatus.active ||
+                                  res == LocationServiceStatus.acquiring) {
+                                final loc = await DriverLocationService.instance.getCurrentLocation();
+                                if (mounted) {
+                                  setState(() {
+                                    _driverCoord = loc.coord;
+                                    _lastRoutedCoord = loc.coord;
+                                    _recalculateRoute();
+                                  });
+                                  _mapKey.currentState?.snapToDriver();
+                                }
+                              }
+                            };
+                          } else if (status == LocationServiceStatus.permissionDeniedForever) {
+                            bannerTitle = 'إذن الموقع مرفوض دائماً بالنظام';
+                            bannerBtn = 'إعدادات التطبيق ⚙️';
+                            bannerIcon = Icons.settings_suggest_rounded;
+                            bannerBg = const Color(0xFF7F1D1D).withValues(alpha: 0.95);
+                            bannerBorderColor = const Color(0xFFEF4444);
+                            onBannerAction = () async {
+                              await DriverLocationService.instance.openAppSettings();
+                            };
+                          } else {
+                            // acquiring
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF38BDF8),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'جاري التقاط إشارة الأقمار الصناعية (GPS)... 🛰️',
+                                    style: TextStyle(
+                                      fontFamily: 'IBMPlexSansArabic',
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF38BDF8).withValues(alpha: 0.95),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: bannerBg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: bannerBorderColor, width: 1),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(bannerIcon, color: Colors.white, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    bannerTitle,
+                                    style: const TextStyle(
+                                      fontFamily: 'IBMPlexSansArabic',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: onBannerAction,
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      bannerBtn,
+                                      style: const TextStyle(
+                                        fontFamily: 'IBMPlexSansArabic',
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -740,6 +936,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                       message: 'إعادة التمركز على موقعي 🛵',
                       child: InkWell(
                         onTap: () {
+                          _mapKey.currentState?.snapToDriver();
                           setState(() {
                             _driverCoord = DriverLocationService.instance.effectiveCoord;
                             _recalculateRoute();
@@ -752,9 +949,30 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                           decoration: BoxDecoration(
                             color: const Color(0xFF0F172A).withValues(alpha: 0.92),
                             borderRadius: PieRadius.borderMd,
+                            border: Border.all(color: const Color(0xFF38BDF8), width: 1.2),
+                          ),
+                          child: const Icon(Icons.my_location_rounded, size: 18, color: Color(0xFF38BDF8)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Recenter Full Route
+                    Tooltip(
+                      message: 'كامل المسار (السائق والوجهة) 🗺️',
+                      child: InkWell(
+                        onTap: () {
+                          _mapKey.currentState?.recenter();
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                            borderRadius: PieRadius.borderMd,
                             border: Border.all(color: PieColors.border),
                           ),
-                          child: const Icon(Icons.near_me_rounded, size: 18, color: Color(0xFF38BDF8)),
+                          child: const Icon(Icons.fit_screen_rounded, size: 18, color: Colors.white70),
                         ),
                       ),
                     ),

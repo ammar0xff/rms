@@ -39,6 +39,7 @@ class RealMapTileWidget extends StatefulWidget {
     this.activeLayer,
     this.onLayerChanged,
     this.onProgressChanged,
+    this.onRouteCalculated,
     this.height,
   });
 
@@ -54,13 +55,14 @@ class RealMapTileWidget extends StatefulWidget {
   final RealMapLayer? activeLayer;
   final ValueChanged<RealMapLayer>? onLayerChanged;
   final ValueChanged<double>? onProgressChanged;
+  final ValueChanged<DrivingRoute>? onRouteCalculated;
   final double? height;
 
   @override
-  State<RealMapTileWidget> createState() => _RealMapTileWidgetState();
+  State<RealMapTileWidget> createState() => RealMapTileWidgetState();
 }
 
-class _RealMapTileWidgetState extends State<RealMapTileWidget>
+class RealMapTileWidgetState extends State<RealMapTileWidget>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
   late int _zoom;
@@ -128,7 +130,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
     }
   }
 
-  void _resolveCoordinates() {
+  GeoCoord? _lastFetchedOrigin;
+
+  void _resolveCoordinates({bool forceFetchRoute = false}) {
     _driverCoord = widget.driverCoord ?? DriverLocationService.instance.effectiveCoord;
     _isLiveGps = widget.driverCoord != null || DriverLocationService.instance.hasLiveGps;
     _destinationCoord = DeliveryGeocoding.resolveDestination(widget.delivery);
@@ -137,7 +141,16 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
       origin: _driverCoord,
       destination: _destinationCoord,
     );
-    _fetchRoadRoute();
+
+    final shouldFetch = forceFetchRoute ||
+        _lastFetchedOrigin == null ||
+        _drivingRoute == null ||
+        (DeliveryGeocoding.haversineDistanceKm(_lastFetchedOrigin!, _driverCoord) * 1000.0) > 60.0;
+
+    if (shouldFetch) {
+      _lastFetchedOrigin = _driverCoord;
+      _fetchRoadRoute();
+    }
   }
 
   Future<void> _fetchRoadRoute() async {
@@ -150,6 +163,7 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
       setState(() {
         _drivingRoute = route;
       });
+      widget.onRouteCalculated?.call(route);
     }
   }
 
@@ -245,6 +259,24 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
       ),
     );
   }
+
+  /// Centers the map on the driver's current coordinates.
+  void snapToDriver() => _snapToDriver();
+
+  /// Centers the map on the destination customer coordinates.
+  void snapToDestination() => _snapToDestination();
+
+  /// Fits both driver and destination within the viewport.
+  void recenter() => _recenter();
+
+  /// Zooms in one level.
+  void zoomIn() => _zoomIn();
+
+  /// Zooms out one level.
+  void zoomOut() => _zoomOut();
+
+  /// Switches active map tile layer.
+  void selectLayer(RealMapLayer layer) => _selectLayer(layer);
 
   void _recenter() {
     setState(() {

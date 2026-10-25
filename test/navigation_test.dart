@@ -85,10 +85,10 @@ void main() {
       DriverLocationService.instance.reset();
     });
 
-    test('falls back to default branch when no GPS acquired', () {
+    test('falls back to active branch when no GPS acquired', () {
       final effective = DriverLocationService.instance.effectiveCoord;
-      expect(effective.lat, DeliveryGeocoding.defaultBranch.lat);
-      expect(effective.lng, DeliveryGeocoding.defaultBranch.lng);
+      expect(effective.lat, DeliveryGeocoding.activeBranchCoord.lat);
+      expect(effective.lng, DeliveryGeocoding.activeBranchCoord.lng);
       expect(DriverLocationService.instance.hasLiveGps, isFalse);
     });
 
