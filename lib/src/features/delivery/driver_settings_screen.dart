@@ -177,6 +177,11 @@ class _DriverSettingsScreenState extends State<DriverSettingsScreen> {
         'أنت تعمل حالياً على أحدث إصدار متوافق لنظام التشغيل (v${AppVersion.number}). النظام يعمل بكامل الكفاءة.';
 
     try {
+      if (services.updateRuntime != null) {
+        try {
+          await services.updateRuntime!.manifest();
+        } catch (_) {}
+      }
       if (services.updates != null) {
         final manifest = await services.updates!.cached();
         if (manifest != null) {

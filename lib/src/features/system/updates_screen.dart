@@ -56,7 +56,12 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
 
     // Manifest
     UpdateManifest? release;
-    if (services.updates != null) {
+    if (services.updateRuntime != null) {
+      try {
+        release = await services.updateRuntime!.manifest();
+      } catch (_) {}
+    }
+    if (release == null && services.updates != null) {
       release = await services.updates!.cached();
     }
 
