@@ -171,11 +171,16 @@ class DeliveryGeocoding {
       origin.lng + (destination.lng - origin.lng) * 0.85,
     );
 
+    final isFromBranch = (origin.lat - defaultBranch.lat).abs() < 0.0001 &&
+        (origin.lng - defaultBranch.lng).abs() < 0.0001;
+
     return [
       NavManeuver(
-        instruction: 'انطلق من الفرع باتجاه محور $zone',
-        streetName: 'طريق الخروج من الفرع',
-        icon: Icons.storefront_rounded,
+        instruction: isFromBranch
+            ? 'انطلق من الفرع باتجاه محور $zone'
+            : 'انطلق من موقعك الحالي باتجاه $street',
+        streetName: isFromBranch ? 'طريق الخروج من الفرع' : 'الموقع الحالي للكابتن',
+        icon: isFromBranch ? Icons.storefront_rounded : Icons.navigation_rounded,
         distanceMeters: step1Dist,
         coord: origin,
       ),

@@ -13,6 +13,7 @@ import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/navigation/delivery_geocoding.dart';
 import '../../domain/navigation/delivery_navigation.dart';
+import '../../domain/navigation/driver_location_service.dart';
 import '../../core/widgets/pie_toast.dart';
 import 'driver_custody_collection_dialog.dart';
 import 'driver_fail_dialog.dart';
@@ -67,7 +68,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   bool _isCompleting = false;
   int _lastManeuverIndex = 0;
 
-  late GeoCoord _branchCoord;
+  late GeoCoord _driverCoord;
   late GeoCoord _destCoord;
   late double _totalRoadDistanceKm;
   late int _totalMeters;
@@ -77,19 +78,23 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   @override
   void initState() {
     super.initState();
-    _branchCoord = DeliveryGeocoding.defaultBranch;
+    _driverCoord = DriverLocationService.instance.effectiveCoord;
     _destCoord = DeliveryGeocoding.resolveDestination(widget.delivery);
-    _totalRoadDistanceKm = DeliveryGeocoding.estimateRoadDistanceKm(_branchCoord, _destCoord);
-    _totalMeters = (_totalRoadDistanceKm * 1000).round();
-    _totalEtaMinutes = DeliveryGeocoding.estimateEtaMinutes(
-      _totalRoadDistanceKm,
-      vehicle: widget.initialVehicle,
-    );
-    _maneuvers = DeliveryGeocoding.buildTripManeuvers(
-      delivery: widget.delivery,
-      origin: _branchCoord,
-      destination: _destCoord,
-    );
+    _recalculateRoute();
+
+    // Query hardware GPS location
+    DriverLocationService.instance.getCurrentLocation().then((loc) {
+      if (mounted) {
+        setState(() {
+          _driverCoord = loc.coord;
+          _recalculateRoute();
+        });
+      }
+    });
+
+    // Start live tracking updates
+    DriverLocationService.instance.startTracking();
+    DriverLocationService.instance.locationNotifier.addListener(_onLocationUpdate);
 
     _simController = AnimationController(
       vsync: this,
@@ -114,8 +119,41 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     });
   }
 
+  void _recalculateRoute() {
+    _totalRoadDistanceKm = DeliveryGeocoding.estimateRoadDistanceKm(_driverCoord, _destCoord);
+    _totalMeters = (_totalRoadDistanceKm * 1000).round();
+    _totalEtaMinutes = DeliveryGeocoding.estimateEtaMinutes(
+      _totalRoadDistanceKm,
+      vehicle: widget.initialVehicle,
+    );
+    _maneuvers = DeliveryGeocoding.buildTripManeuvers(
+      delivery: widget.delivery,
+      origin: _driverCoord,
+      destination: _destCoord,
+    );
+  }
+
+  void _onLocationUpdate() {
+    if (!_isSimulating && mounted) {
+      final loc = DriverLocationService.instance.lastKnownLocation;
+      if (loc != null) {
+        if ((loc.coord.lat - _driverCoord.lat).abs() > 0.00005 ||
+            (loc.coord.lng - _driverCoord.lng).abs() > 0.00005) {
+          setState(() {
+            _driverCoord = loc.coord;
+            _recalculateRoute();
+          });
+        } else {
+          setState(() {});
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
+    DriverLocationService.instance.locationNotifier.removeListener(_onLocationUpdate);
+    DriverLocationService.instance.stopTracking();
     _simController.dispose();
     super.dispose();
   }
@@ -190,7 +228,11 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
   }
 
   Future<void> _launchExternalGoogleMaps() async {
-    final uri = googleMapsTurnByTurnUri(coord: _destCoord, address: widget.delivery.address);
+    final uri = googleMapsTurnByTurnUri(
+      origin: _driverCoord,
+      coord: _destCoord,
+      address: widget.delivery.address,
+    );
     final launched = await openDeliveryNavigation(uri);
     if (!launched && mounted) {
       PieToast.show(context, 'تعذر فتح تطبيق خرائط Google تلقائياً', isError: true);
@@ -248,6 +290,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
     final int metersRemaining;
     final int minutesRemaining;
     final int currentSpeed;
+    final liveSpeed = DriverLocationService.instance.lastKnownLocation?.speed.round() ?? 0;
 
     if (progress < 0.22) {
       final m = _maneuvers.length > 1 ? _maneuvers[1] : _maneuvers.first;
@@ -256,7 +299,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
       nextTurn = _maneuvers.length > 2 ? _maneuvers[2].instruction : 'واصل السير نحو الوجهة';
       metersRemaining = (_totalMeters * (1.0 - progress)).round();
       minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
-      currentSpeed = _isSimulating ? 38 : 0;
+      currentSpeed = _isSimulating ? 38 : liveSpeed;
     } else if (progress < 0.55) {
       final m = _maneuvers.length > 2 ? _maneuvers[2] : _maneuvers.first;
       turnIcon = m.icon;
@@ -264,7 +307,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
       nextTurn = _maneuvers.length > 3 ? _maneuvers[3].instruction : 'اقتربت من الوجهة';
       metersRemaining = (_totalMeters * (1.0 - progress)).round();
       minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
-      currentSpeed = _isSimulating ? 34 : 0;
+      currentSpeed = _isSimulating ? 34 : liveSpeed;
     } else if (progress < 0.85) {
       final m = _maneuvers.length > 3 ? _maneuvers[3] : _maneuvers.first;
       turnIcon = m.icon;
@@ -272,7 +315,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
       nextTurn = _maneuvers.last.instruction;
       metersRemaining = (_totalMeters * (1.0 - progress)).round();
       minutesRemaining = math.max(1, (_totalEtaMinutes * (1.0 - progress)).round());
-      currentSpeed = _isSimulating ? 26 : 0;
+      currentSpeed = _isSimulating ? 26 : liveSpeed;
     } else {
       final m = _maneuvers.last;
       turnIcon = m.icon;
@@ -304,6 +347,7 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
               Positioned.fill(
                 child: DriverNavMapCanvas(
                   delivery: widget.delivery,
+                  driverCoord: _driverCoord,
                   vehicleEmoji: vehicleEmoji,
                   progress: progress,
                   is3D: _is3D,
@@ -361,12 +405,45 @@ class _DriverCockpitNavScreenState extends State<DriverCockpitNavScreen>
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  nextTurn,
-                                  style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                const SizedBox(height: 3),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: (DriverLocationService.instance.hasLiveGps
+                                                ? const Color(0xFF0284C7)
+                                                : const Color(0xFFD97706))
+                                            .withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: DriverLocationService.instance.hasLiveGps
+                                              ? const Color(0xFF38BDF8)
+                                              : const Color(0xFFF59E0B),
+                                          width: 0.6,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        DriverLocationService.instance.hasLiveGps ? '🛰️ GPS متصل' : '📡 جاري التحديد',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: DriverLocationService.instance.hasLiveGps
+                                              ? const Color(0xFF38BDF8)
+                                              : const Color(0xFFF59E0B),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        nextTurn,
+                                        style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

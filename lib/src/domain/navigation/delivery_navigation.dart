@@ -15,9 +15,19 @@ Uri deliveryNavigationUri({double? lat, double? lng, required String address}) {
 }
 
 /// Builds active Turn-by-Turn GPS Navigation URI for Google Maps.
-Uri googleMapsTurnByTurnUri({required GeoCoord coord, required String address}) {
+Uri googleMapsTurnByTurnUri({
+  GeoCoord? origin,
+  required GeoCoord coord,
+  required String address,
+}) {
+  final destination = '${coord.lat},${coord.lng}';
+  if (origin != null) {
+    return Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=$destination&travelmode=driving',
+    );
+  }
   return Uri.parse(
-    'https://www.google.com/maps/dir/?api=1&destination=${coord.lat},${coord.lng}&travelmode=driving',
+    'https://www.google.com/maps/dir/?api=1&destination=$destination&travelmode=driving',
   );
 }
 

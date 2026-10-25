@@ -11,6 +11,7 @@ import '../../core/widgets/pie_numeral.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/navigation/delivery_geocoding.dart';
 import '../../domain/navigation/delivery_navigation.dart';
+import '../../domain/navigation/driver_location_service.dart';
 import '../../core/widgets/pie_toast.dart';
 import 'driver_cockpit_nav_screen.dart';
 import 'driver_custody_collection_dialog.dart';
@@ -42,8 +43,13 @@ class DriverNavSheet extends StatelessWidget {
   }
 
   Future<void> _launchMaps(BuildContext context) async {
+    final driverCoord = DriverLocationService.instance.effectiveCoord;
     final dest = DeliveryGeocoding.resolveDestination(delivery);
-    final uri = googleMapsTurnByTurnUri(coord: dest, address: delivery.address);
+    final uri = googleMapsTurnByTurnUri(
+      origin: driverCoord,
+      coord: dest,
+      address: delivery.address,
+    );
     final launched = await openDeliveryNavigation(uri);
     if (!launched && context.mounted) {
       PieToast.show(context, 'تعذر فتح تطبيق الخرائط الخارجي تلقائياً', isError: true);
@@ -67,7 +73,7 @@ class DriverNavSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final services = AppScope.of(context);
-    final origin = DeliveryGeocoding.defaultBranch;
+    final origin = DriverLocationService.instance.effectiveCoord;
     final dest = DeliveryGeocoding.resolveDestination(delivery);
     final distKm = DeliveryGeocoding.estimateRoadDistanceKm(origin, dest);
     final etaMin = DeliveryGeocoding.estimateEtaMinutes(distKm);
@@ -209,6 +215,7 @@ class DriverNavSheet extends StatelessWidget {
                 children: [
                   DriverNavMapCanvas(
                     delivery: delivery,
+                    driverCoord: origin,
                     height: 200,
                     interactive: true,
                     is3D: false,

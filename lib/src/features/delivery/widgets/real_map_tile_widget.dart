@@ -4,6 +4,7 @@ import '../../../core/theme/pie_colors.dart';
 import '../../../core/theme/pie_radius.dart';
 import '../../../domain/models/delivery.dart';
 import '../../../domain/navigation/delivery_geocoding.dart';
+import '../../../domain/navigation/driver_location_service.dart';
 
 /// Available map imagery layers
 enum RealMapLayer {
@@ -23,6 +24,7 @@ class RealMapTileWidget extends StatefulWidget {
   const RealMapTileWidget({
     super.key,
     required this.delivery,
+    this.driverCoord,
     this.vehicleEmoji = '🛵',
     this.progress = 0.35,
     this.is3D = false,
@@ -34,6 +36,7 @@ class RealMapTileWidget extends StatefulWidget {
   });
 
   final DeliveryModel delivery;
+  final GeoCoord? driverCoord;
   final String vehicleEmoji;
   final double progress;
   final bool is3D;
@@ -55,8 +58,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
   RealMapLayer _activeLayer = RealMapLayer.dark;
 
   late GeoCoord _destinationCoord;
-  late GeoCoord _branchCoord;
+  late GeoCoord _driverCoord;
   late List<NavManeuver> _maneuvers;
+  bool _isLiveGps = false;
 
   @override
   void initState() {
@@ -68,29 +72,47 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
     )..repeat();
 
     _resolveCoordinates();
+    DriverLocationService.instance.locationNotifier.addListener(_onDriverLocationUpdated);
+  }
+
+  void _onDriverLocationUpdated() {
+    if (widget.driverCoord == null && mounted) {
+      final updated = DriverLocationService.instance.effectiveCoord;
+      if ((updated.lat - _driverCoord.lat).abs() > 0.00005 ||
+          (updated.lng - _driverCoord.lng).abs() > 0.00005 ||
+          _isLiveGps != DriverLocationService.instance.hasLiveGps) {
+        setState(() {
+          _resolveCoordinates();
+        });
+      }
+    }
   }
 
   @override
   void didUpdateWidget(covariant RealMapTileWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.delivery.id != widget.delivery.id ||
-        oldWidget.delivery.address != widget.delivery.address) {
+        oldWidget.delivery.address != widget.delivery.address ||
+        oldWidget.driverCoord?.lat != widget.driverCoord?.lat ||
+        oldWidget.driverCoord?.lng != widget.driverCoord?.lng) {
       _resolveCoordinates();
     }
   }
 
   void _resolveCoordinates() {
-    _branchCoord = DeliveryGeocoding.defaultBranch;
+    _driverCoord = widget.driverCoord ?? DriverLocationService.instance.effectiveCoord;
+    _isLiveGps = widget.driverCoord != null || DriverLocationService.instance.hasLiveGps;
     _destinationCoord = DeliveryGeocoding.resolveDestination(widget.delivery);
     _maneuvers = DeliveryGeocoding.buildTripManeuvers(
       delivery: widget.delivery,
-      origin: _branchCoord,
+      origin: _driverCoord,
       destination: _destinationCoord,
     );
   }
 
   @override
   void dispose() {
+    DriverLocationService.instance.locationNotifier.removeListener(_onDriverLocationUpdated);
     _pulseController.dispose();
     super.dispose();
   }
@@ -126,6 +148,32 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
     });
   }
 
+  void _snapToDriver() {
+    final t = widget.progress.clamp(0.0, 1.0);
+    final centerLat = _driverCoord.lat + (_destinationCoord.lat - _driverCoord.lat) * (0.3 + 0.4 * t);
+    final centerLng = _driverCoord.lng + (_destinationCoord.lng - _driverCoord.lng) * (0.3 + 0.4 * t);
+    final centerCoord = GeoCoord(centerLat, centerLng);
+    final centerPixels = _coordToWorldPixels(centerCoord, _zoom);
+    final driverPixels = _coordToWorldPixels(_driverCoord, _zoom);
+
+    setState(() {
+      _panOffset = Offset(centerPixels.dx - driverPixels.dx, centerPixels.dy - driverPixels.dy);
+    });
+  }
+
+  void _snapToDestination() {
+    final t = widget.progress.clamp(0.0, 1.0);
+    final centerLat = _driverCoord.lat + (_destinationCoord.lat - _driverCoord.lat) * (0.3 + 0.4 * t);
+    final centerLng = _driverCoord.lng + (_destinationCoord.lng - _driverCoord.lng) * (0.3 + 0.4 * t);
+    final centerCoord = GeoCoord(centerLat, centerLng);
+    final centerPixels = _coordToWorldPixels(centerCoord, _zoom);
+    final destPixels = _coordToWorldPixels(_destinationCoord, _zoom);
+
+    setState(() {
+      _panOffset = Offset(centerPixels.dx - destPixels.dx, centerPixels.dy - destPixels.dy);
+    });
+  }
+
   void _zoomIn() {
     if (_zoom < 17) {
       setState(() => _zoom++);
@@ -155,10 +203,10 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
 
         final viewportSize = Size(viewportWidth, viewportHeight);
 
-        // Center map midway between branch and destination with courier progress bias
+        // Center map midway between driver and destination with courier progress bias
         final t = widget.progress.clamp(0.0, 1.0);
-        final centerLat = _branchCoord.lat + (_destinationCoord.lat - _branchCoord.lat) * (0.3 + 0.4 * t);
-        final centerLng = _branchCoord.lng + (_destinationCoord.lng - _branchCoord.lng) * (0.3 + 0.4 * t);
+        final centerLat = _driverCoord.lat + (_destinationCoord.lat - _driverCoord.lat) * (0.3 + 0.4 * t);
+        final centerLng = _driverCoord.lng + (_destinationCoord.lng - _driverCoord.lng) * (0.3 + 0.4 * t);
         final centerCoord = GeoCoord(centerLat, centerLng);
 
         final centerPixels = _coordToWorldPixels(centerCoord, _zoom);
@@ -257,6 +305,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
             AnimatedBuilder(
               animation: _pulseController,
               builder: (context, _) {
+                final isFromBranch = (_driverCoord.lat - DeliveryGeocoding.defaultBranch.lat).abs() < 0.0001 &&
+                    (_driverCoord.lng - DeliveryGeocoding.defaultBranch.lng).abs() < 0.0001;
+
                 return CustomPaint(
                   size: viewportSize,
                   painter: _RealMapOverlayPainter(
@@ -266,7 +317,9 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                     pulseValue: _pulseController.value,
                     vehicleEmoji: widget.vehicleEmoji,
                     orderRef: widget.delivery.orderRef,
+                    clientAddress: widget.delivery.address,
                     isDark: _activeLayer != RealMapLayer.street,
+                    isFromBranch: isFromBranch,
                   ),
                 );
               },
@@ -323,10 +376,16 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.public_rounded, size: 14, color: Color(0xFF4ADE80)),
+                      Icon(
+                        _isLiveGps ? Icons.satellite_alt_rounded : Icons.public_rounded,
+                        size: 14,
+                        color: _isLiveGps ? const Color(0xFF38BDF8) : const Color(0xFF4ADE80),
+                      ),
                       const SizedBox(width: 5),
                       Text(
-                        'خريطة جغرافية حقيقية • ${_activeLayer.label}',
+                        _isLiveGps
+                            ? '🛰️ موقع السائق المباشر • ${_activeLayer.label}'
+                            : 'خريطة جغرافية حقيقية • ${_activeLayer.label}',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -353,10 +412,26 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
                         color: PieColors.driverAccent,
                       ),
                       const SizedBox(height: 8),
-                      // Recenter Button
+                      // Snap to Driver Button (موقعي)
                       _buildMapCircleBtn(
-                        icon: Icons.my_location_rounded,
-                        tooltip: 'إعادة ضبط المركز',
+                        icon: Icons.near_me_rounded,
+                        tooltip: 'موقعي الحالي 🛵',
+                        onTap: _snapToDriver,
+                        color: const Color(0xFF38BDF8),
+                      ),
+                      const SizedBox(height: 8),
+                      // Snap to Destination Button (العميل)
+                      _buildMapCircleBtn(
+                        icon: Icons.location_on_rounded,
+                        tooltip: 'موقع العميل 📍',
+                        onTap: _snapToDestination,
+                        color: const Color(0xFFEF4444),
+                      ),
+                      const SizedBox(height: 8),
+                      // Recenter Button (كامل المسار)
+                      _buildMapCircleBtn(
+                        icon: Icons.fit_screen_rounded,
+                        tooltip: 'كامل المسار (السائق والعميل)',
                         onTap: _recenter,
                       ),
                       const SizedBox(height: 8),
@@ -459,7 +534,9 @@ class _RealMapOverlayPainter extends CustomPainter {
     required this.pulseValue,
     required this.vehicleEmoji,
     required this.orderRef,
+    required this.clientAddress,
     required this.isDark,
+    required this.isFromBranch,
   });
 
   final List<Offset> screenPoints;
@@ -468,7 +545,9 @@ class _RealMapOverlayPainter extends CustomPainter {
   final double pulseValue;
   final String vehicleEmoji;
   final String orderRef;
+  final String clientAddress;
   final bool isDark;
+  final bool isFromBranch;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -500,17 +579,25 @@ class _RealMapOverlayPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(routePath, corePaint);
 
-    // 2. Draw Branch Origin Pin (🏬)
+    // 2. Draw Driver / Origin Pin (🛵 or 🏬)
     final originPos = screenPoints.first;
-    canvas.drawCircle(originPos, 10, Paint()..color = const Color(0xFF0284C7));
-    canvas.drawCircle(originPos, 4, Paint()..color = Colors.white);
-    _drawBadge(canvas, 'الفرع 🏬', originPos + const Offset(-20, -22), const Color(0xFF0369A1));
+    if (isFromBranch) {
+      canvas.drawCircle(originPos, 10, Paint()..color = const Color(0xFF0284C7));
+      canvas.drawCircle(originPos, 4, Paint()..color = Colors.white);
+      _drawBadge(canvas, 'الفرع 🏬', originPos + const Offset(-20, -22), const Color(0xFF0369A1));
+    } else {
+      canvas.drawCircle(originPos, 12, Paint()..color = const Color(0xFF0284C7));
+      canvas.drawCircle(originPos, 6, Paint()..color = const Color(0xFF38BDF8));
+      canvas.drawCircle(originPos, 3, Paint()..color = Colors.white);
+      _drawBadge(canvas, 'موقعي الحالي 🛵', originPos + const Offset(-30, -24), const Color(0xFF0284C7));
+    }
 
     // 3. Draw Destination Pin (📍)
     final destPos = screenPoints.last;
     canvas.drawCircle(destPos, 12, Paint()..color = const Color(0xFFEF4444));
     canvas.drawCircle(destPos, 5, Paint()..color = Colors.white);
-    _drawBadge(canvas, 'وجهة التسليم #$orderRef 📍', destPos + const Offset(-45, -24), const Color(0xFFDC2626));
+    final street = DeliveryGeocoding.extractStreetName(clientAddress);
+    _drawBadge(canvas, 'موقع العميل: $street 📍', destPos + const Offset(-45, -24), const Color(0xFFDC2626));
 
     // 4. Draw Waypoint nodes along the route
     for (int i = 1; i < screenPoints.length - 1; i++) {
@@ -598,6 +685,8 @@ class _RealMapOverlayPainter extends CustomPainter {
     return oldDelegate.pulseValue != pulseValue ||
         oldDelegate.headingAngle != headingAngle ||
         oldDelegate.courierPos != courierPos ||
-        oldDelegate.isDark != isDark;
+        oldDelegate.isDark != isDark ||
+        oldDelegate.isFromBranch != isFromBranch ||
+        oldDelegate.clientAddress != clientAddress;
   }
 }

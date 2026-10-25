@@ -389,6 +389,67 @@
         }, 300);
         return true;
       };
+
+      // Real-time GPS Geolocation Bridge for Driver Cockpit Navigation
+      window.pieGetDriverLocationPromise = function() {
+        return new Promise(function(resolve, reject) {
+          if (!navigator.geolocation) {
+            reject(new Error('GEOLOCATION_NOT_SUPPORTED'));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            function(pos) {
+              resolve(JSON.stringify({
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                heading: pos.coords.heading || 0,
+                speed: (pos.coords.speed || 0) * 3.6,
+                accuracy: pos.coords.accuracy || 10,
+                ts: Date.now()
+              }));
+            },
+            function(err) {
+              reject(new Error(err.message || 'GPS_ERROR'));
+            },
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 4000 }
+          );
+        });
+      };
+
+      window.pieWatchDriverLocation = function() {
+        if (!navigator.geolocation) return -1;
+        try {
+          return navigator.geolocation.watchPosition(
+            function(pos) {
+              window._pieLastLocationJson = JSON.stringify({
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                heading: pos.coords.heading || 0,
+                speed: (pos.coords.speed || 0) * 3.6,
+                accuracy: pos.coords.accuracy || 10,
+                ts: Date.now()
+              });
+              window.dispatchEvent(new CustomEvent('pie_location_update', {
+                detail: window._pieLastLocationJson
+              }));
+            },
+            function() {},
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 2000 }
+          );
+        } catch (e) {
+          return -1;
+        }
+      };
+
+      window.pieClearWatchLocation = function(watchId) {
+        if (navigator.geolocation && watchId >= 0) {
+          navigator.geolocation.clearWatch(watchId);
+        }
+      };
+
+      window.pieGetLastLocationJson = function() {
+        return window._pieLastLocationJson || '';
+      };
     })();
   </script>
   <script src="flutter_bootstrap.js" async></script>
