@@ -282,6 +282,7 @@ class _RealMapTileWidgetState extends State<RealMapTileWidget>
         }).toList();
 
         // Calculate Courier screen position based on progress
+        final t = widget.progress.clamp(0.0, 1.0);
         Offset courierScreenPos = screenPoints.first;
         double headingAngle = 0.0;
         if (screenPoints.length >= 2) {
