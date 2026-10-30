@@ -24,6 +24,9 @@ typedef ArtifactTokenProvider = Future<String?> Function();
 /// verifier free of platform dependencies.
 Future<List<int>> readArtifactFile(String path) => File(path).readAsBytes();
 
+/// Streams a downloaded artifact back off disk for verification without buffering in memory.
+Stream<List<int>> streamArtifactFile(String path) => File(path).openRead();
+
 /// Downloads a release artifact over HTTP and verifies its checksum.
 ///
 /// [ArtifactDownloader.start] returns immediately with a `starting` state; the
@@ -249,9 +252,7 @@ class HttpArtifactDownloader implements ArtifactDownloader {
       final verification = await ArtifactVerifier.verify(
         manifest: manifest,
         path: file.path,
-        // The domain layer cannot read files without dart:io, so the reader
-        // comes from here. Omitting it leaves the verifier unable to see the
-        // bytes it just wrote, and it then fails closed on every download.
+        streamFile: streamArtifactFile,
         readFile: readArtifactFile,
       );
 

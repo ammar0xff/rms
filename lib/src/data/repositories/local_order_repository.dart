@@ -3,8 +3,10 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_version.dart';
 import '../../core/logging/app_logger.dart';
+import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_draft.dart';
+import '../../domain/models/stock_movement.dart';
 import '../local/local_database.dart';
 import '../local/local_stores.dart';
 import '../local/outbox/outbox_entry.dart';
@@ -12,6 +14,7 @@ import '../local/outbox/outbox_status.dart';
 import '../local/outbox/outbox_store.dart';
 import '../sync/record_mirror.dart';
 import '../sync/sync_ack.dart';
+import 'local_inventory_repository.dart';
 import 'order_repository.dart';
 
 /// Local-first order repository backed by the on-device store.
@@ -26,10 +29,12 @@ class LocalOrderRepository implements OrderRepository {
     Uuid? uuid,
     DateTime Function()? clock,
     RecordMirror? mirror,
+    LocalInventoryRepository? inventory,
   })  : _outbox = outbox ?? OutboxStore(_db),
         _uuid = uuid ?? const Uuid(),
         _clock = clock ?? DateTime.now,
-        _mirror = mirror;
+        _mirror = mirror,
+        _inventory = inventory;
 
   final LocalDatabase _db;
   final OutboxStore _outbox;
@@ -39,6 +44,7 @@ class LocalOrderRepository implements OrderRepository {
   /// Best-effort data mirror (see [RecordMirror]). Null outside Firebase
   /// mode, where there is nowhere to mirror to.
   final RecordMirror? _mirror;
+  final LocalInventoryRepository? _inventory;
 
   @override
   Future<Order> createOrder(OrderDraft draft) async {
@@ -90,9 +96,50 @@ class LocalOrderRepository implements OrderRepository {
     await _db.transaction((txn) async {
       await LocalStores.orders.record(localId).put(txn, order.toRecord());
       await _outbox.append(txn, entry);
+      if (_inventory != null) {
+        await _depleteRecipeIngredients(txn, order);
+      }
     });
     AppLogger.info('Order $localId queued (offline=${draft.createdOffline}).');
     return order;
+  }
+
+  Future<void> _depleteRecipeIngredients(Transaction txn, Order order) async {
+    final inventory = _inventory;
+    if (inventory == null) return;
+
+    for (final item in order.items) {
+      if (item.productId.isEmpty) continue;
+      final menuRecord = await LocalStores.menu.record(item.productId).get(txn);
+      if (menuRecord == null) continue;
+
+      final rawRecipe = menuRecord['recipe'] as List?;
+      if (rawRecipe == null || rawRecipe.isEmpty) continue;
+
+      final ingredients = rawRecipe
+          .map((e) => RecipeIngredient.fromRecord(Map<String, Object?>.from(e as Map)))
+          .toList();
+
+      for (final ingredient in ingredients) {
+        final totalDelta = -(ingredient.quantity * item.quantity);
+        if (totalDelta == 0) continue;
+
+        try {
+          await inventory.postMovement(
+            txn,
+            itemId: ingredient.inventoryItemId,
+            delta: totalDelta,
+            reason: StockMovementReason.sale,
+            reference: 'order:${order.localId}',
+            createdOffline: order.createdOffline,
+          );
+        } catch (e) {
+          AppLogger.warn(
+            'Could not deplete inventory item ${ingredient.inventoryItemId} for order ${order.localId}: $e',
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -144,6 +191,61 @@ class LocalOrderRepository implements OrderRepository {
       );
       return orders;
     });
+  }
+
+  @override
+  Future<Order?> rerouteOrder({
+    required String orderId,
+    required String targetBranchId,
+  }) async {
+    final now = _clock();
+    final record = LocalStores.orders.record(orderId);
+    Order? updated;
+
+    await _db.transaction((txn) async {
+      final existing = await record.get(txn);
+      if (existing == null) return;
+
+      final current = Order.fromRecord(existing);
+      final newRevision = current.localRevision + 1;
+      final payload = Map<String, Object?>.from(existing);
+      payload['branchId'] = targetBranchId;
+      payload['localRevision'] = newRevision;
+      payload['syncStatus'] = SyncStatus.pendingSync.name;
+      payload['updatedAt'] = now.toIso8601String();
+
+      await record.put(txn, payload);
+      updated = Order.fromRecord(payload);
+
+      final entry = OutboxEntry(
+        operationId: _uuid.v4(),
+        entityType: 'order',
+        entityId: orderId,
+        operationType: 'rerouteOrder',
+        payload: {
+          'id': orderId,
+          'targetBranchId': targetBranchId,
+          'localRevision': newRevision,
+          'updatedAt': now.toIso8601String(),
+        },
+        schemaVersion: AppVersion.localSchemaVersion,
+        idempotencyKey: _uuid.v4(),
+        createdAt: now,
+      );
+      await _outbox.append(txn, entry);
+    });
+
+    if (updated != null) {
+      await mirrorRecord(
+        _mirror,
+        entityType: 'order',
+        entityId: orderId,
+        snapshot: updated!.toRecord(),
+      );
+      AppLogger.info('Order $orderId rerouted to branch $targetBranchId.');
+    }
+
+    return updated;
   }
 
   /// Applies a sync acknowledgement to the order an outbox entry refers to.

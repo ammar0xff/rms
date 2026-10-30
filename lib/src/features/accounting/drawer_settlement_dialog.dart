@@ -109,27 +109,42 @@ class _DrawerSettlementDialogState extends State<DrawerSettlementDialog> {
                   final amount = double.tryParse(_amountController.text) ?? 0.0;
                   if (amount <= 0) return;
 
-                  // Record settlement via audit/cash repo
-                  services.audit?.record(
-                    AuditEntry(
-                      id: 'settlement_${DateTime.now().millisecondsSinceEpoch}',
-                      action: AuditAction.closeCashSession,
-                      entityType: 'drawer_settlement',
-                      entityId: 'settlement_${DateTime.now().millisecondsSinceEpoch}',
-                      summary: 'تسوية درج: $_settlementType بمبلغ $amount (${_noteController.text.trim()})',
+                  final session = await services.cashSessions?.currentSession();
+                  final user = services.auth.currentUser;
+                  final actorName = user?.displayName ?? user?.email ?? 'cashier';
+
+                  if (session != null && services.cashSessions != null) {
+                    await services.cashSessions!.recordCashDrop(
+                      session.id,
                       amount: amount,
-                      at: DateTime.now(),
-                      actor: 'cashier',
-                      createdOffline: services.sync?.isOnline != true,
-                    ),
-                  );
+                      type: _settlementType,
+                      note: _noteController.text.trim(),
+                      cashierUid: user?.uid,
+                      cashierName: actorName,
+                    );
+                  } else {
+                    // Fallback to audit record when unattached to an active session
+                    services.audit?.record(
+                      AuditEntry(
+                        id: 'settlement_${DateTime.now().millisecondsSinceEpoch}',
+                        action: AuditAction.closeCashSession,
+                        entityType: 'drawer_settlement',
+                        entityId: 'settlement_${DateTime.now().millisecondsSinceEpoch}',
+                        summary: 'تسوية درج: $_settlementType بمبلغ $amount (${_noteController.text.trim()})',
+                        amount: amount,
+                        at: DateTime.now(),
+                        actor: actorName,
+                        createdOffline: services.sync?.isOnline != true,
+                      ),
+                    );
+                  }
 
                   if (mounted) {
                     Navigator.of(context).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         backgroundColor: PieColors.surface2,
-                        content: Text('تم تسجيل تسوية الدرج بنجاح'),
+                        content: Text('تم تسجيل تسوية وتوريد النقدية بنجاح'),
                       ),
                     );
                   }

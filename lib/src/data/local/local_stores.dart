@@ -40,6 +40,10 @@ abstract final class LocalStores {
   static final StoreRef<String, Map<String, Object?>> cashSessions =
       stringMapStoreFactory.store('cash_sessions');
 
+  /// Mid-shift cash drops / safe settlements transferred out of the drawer.
+  static final StoreRef<String, Map<String, Object?>> cashDrops =
+      stringMapStoreFactory.store('cash_drops');
+
   static final StoreRef<String, Map<String, Object?>> approvals =
       stringMapStoreFactory.store('approvals');
 

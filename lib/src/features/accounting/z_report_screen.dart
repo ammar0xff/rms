@@ -31,6 +31,7 @@ class _ZReportScreenState extends State<ZReportScreen> {
   double _lastExpectedCash = 0.0;
   double _lastCountedCash = 0.0;
   double _lastVariance = 0.0;
+  bool _showBlindExpected = false;
 
   // Egyptian denominations count
   final Map<int, int> _counts = {
@@ -557,6 +558,12 @@ class _ZReportScreenState extends State<ZReportScreen> {
     double countedCash,
     double variance,
   ) {
+    final services = AppScope.of(context);
+    final user = services.auth.currentUser;
+    final isPrivileged = user?.role.isPrivileged == true;
+    final isClosed = session?.status == CashSessionStatus.closed;
+    final canReveal = isClosed || isPrivileged || _showBlindExpected;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -577,10 +584,39 @@ class _ZReportScreenState extends State<ZReportScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  PieNumeral.money(
-                    expectedCash,
-                    style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
-                  ),
+                  canReveal
+                      ? PieNumeral.money(
+                          expectedCash,
+                          style: PieTypography.monoBody.copyWith(fontWeight: FontWeight.w600),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '•••••• (جرد أعمى)',
+                              style: PieTypography.monoBody.copyWith(
+                                color: PieColors.inkSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (isPrivileged) ...[
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: Icon(
+                                  _showBlindExpected
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
+                                  size: 18,
+                                  color: PieColors.inkSecondary,
+                                ),
+                                tooltip: _showBlindExpected
+                                    ? 'إخفاء الرصيد'
+                                    : 'كشف الرصيد الدفتري (صلاحية مدير)',
+                                onPressed: () => setState(() => _showBlindExpected = !_showBlindExpected),
+                              ),
+                            ],
+                          ],
+                        ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -617,34 +653,39 @@ class _ZReportScreenState extends State<ZReportScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Flexible(
-                    child: variance == 0
-                        ? Text(
-                            'مطابق تماماً (0.00)',
-                            style: PieTypography.monoBody.copyWith(
-                              color: const Color(0xFF4ADE80),
-                              fontWeight: FontWeight.w700,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          )
-                        : (variance > 0
-                            ? PieNumeral.money(
-                                variance,
-                                prefix: 'زيادة: +',
-                                style: PieTypography.monoBody.copyWith(
-                                  color: const Color(0xFF4ADE80),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              )
-                            : PieNumeral.money(
-                                variance.abs(),
-                                prefix: 'عجز: -',
-                                style: PieTypography.monoBody.copyWith(
-                                  color: PieColors.stateError,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              )),
-                  ),
+                  canReveal
+                      ? Flexible(
+                          child: variance == 0
+                              ? Text(
+                                  'مطابق تماماً (0.00)',
+                                  style: PieTypography.monoBody.copyWith(
+                                    color: const Color(0xFF4ADE80),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : (variance > 0
+                                  ? PieNumeral.money(
+                                      variance,
+                                      prefix: 'زيادة: +',
+                                      style: PieTypography.monoBody.copyWith(
+                                        color: const Color(0xFF4ADE80),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    )
+                                  : PieNumeral.money(
+                                      variance.abs(),
+                                      prefix: 'عجز: -',
+                                      style: PieTypography.monoBody.copyWith(
+                                        color: PieColors.stateError,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    )),
+                        )
+                      : Text(
+                          'يُحسب بعد التقفيل',
+                          style: PieTypography.caption.copyWith(color: PieColors.inkSecondary),
+                        ),
                 ],
               ),
             ],

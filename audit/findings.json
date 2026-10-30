@@ -1,0 +1,269 @@
+[
+  {
+    "id": "SEC-001",
+    "title": "Open Firestore Write Permissions on Financial & Approval Collections",
+    "category": "SECURITY",
+    "severity": "CRITICAL",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Any authenticated user (couriers, cashiers) can directly modify orders, payments, cash sessions, inventory, and approve discount requests via direct Firestore SDK calls.",
+    "affectedComponents": [
+      {
+        "file": "firestore.rules",
+        "lines": "95-148"
+      }
+    ],
+    "prdReference": "SEC-001, AUTH-004",
+    "status": "OPEN",
+    "recommendedFix": "Implement granular Role-Based Access Control in firestore.rules restricting writes on approvals, cashSessions, and inventory to isPrivileged() only."
+  },
+  {
+    "id": "SEC-002",
+    "title": "Insecure Fallback Manager PIN (1234) & No Brute-Force Rate Limiting",
+    "category": "SECURITY",
+    "severity": "HIGH",
+    "confidence": "CONFIRMED",
+    "businessImpact": "When offline or unconfigured, entering '1234' unlocks manager operations. Absence of rate-limiting allows automated brute-forcing in milliseconds.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/data/services/pin_service.dart",
+        "lines": "81-84"
+      }
+    ],
+    "prdReference": "SEC-002, MGR-002",
+    "status": "OPEN",
+    "recommendedFix": "Remove '1234' fallback to fail closed on missing hash, and introduce a progressive lockout timer for repeated incorrect entries."
+  },
+  {
+    "id": "FIN-001",
+    "title": "Drawer Settlement Drops Bypass Accounting Ledger, Writing Only Local Audit Log",
+    "category": "FINANCIAL_INTEGRITY",
+    "severity": "HIGH",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Cash drops to the safe do not decrease expected cash in active session, causing massive false cash shortages on shift close Z-Reports.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/features/accounting/drawer_settlement_dialog.dart",
+        "lines": "108-135"
+      }
+    ],
+    "prdReference": "CASH-004, CASH-005",
+    "status": "OPEN",
+    "recommendedFix": "Persist cash drops to CashSessionRepository, update CashSession.droppedCash, and deduct from expectedCash calculation."
+  },
+  {
+    "id": "FIN-002",
+    "title": "Violation of Blind Cash Count: Expected Cash & Variance Displayed During Count",
+    "category": "FINANCIAL_INTEGRITY",
+    "severity": "MEDIUM",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Cashiers can see calculated drawer totals and live variance while entering banknote counts, allowing dishonest operators to manipulate counts to hide theft.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/features/accounting/z_report_screen.dart",
+        "lines": "570-620"
+      },
+      {
+        "file": "lib/src/features/shift/shift_screen.dart",
+        "lines": "354"
+      }
+    ],
+    "prdReference": "CASH-002",
+    "status": "OPEN",
+    "recommendedFix": "Implement strict two-phase UX hiding expected cash and variance until physical count is permanently committed."
+  },
+  {
+    "id": "DATA-001",
+    "title": "Audit Log Entries Strictly Local to Device, Unsynchronized to Cloud Firestore",
+    "category": "DATA_INTEGRITY",
+    "severity": "HIGH",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Local terminal crash or browser cache wipe permanently erases the audit trail of voids, discounts, and overrides across all branches.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/data/sync/record_mirror.dart",
+        "lines": "46-64"
+      },
+      {
+        "file": "firestore.rules",
+        "lines": "1-189"
+      }
+    ],
+    "prdReference": "MGR-004, SYNC-002",
+    "status": "OPEN",
+    "recommendedFix": "Include audit_entries in RecordMirror and add append-only security rule in firestore.rules."
+  },
+  {
+    "id": "COMPAT-001",
+    "title": "ESC/POS Thermal Network Printer Sends Raw UTF-8 Without Arabic BiDi Shaping",
+    "category": "COMPATIBILITY",
+    "severity": "HIGH",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Standard ESC/POS thermal printers print disconnected, reversed, or illegible characters when sent raw UTF-8 Arabic bytes.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/domain/services/network_esc_pos_adapter.dart",
+        "lines": "78, 89, 116"
+      }
+    ],
+    "prdReference": "PRN-001, PRN-002",
+    "status": "OPEN",
+    "recommendedFix": "Render tickets as off-screen raster bitmaps (GS v 0) or implement Arabic ligature shaping with CP864/CP1256 encoding."
+  },
+  {
+    "id": "COMPAT-002",
+    "title": "Missing Android Background Location Tracking Service (Foreground Service)",
+    "category": "COMPATIBILITY",
+    "severity": "MEDIUM",
+    "confidence": "CONFIRMED",
+    "businessImpact": "When courier locks screen or takes a call, Android suspends location updates, halting real-time fleet dispatch tracking.",
+    "affectedComponents": [
+      {
+        "file": "android/app/src/main/AndroidManifest.xml",
+        "lines": "11-14"
+      }
+    ],
+    "prdReference": "DRV-001, DRV-002",
+    "status": "OPEN",
+    "recommendedFix": "Add FOREGROUND_SERVICE and FOREGROUND_SERVICE_LOCATION permissions to AndroidManifest.xml and configure foreground notification."
+  },
+  {
+    "id": "COMPAT-003",
+    "title": "Web/PWA Platform Incompatible with Raw ESC/POS TCP Socket Printing (Port 9100)",
+    "category": "COMPATIBILITY",
+    "severity": "MEDIUM",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Web cashiers cannot print to thermal receipt printers over TCP port 9100 due to browser sandbox restrictions.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/domain/services/socket_printer/socket_printer_transport_stub.dart",
+        "lines": "1-20"
+      }
+    ],
+    "prdReference": "PRN-004, PLAT-003",
+    "status": "OPEN",
+    "recommendedFix": "Document Web platform for browser HTML printing and clarify that network port 9100 printing requires Desktop or Android."
+  },
+  {
+    "id": "GAP-001",
+    "title": "Mock Supervisor Temporary Delegation Code (DEL-7921) Unbacked by Service",
+    "category": "GAP",
+    "severity": "HIGH",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Supervisor delegation feature is non-functional; displays static mock code with zero backend generation or verification.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/features/manager/pin_delegation_dialog.dart",
+        "lines": "48, 139"
+      }
+    ],
+    "prdReference": "MGR-003",
+    "status": "OPEN",
+    "recommendedFix": "Implement dynamic 6-digit OTP generation with 60-minute TTL backed by Firestore delegation_codes."
+  },
+  {
+    "id": "GAP-002",
+    "title": "Order Checkout Does Not Trigger Recipe / BOM Inventory Depletion",
+    "category": "GAP",
+    "severity": "HIGH",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Ingredient stock balances on hand never deplete upon selling food items, breaking food cost accounting.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/features/pos/pos_checkout_dialog.dart",
+        "lines": "1-250"
+      },
+      {
+        "file": "lib/src/domain/models/menu_item.dart",
+        "lines": "65-87"
+      }
+    ],
+    "prdReference": "INV-001, INV-002",
+    "status": "OPEN",
+    "recommendedFix": "Attach recipe BOM lists to MenuItemModel and invoke recordMovement on order finalization."
+  },
+  {
+    "id": "GAP-003",
+    "title": "Mock Cross-Branch Emergency Rerouting and Rebalancing Actions",
+    "category": "GAP",
+    "severity": "MEDIUM",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Emergency order rerouting button only displays a SnackBar notification and performs no actual order rebalancing.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/features/manager/triage_screen.dart",
+        "lines": "262-270"
+      }
+    ],
+    "prdReference": "MGR-005",
+    "status": "OPEN",
+    "recommendedFix": "Wire TriageService to reassign pending order branchId and notify target branch."
+  },
+  {
+    "id": "SYNC-001",
+    "title": "Inbound Remote Sync Lacks Timestamp / Vector Clock Ordering Protection",
+    "category": "DATA_INTEGRITY",
+    "severity": "MEDIUM",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Delayed Firestore snapshots arriving out-of-order can overwrite newer local Sembast state.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/data/sync/inbound_sync_service.dart",
+        "lines": "127-143"
+      }
+    ],
+    "prdReference": "SYNC-003, SYNC-004",
+    "status": "OPEN",
+    "recommendedFix": "Check record timestamp against local record prior to updating Sembast store."
+  },
+  {
+    "id": "PERF-001",
+    "title": "Update Artifact Verification Buffers Entire Multi-Megabyte APK in Memory",
+    "category": "PERFORMANCE",
+    "severity": "MEDIUM",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Loading entire 60MB-100MB APK files into Dart byte array can cause Out-Of-Memory crashes on low-end Android POS terminals.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/domain/update/artifact_verifier.dart",
+        "lines": "90-95"
+      }
+    ],
+    "prdReference": "OTA-003",
+    "status": "OPEN",
+    "recommendedFix": "Use chunked streaming digest calculation via File.openRead().transform(sha256)."
+  },
+  {
+    "id": "RELIAB-001",
+    "title": "Unauthenticated GitHub Release API Calls Vulnerable to IP Rate Limiting (HTTP 403)",
+    "category": "RELIABILITY",
+    "severity": "MEDIUM",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Multiple terminals behind shared restaurant NAT Wi-Fi exceed 60 requests/hour limit, resulting in update check failures.",
+    "affectedComponents": [
+      {
+        "file": "lib/src/data/updates/github_fetcher.dart",
+        "lines": "15-28"
+      }
+    ],
+    "prdReference": "OTA-001",
+    "status": "OPEN",
+    "recommendedFix": "Send If-None-Match ETag headers on update check requests to receive HTTP 304 without consuming rate limits."
+  },
+  {
+    "id": "TEST-001",
+    "title": "Outdated Emoji and Icon Assertions in Driver Delivery Flow Tests",
+    "category": "TEST_GAP",
+    "severity": "LOW",
+    "confidence": "CONFIRMED",
+    "businessImpact": "Two test failures out of 576 in test suite cause false CI/CD deployment blocks.",
+    "affectedComponents": [
+      {
+        "file": "test/ui/driver_delivery_flow_test.dart",
+        "lines": "62, 341"
+      }
+    ],
+    "prdReference": "TEST-001, DRV-005",
+    "status": "OPEN",
+    "recommendedFix": "Update button finder to 'عرض البون 🧾' and remove stale fake journey play button assertion."
+  }
+]

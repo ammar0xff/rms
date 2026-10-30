@@ -71,8 +71,9 @@ void main() {
 
       // Verify ZReportScreen is pushed
       expect(find.byType(ZReportScreen), findsOneWidget);
-      expect(find.text('فئات النقدية بالدرج'), findsNothing); // In desktop layout it uses Row with denominations
       expect(find.text('الرصيد المحسوب بالدفتر:'), findsOneWidget);
+      expect(find.text('•••••• (جرد أعمى)'), findsOneWidget);
+      expect(find.text('يُحسب بعد التقفيل'), findsOneWidget);
       expect(find.text('الرصيد الفعلي المجرود:'), findsOneWidget);
 
       // Tap denomination steppers: add one 200 note and one 100 note

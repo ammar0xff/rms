@@ -130,6 +130,12 @@ class InboundSyncService {
             );
             if (hasLocalPending) continue;
 
+            // Monotonic LWW check: do not overwrite local state with older remote snapshots
+            final existingRecord = await store.record(entityId).get(_db.db);
+            if (existingRecord != null && isLocalNewer(existingRecord, data)) {
+              continue;
+            }
+
             final record = Map<String, Object?>.from(data)..remove('mirroredAt');
             record.putIfAbsent('id', () => entityId);
             record.putIfAbsent('localId', () => entityId);
@@ -193,5 +199,56 @@ class InboundSyncService {
     await _authSubscription?.cancel();
     _authSubscription = null;
     await stop();
+  }
+
+  /// Extracts the effective timestamp for Last-Write-Wins (LWW) conflict resolution.
+  /// Checks timestamp fields in priority order (mutations before creation).
+  static DateTime? extractTimestamp(Map<String, Object?> record) {
+    const candidateKeys = [
+      'updatedAt',
+      'lastModifiedAt',
+      'lastModified',
+      'closedAt',
+      'settledAt',
+      'syncedAt',
+      'timestamp',
+      'createdAt',
+      'openedAt',
+    ];
+
+    for (final key in candidateKeys) {
+      final val = record[key];
+      if (val == null) continue;
+
+      if (val is Timestamp) {
+        return val.toDate().toUtc();
+      }
+      if (val is DateTime) {
+        return val.toUtc();
+      }
+      if (val is int) {
+        if (val < 10000000000) {
+          return DateTime.fromMillisecondsSinceEpoch(val * 1000, isUtc: true);
+        }
+        return DateTime.fromMillisecondsSinceEpoch(val, isUtc: true);
+      }
+      if (val is String && val.isNotEmpty) {
+        final parsed = DateTime.tryParse(val);
+        if (parsed != null) return parsed.toUtc();
+      }
+    }
+    return null;
+  }
+
+  /// Returns true if the local record is strictly newer than the incoming remote data.
+  /// In that case, the remote update should be discarded to preserve local causality.
+  static bool isLocalNewer(Map<String, Object?> local, Map<String, Object?> remote) {
+    final localTs = extractTimestamp(local);
+    final remoteTs = extractTimestamp(remote);
+
+    if (localTs != null && remoteTs != null) {
+      return localTs.isAfter(remoteTs);
+    }
+    return false;
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:crypto/crypto.dart';
 
 import '../models/update_manifest.dart';
@@ -30,6 +32,7 @@ abstract final class ArtifactVerifier {
     String? path,
     List<int>? bytes,
     ArtifactFileReader? readFile,
+    ArtifactFileStreamer? streamFile,
   }) async {
     final artifact = manifest.artifact;
     final total = artifact.sizeBytes;
@@ -41,9 +44,82 @@ abstract final class ArtifactVerifier {
       );
     }
 
+    if (bytes != null) {
+      if (bytes.length != total) {
+        final digest = _sha256Hex(bytes);
+        return ArtifactVerification(
+          status: ArtifactVerificationStatus.checksumMismatch,
+          downloadedBytes: bytes.length,
+          sha256: digest,
+        );
+      }
+
+      final digest = _sha256Hex(bytes);
+      if (digest.toLowerCase() != artifact.sha256.toLowerCase()) {
+        return ArtifactVerification(
+          status: ArtifactVerificationStatus.checksumMismatch,
+          downloadedBytes: bytes.length,
+          sha256: digest,
+        );
+      }
+
+      return ArtifactVerification(
+        status: ArtifactVerificationStatus.verified,
+        downloadedBytes: bytes.length,
+        sha256: digest,
+      );
+    }
+
+    if (path == null || path.isEmpty) {
+      return const ArtifactVerification(
+        status: ArtifactVerificationStatus.notFound,
+        downloadedBytes: 0,
+      );
+    }
+
+    if (streamFile != null) {
+      try {
+        final stream = streamFile(path);
+        var receivedBytes = 0;
+        final countingStream = stream.map((chunk) {
+          receivedBytes += chunk.length;
+          return chunk;
+        });
+        final digestObj = await sha256.bind(countingStream).single;
+        final digest = digestObj.toString();
+
+        if (receivedBytes == 0 && total > 0) {
+          return const ArtifactVerification(
+            status: ArtifactVerificationStatus.notFound,
+            downloadedBytes: 0,
+          );
+        }
+
+        if (receivedBytes != total ||
+            digest.toLowerCase() != artifact.sha256.toLowerCase()) {
+          return ArtifactVerification(
+            status: ArtifactVerificationStatus.checksumMismatch,
+            downloadedBytes: receivedBytes,
+            sha256: digest,
+          );
+        }
+
+        return ArtifactVerification(
+          status: ArtifactVerificationStatus.verified,
+          downloadedBytes: receivedBytes,
+          sha256: digest,
+        );
+      } catch (_) {
+        return const ArtifactVerification(
+          status: ArtifactVerificationStatus.notFound,
+          downloadedBytes: 0,
+        );
+      }
+    }
+
     final downloadedBytes = await _readBytes(path, bytes, total, readFile);
     if (downloadedBytes == null) {
-      return ArtifactVerification(
+      return const ArtifactVerification(
         status: ArtifactVerificationStatus.notFound,
         downloadedBytes: 0,
       );
@@ -105,6 +181,11 @@ abstract final class ArtifactVerifier {
 /// `ArtifactVerifier.verify` takes the reader as an argument. Passing none
 /// alongside a [path] yields `notFound` rather than an unverified success.
 typedef ArtifactFileReader = Future<List<int>> Function(String path);
+
+/// Streams a file off disk in chunks, supplied by the platform layer.
+///
+/// Keeps memory usage at O(1) for large APK/desktop installer verification.
+typedef ArtifactFileStreamer = Stream<List<int>> Function(String path);
 
 /// The SHA-256 of [bytes], lowercase hex.
 ///

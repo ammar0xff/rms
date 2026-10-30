@@ -45,7 +45,13 @@ class _PinDelegationDialogState extends State<PinDelegationDialog> {
   String _enteredPin = '';
   String? _error;
   bool _showingDelegation = false;
-  final String _generatedDelegationCode = 'DEL-7921';
+  late final String _generatedDelegationCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _generatedDelegationCode = PinService.generateDelegationCode();
+  }
 
   void _onDigit(String digit) {
     if (_enteredPin.length < 4) {
@@ -70,17 +76,34 @@ class _PinDelegationDialogState extends State<PinDelegationDialog> {
   }
 
   Future<void> _verifyPin() async {
-    // Verify against the stored hash. A wrong PIN, an unset PIN and an
-    // unreachable backend all read the same way to the operator: refused.
-    final ok = await PinService().verify(_enteredPin);
+    final pinService = PinService();
+    if (PinService.isLocked) {
+      final rem = PinService.remainingLockout?.inSeconds ?? 30;
+      setState(() {
+        _error = 'تم قفل المحاولات مؤقتاً لحماية النظام. انتظر $rem ثانية.';
+        _enteredPin = '';
+      });
+      return;
+    }
+
+    final isDelegation = PinService.verifyDelegationCode(_enteredPin);
+    final ok = isDelegation || await pinService.verify(_enteredPin);
     if (!mounted) return;
     if (ok) {
       Navigator.of(context).pop(true);
     } else {
-      setState(() {
-        _error = 'كود المدير غير صحيح. حاول مرة ثانية.';
-        _enteredPin = '';
-      });
+      if (PinService.isLocked) {
+        final rem = PinService.remainingLockout?.inSeconds ?? 30;
+        setState(() {
+          _error = 'تم قفل المحاولات مؤقتاً لتكرار الأخطاء. انتظر $rem ثانية.';
+          _enteredPin = '';
+        });
+      } else {
+        setState(() {
+          _error = 'كود المدير غير صحيح. حاول مرة ثانية.';
+          _enteredPin = '';
+        });
+      }
     }
   }
 

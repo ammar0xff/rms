@@ -50,10 +50,25 @@ class GeolocatorLocationPlatformTransport implements LocationPlatformTransport {
       final hasPermission = await checkAndRequestPermission();
       if (!hasPermission) return;
 
-      const locationSettings = LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 3,
-      );
+      late final LocationSettings locationSettings;
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        locationSettings = AndroidSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 3,
+          intervalDuration: const Duration(seconds: 4),
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationTitle: 'PIE Operations - تتبع رحلة التوصيل',
+            notificationText: 'جاري مشاركة موقع السائق المباشر لتحديث مسار التوصيل',
+            enableWakeLock: true,
+            setOngoing: true,
+          ),
+        );
+      } else {
+        locationSettings = const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 3,
+        );
+      }
 
       _positionSub = Geolocator.getPositionStream(
         locationSettings: locationSettings,

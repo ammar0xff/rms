@@ -60,6 +60,8 @@ String? mirrorCollectionFor(String entityType) => switch (entityType) {
       'table' => 'tables',
       'driver' => 'drivers',
       'deliveryZone' => 'delivery_zones',
+      'cashDrop' => 'cash_drops',
+      'auditEntry' => 'audit_entries',
       _ => null,
     };
 

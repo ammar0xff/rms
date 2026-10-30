@@ -62,6 +62,32 @@ class ModifierGroup {
       );
 }
 
+/// One raw ingredient requirement in a menu item recipe (Bill of Materials).
+class RecipeIngredient {
+  const RecipeIngredient({
+    required this.inventoryItemId,
+    required this.quantity,
+    this.unit = '',
+  });
+
+  final String inventoryItemId;
+  final double quantity;
+  final String unit;
+
+  Map<String, Object?> toRecord() => {
+        'inventoryItemId': inventoryItemId,
+        'quantity': quantity,
+        if (unit.isNotEmpty) 'unit': unit,
+      };
+
+  static RecipeIngredient fromRecord(Map<String, Object?> record) =>
+      RecipeIngredient(
+        inventoryItemId: record['inventoryItemId'] as String,
+        quantity: (record['quantity'] as num).toDouble(),
+        unit: record['unit'] as String? ?? '',
+      );
+}
+
 class MenuItemModel {
   MenuItemModel({
     required this.id,
@@ -73,6 +99,7 @@ class MenuItemModel {
     this.lastModifiedAt,
     this.syncStatus = 'synced',
     this.modifierGroups = const [],
+    this.recipe = const [],
   });
 
   final String id;
@@ -84,6 +111,9 @@ class MenuItemModel {
   final DateTime? lastModifiedAt;
   final String syncStatus;
   final List<ModifierGroup> modifierGroups;
+
+  /// Bill of materials: inventory ingredients consumed per unit sold.
+  final List<RecipeIngredient> recipe;
 
   double get priceSnapshot => price;
 
@@ -100,6 +130,8 @@ class MenuItemModel {
         if (modifierGroups.isNotEmpty)
           'modifierGroups':
               modifierGroups.map((g) => g.toRecord()).toList(),
+        if (recipe.isNotEmpty)
+          'recipe': recipe.map((r) => r.toRecord()).toList(),
       };
 
   static MenuItemModel fromRecord(Map<String, Object?> record) => MenuItemModel(
@@ -117,6 +149,10 @@ class MenuItemModel {
             .map((e) => ModifierGroup.fromRecord(
                 Map<String, Object?>.from(e as Map)))
             .toList(),
+        recipe: ((record['recipe'] as List?) ?? [])
+            .map((e) => RecipeIngredient.fromRecord(
+                Map<String, Object?>.from(e as Map)))
+            .toList(),
       );
 
   MenuItemModel copyWith({
@@ -129,6 +165,7 @@ class MenuItemModel {
     DateTime? lastModifiedAt,
     String? syncStatus,
     List<ModifierGroup>? modifierGroups,
+    List<RecipeIngredient>? recipe,
   }) =>
       MenuItemModel(
         id: id ?? this.id,
@@ -140,5 +177,6 @@ class MenuItemModel {
         lastModifiedAt: lastModifiedAt ?? this.lastModifiedAt,
         syncStatus: syncStatus ?? this.syncStatus,
         modifierGroups: modifierGroups ?? this.modifierGroups,
+        recipe: recipe ?? this.recipe,
       );
 }

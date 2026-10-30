@@ -96,7 +96,10 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
     match /payments/{id} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn() && (isPrivileged() || myRole() == 'cashier');
+      allow delete: if signedIn() && isPrivileged();
     }
     match /collections/{id} {
       allow read, write: if signedIn();
@@ -117,7 +120,8 @@ service cloud.firestore {
       allow delete: if signedIn() && isPrivileged();
     }
     match /purchases/{id} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow write: if signedIn() && isPrivileged();
     }
     match /suppliers/{id} {
       allow read, write: if signedIn();
@@ -126,16 +130,38 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
     match /stockMovements/{id} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
     }
     match /inventoryItems/{id} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow write: if signedIn() && isPrivileged();
     }
     match /cashSessions/{id} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn() && (isPrivileged() || myRole() == 'cashier');
+      allow delete: if false;
     }
     match /approvals/{id} {
-      allow read, write: if signedIn();
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if signedIn() && isPrivileged();
+    }
+
+    // Cash drop envelopes recorded during shifts:
+    match /cash_drops/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if signedIn() && isPrivileged();
+    }
+
+    // Security and operational audit log: readable only by managers/devs, immutable append-only.
+    match /audit_entries/{id} {
+      allow read: if signedIn() && isPrivileged();
+      allow create: if signedIn();
+      allow update, delete: if false;
     }
     match /customers/{id} {
       allow read, write: if signedIn();

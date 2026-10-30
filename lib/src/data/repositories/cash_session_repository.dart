@@ -27,8 +27,19 @@ abstract class CashSessionRepository {
     String? cashierName,
   });
 
-  /// Expected drawer total (opening float + cash movements) for [session].
+  /// Expected drawer total (opening float + cash movements - cash drops) for [session].
   Future<double> expectedCash(CashSession session);
+
+  /// Records a cash drop / settlement from the drawer (e.g. transfer to main safe).
+  /// Deducts from the drawer's expected cash.
+  Future<void> recordCashDrop(
+    String sessionId, {
+    required double amount,
+    required String type,
+    String? note,
+    String? cashierUid,
+    String? cashierName,
+  });
 
   /// Real-time stream of the current open drawer session, or null when closed.
   Stream<CashSession?> watchCurrentSession() => Stream.fromFuture(currentSession());

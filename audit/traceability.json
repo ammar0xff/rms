@@ -1,0 +1,546 @@
+[
+  {
+    "id": "AUTH-001",
+    "summary": "Operator email and password authentication",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/auth/sign_in_screen.dart:40-120",
+    "test": "test/auth_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "AUTH-002",
+    "summary": "Operator self-registration toggle configuration",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/auth/sign_in_screen.dart, firestore.rules:79",
+    "test": "test/ui/signup_toggle_flow_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "AUTH-003",
+    "summary": "Operator role resolution (cashier, driver, manager, developer)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/app_user.dart:20-60, firestore.rules:28-38",
+    "test": "test/auth_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "AUTH-004",
+    "summary": "Server-side role-based Firestore write restrictions",
+    "status": "DEFECT",
+    "evidence": "firestore.rules:95-148 (Open Writes)",
+    "test": null,
+    "findingId": "SEC-001"
+  },
+  {
+    "id": "AUTH-005",
+    "summary": "Self-privilege escalation prevention on user role mutation",
+    "status": "IMPLEMENTED",
+    "evidence": "firestore.rules:57-65",
+    "test": "test/ui/team_permissions_flow_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "AUTH-006",
+    "summary": "Manager PIN verification gate",
+    "status": "DEFECT",
+    "evidence": "lib/src/data/services/pin_service.dart:81-84 (Fallback '1234')",
+    "test": "test/app_services_test.dart",
+    "findingId": "SEC-002"
+  },
+  {
+    "id": "AUTH-007",
+    "summary": "Manager PIN brute-force attempt lockout",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "lib/src/data/services/pin_service.dart (Zero rate limiting)",
+    "test": null,
+    "findingId": "SEC-002"
+  },
+  {
+    "id": "AUTH-008",
+    "summary": "Supervisor temporary delegation code generation",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "lib/src/features/manager/pin_delegation_dialog.dart:48 (Mock DEL-7921)",
+    "test": null,
+    "findingId": "GAP-001"
+  },
+  {
+    "id": "AUTH-009",
+    "summary": "Branch operator assignment and team permissions",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/manager/team_screen.dart",
+    "test": "test/ui/team_permissions_flow_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "AUTH-010",
+    "summary": "Session lock and idle security timeout",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/pos/pos_screen.dart",
+    "test": "test/ui/session_lock_and_guard_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-001",
+    "summary": "Fast-touch menu item grid and category rails",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/pos/pos_screen.dart:180-260",
+    "test": "test/ui/pos_user_flows_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-002",
+    "summary": "Modifier groups (required single, optional multi)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/pos/pos_customise_sheet.dart:50-130",
+    "test": "test/menu_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-003",
+    "summary": "Offline order finalization and local Sembast commit",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/repositories/local_order_repository.dart:80-140",
+    "test": "test/local_order_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-004",
+    "summary": "Shift gating blocking sales checkout when shift is closed",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/pos/pos_screen.dart:320-350",
+    "test": "test/ui/pos_shift_gating_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-005",
+    "summary": "Canonical sequential order numbering across branch",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/repositories/local_order_repository.dart:150-190",
+    "test": "test/order_model_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-006",
+    "summary": "Provisional offline order numbering with terminal prefix",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/order.dart:45-60 (PROV-{id}-{seq})",
+    "test": "test/order_model_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-007",
+    "summary": "Split payment execution (Cash + Card + Other)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/pos/pos_checkout_dialog.dart:180-250",
+    "test": "test/payment_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-008",
+    "summary": "Order channel routing (Takeaway, Delivery)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/order_type.dart, lib/src/features/pos/pos_screen.dart",
+    "test": "test/order_model_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-009",
+    "summary": "Customer phone lookup and address linkage",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/cashier/cashier_customers_screen.dart",
+    "test": "test/customer_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-010",
+    "summary": "Order voiding gated by manager PIN approval",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/manager/approvals_screen.dart, lib/src/data/services/pin_service.dart",
+    "test": "test/approval_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "POS-011",
+    "summary": "Automatic recipe ingredient inventory deduction on checkout",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "lib/src/features/pos/pos_checkout_dialog.dart (No inventory call)",
+    "test": null,
+    "findingId": "GAP-002"
+  },
+  {
+    "id": "POS-012",
+    "summary": "Egyptian VAT (14%) and configurable service fee calculation",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/order.dart:100-140",
+    "test": "test/order_model_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "PRN-001",
+    "summary": "Thermal receipt formatting for standard 80mm roll",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/services/receipt_print_service.dart:70-98",
+    "test": "test/receipt_print_service_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "PRN-002",
+    "summary": "ESC/POS network socket printing on TCP port 9100 with Arabic shaping",
+    "status": "DEFECT",
+    "evidence": "lib/src/domain/services/network_esc_pos_adapter.dart:78 (Raw UTF-8)",
+    "test": "test/print_adapter_test.dart",
+    "findingId": "COMPAT-001"
+  },
+  {
+    "id": "PRN-003",
+    "summary": "Kitchen ticket station splitting (Kitchen, Bar, Grill, Oven)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/services/kitchen_ticket_factory.dart:30-80",
+    "test": "test/kitchen_ticket_factory_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "PRN-004",
+    "summary": "Web browser HTML thermal receipt dialog (window.print)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/services/receipt_print_service.dart:73-84",
+    "test": "test/receipt_print_service_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "PRN-005",
+    "summary": "RJ12 cash drawer electric pulse kick",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/services/network_esc_pos_adapter.dart:125 (ESC p 0)",
+    "test": "test/print_adapter_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "PRN-006",
+    "summary": "Automatic partial paper cutting",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/services/network_esc_pos_adapter.dart:95 (GS V 66 0)",
+    "test": "test/print_adapter_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "PRN-007",
+    "summary": "Z-Report shift closing summary receipt printing",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/services/receipt_print_service.dart:450-520",
+    "test": "test/ui/settings_printing_flow_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "CASH-001",
+    "summary": "Opening float entry upon shift start",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/shift/open_shift_dialog.dart:60-120",
+    "test": "test/ui/shift_session_flow_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "CASH-002",
+    "summary": "Strictly blind physical cash count without seeing expected drawer total",
+    "status": "DEFECT",
+    "evidence": "lib/src/features/accounting/z_report_screen.dart:575-620 (Expected shown)",
+    "test": "test/ui/shift_session_flow_test.dart",
+    "findingId": "FIN-002"
+  },
+  {
+    "id": "CASH-003",
+    "summary": "Egyptian banknote denomination steppers (200, 100, 50, 20, 10, 5, 1)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/accounting/z_report_screen.dart:35-50",
+    "test": "test/ui/shift_session_flow_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "CASH-004",
+    "summary": "Mid-shift drawer drops to main safe recorded in ledger",
+    "status": "DEFECT",
+    "evidence": "lib/src/features/accounting/drawer_settlement_dialog.dart (Audit only)",
+    "test": null,
+    "findingId": "FIN-001"
+  },
+  {
+    "id": "CASH-005",
+    "summary": "Variance calculation (Surplus / Shortage)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/cash_session.dart:53-58",
+    "test": "test/cash_session_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "CASH-006",
+    "summary": "Historical Z-Report shift closing log and reprints",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/shift/shift_screen.dart:420-460",
+    "test": "test/ui/shift_and_invoices_edge_cases_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DSP-001",
+    "summary": "Delivery order dispatch and courier manual/auto assignment",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/assignment/delivery_assignment.dart:30-90",
+    "test": "test/delivery_assignment_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DSP-002",
+    "summary": "Delivery zone fee configuration and polygon mapping",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/delivery_zone.dart, firestore.rules:158",
+    "test": "test/delivery_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DSP-003",
+    "summary": "COD courier cash custody tracking (DriverCustody)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/delivery.dart:45-80, lib/src/domain/models/collection.dart",
+    "test": "test/delivery_settlement_sync_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DSP-004",
+    "summary": "Courier custody handover to cashier drawer",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/delivery/driver_custody_collection_dialog.dart",
+    "test": "test/delivery_settlement_sync_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DSP-005",
+    "summary": "Delivery failure reporting and reason tracking",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/delivery/driver_fail_dialog.dart:30-80",
+    "test": "test/ui/driver_delivery_flow_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DSP-006",
+    "summary": "Central fleet dispatch overview and courier status",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/delivery/fleet_screen.dart:50-140",
+    "test": "test/ui/fleet_driver_permissions_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DRV-001",
+    "summary": "Real hardware GPS acquisition via package:geolocator",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/navigation/driver_location_service.dart:55-95",
+    "test": "test/navigation_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DRV-002",
+    "summary": "Continuous background location tracking on Android (Foreground Service)",
+    "status": "DEFECT",
+    "evidence": "android/app/src/main/AndroidManifest.xml (Missing FG Service)",
+    "test": null,
+    "findingId": "COMPAT-002"
+  },
+  {
+    "id": "DRV-003",
+    "summary": "Turn-by-turn routing via OpenStreetMap / OSRM",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/delivery/driver_cockpit_nav_screen.dart:180-240",
+    "test": "test/navigation_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DRV-004",
+    "summary": "Raster tile rendering (Slippy Map OpenStreetMap)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/delivery/widgets/real_map_tile_widget.dart:30-110",
+    "test": "test/navigation_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "DRV-005",
+    "summary": "Geofence arrival detection within 45m of destination",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/delivery/driver_cockpit_nav_screen.dart:285",
+    "test": "test/ui/driver_delivery_flow_test.dart",
+    "findingId": "TEST-001"
+  },
+  {
+    "id": "DRV-006",
+    "summary": "3D perspective cockpit HUD mode with telemetry (km/h, ETA)",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/delivery/widgets/driver_nav_map_canvas.dart:80-140",
+    "test": "test/ui/driver_delivery_flow_test.dart",
+    "findingId": "TEST-001"
+  },
+  {
+    "id": "DRV-007",
+    "summary": "Elimination of fake simulated journey controls",
+    "status": "IMPLEMENTED",
+    "evidence": "Git commit 571e46c (Purged fake journey simulator)",
+    "test": "test/ui/driver_delivery_flow_test.dart",
+    "findingId": "TEST-001"
+  },
+  {
+    "id": "INV-001",
+    "summary": "Raw ingredient stock inventory tracking and units",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/inventory_item.dart, lib/src/data/repositories/local_inventory_repository.dart",
+    "test": "test/inventory_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "INV-002",
+    "summary": "Recipe (BOM) linkage on menu items",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "lib/src/domain/models/menu_item.dart (No recipe data structure)",
+    "test": null,
+    "findingId": "GAP-002"
+  },
+  {
+    "id": "INV-003",
+    "summary": "Purchase orders and supplier invoices",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/purchase_order.dart, lib/src/domain/models/supplier.dart",
+    "test": "test/purchasing_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "INV-004",
+    "summary": "Moving average unit cost calculation upon purchasing",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/repositories/local_purchase_repository.dart:90-130",
+    "test": "test/purchase_payable_sync_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "INV-005",
+    "summary": "Inter-branch stock transfers and approvals",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/stock_transfer.dart, lib/src/data/repositories/local_transfer_repository.dart",
+    "test": "test/transfer_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "INV-006",
+    "summary": "Append-only stock movement ledger",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/stock_movement.dart:20-60",
+    "test": "test/inventory_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "MGR-001",
+    "summary": "Discount, void, and credit managerial approval workflow",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/features/manager/approvals_screen.dart:80-160",
+    "test": "test/approval_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "MGR-002",
+    "summary": "Manager PIN rotation and verification",
+    "status": "DEFECT",
+    "evidence": "lib/src/data/services/pin_service.dart:55-73, 81-84",
+    "test": "test/app_services_test.dart",
+    "findingId": "SEC-002"
+  },
+  {
+    "id": "MGR-003",
+    "summary": "Supervisor temporary delegation codes",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "lib/src/features/manager/pin_delegation_dialog.dart:48 (Mock DEL-7921)",
+    "test": null,
+    "findingId": "GAP-001"
+  },
+  {
+    "id": "MGR-004",
+    "summary": "Centralized tamper-evident audit trail synchronization",
+    "status": "DEFECT",
+    "evidence": "lib/src/data/sync/record_mirror.dart:46-64 (Not mirrored)",
+    "test": "test/audit_log_test.dart",
+    "findingId": "DATA-001"
+  },
+  {
+    "id": "MGR-005",
+    "summary": "Cross-branch triage delay detection and emergency rerouting",
+    "status": "PARTIAL",
+    "evidence": "lib/src/features/manager/triage_screen.dart:262-270 (Mock SnackBar)",
+    "test": null,
+    "findingId": "GAP-003"
+  },
+  {
+    "id": "CRM-001",
+    "summary": "Customer address book and order history aggregation",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/models/customer.dart, lib/src/features/cashier/cashier_customers_screen.dart",
+    "test": "test/customer_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "CRM-002",
+    "summary": "Customer loyalty points balance and credit ledger",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "lib/src/domain/models/customer.dart (No loyalty points field)",
+    "test": null,
+    "findingId": null
+  },
+  {
+    "id": "SYNC-001",
+    "summary": "Atomic two-phase commit to Sembast domain store and outbox",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/repositories/local_order_repository.dart:100-150",
+    "test": "test/local_order_repository_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "SYNC-002",
+    "summary": "Outbox push idempotency via deterministic UUID mutation IDs",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/sync/firestore_sync_transport.dart:40-90",
+    "test": "test/sync_ack_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "SYNC-003",
+    "summary": "Protection of pending local unpushed mutations during inbound sync",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/sync/inbound_sync_service.dart:126-132",
+    "test": "test/sync_service_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "SYNC-004",
+    "summary": "Monotonic Last-Write-Wins ordering on remote inbound updates",
+    "status": "DEFECT",
+    "evidence": "lib/src/data/sync/inbound_sync_service.dart:137-143 (Unchecked put)",
+    "test": null,
+    "findingId": "SYNC-001"
+  },
+  {
+    "id": "OTA-001",
+    "summary": "Semantic versioning and GitHub release manifest fetching",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/updates/github_release_source.dart:30-80",
+    "test": "test/github_release_source_test.dart",
+    "findingId": "RELIAB-001"
+  },
+  {
+    "id": "OTA-002",
+    "summary": "Android in-app APK download and FileProvider installation prompt",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/data/updates/android_update_installer.dart:40-90",
+    "test": "test/ui/in_app_update_dialog_test.dart",
+    "findingId": null
+  },
+  {
+    "id": "OTA-003",
+    "summary": "Cryptographic SHA-256 artifact verification prior to install",
+    "status": "IMPLEMENTED",
+    "evidence": "lib/src/domain/update/artifact_verifier.dart:30-75",
+    "test": "test/artifact_verifier_test.dart",
+    "findingId": "PERF-001"
+  }
+]

@@ -169,6 +169,62 @@ void main() {
       expect(called, isFalse);
       expect(result.status, ArtifactVerificationStatus.verified);
     });
+
+    test('streams the artifact through the supplied streamer chunk-by-chunk', () async {
+      final chunks = ['he'.codeUnits, 'll'.codeUnits, 'o'.codeUnits];
+      final total = chunks.fold<int>(0, (sum, c) => sum + c.length);
+      final requested = <String>[];
+
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: total),
+        path: '/tmp/app.apk',
+        streamFile: (path) {
+          requested.add(path);
+          return Stream.fromIterable(chunks);
+        },
+      );
+
+      expect(requested, ['/tmp/app.apk']);
+      expect(result.status, ArtifactVerificationStatus.verified);
+      expect(result.isOk, isTrue);
+      expect(result.downloadedBytes, total);
+    });
+
+    test('streamer reports notFound when streamer fails', () async {
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: 5),
+        path: '/tmp/app.apk',
+        streamFile: (_) => Stream.error(StateError('disk read error')),
+      );
+
+      expect(result.status, ArtifactVerificationStatus.notFound);
+      expect(result.isOk, isFalse);
+    });
+
+    test('streamer reports notFound when stream yields empty for sized artifact', () async {
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: 5),
+        path: '/tmp/app.apk',
+        streamFile: (_) => const Stream.empty(),
+      );
+
+      expect(result.status, ArtifactVerificationStatus.notFound);
+      expect(result.isOk, isFalse);
+    });
+
+    test('streamer detects checksumMismatch on corrupt chunks', () async {
+      final chunks = ['he'.codeUnits, 'xx'.codeUnits, 'o'.codeUnits];
+      final total = chunks.fold<int>(0, (sum, c) => sum + c.length);
+
+      final result = await ArtifactVerifier.verify(
+        manifest: _manifest(sha256: _shaHello, sizeBytes: total),
+        path: '/tmp/app.apk',
+        streamFile: (_) => Stream.fromIterable(chunks),
+      );
+
+      expect(result.status, ArtifactVerificationStatus.checksumMismatch);
+      expect(result.isOk, isFalse);
+    });
   });
 
   // The verifier is the only thing standing between a downloaded APK and being

@@ -12,5 +12,10 @@ abstract class OrderRepository {
 
   Future<List<Order>> getOrdersByBranch(String branchId);
 
+  Future<Order?> rerouteOrder({
+    required String orderId,
+    required String targetBranchId,
+  });
+
   Stream<List<Order>> watchOrders() => Stream.fromFuture(listOrders());
 }

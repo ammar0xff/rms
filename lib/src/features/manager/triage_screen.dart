@@ -6,6 +6,7 @@ import '../../core/theme/pie_typography.dart';
 import '../../core/widgets/pie_button.dart';
 import '../../core/widgets/pie_card.dart';
 import '../../core/widgets/pie_empty_state.dart';
+import '../../data/repositories/order_repository.dart';
 import '../../domain/models/branch.dart';
 import '../../domain/models/delivery.dart';
 import '../../domain/models/order.dart';
@@ -127,12 +128,25 @@ class _TriageScreenState extends State<TriageScreen> {
                 )
               else
                 for (final branch in branches) ...[
-                  _buildBranchTriageCard(
-                    branch: branch,
-                    activeOrders: activeOrders,
-                    deliveries: allDeliveries,
-                    delayedCount: delayedOrders.length,
-                  ),
+                  () {
+                    final branchOrders = activeOrders
+                        .where((o) =>
+                            o.branchId == branch.id ||
+                            (o.branchId == null && branch.id == branches.first.id))
+                        .toList();
+                    final branchDelayed = branchOrders
+                        .where((o) => now.difference(o.createdAt).inMinutes > 30)
+                        .toList();
+
+                    return _buildBranchTriageCard(
+                      branch: branch,
+                      allBranches: branches,
+                      activeOrders: branchOrders,
+                      delayedOrders: branchDelayed,
+                      deliveries: allDeliveries,
+                      ordersRepo: ordersRepo,
+                    );
+                  }(),
                   const SizedBox(height: 12),
                 ],
             ],
@@ -157,10 +171,13 @@ class _TriageScreenState extends State<TriageScreen> {
 
   Widget _buildBranchTriageCard({
     required BranchModel branch,
+    required List<BranchModel> allBranches,
     required List<Order> activeOrders,
+    required List<Order> delayedOrders,
     required List<DeliveryModel> deliveries,
-    required int delayedCount,
+    required OrderRepository? ordersRepo,
   }) {
+    final delayedCount = delayedOrders.length;
     final isDelayed = delayedCount > 0;
     final takeawayOrders =
         activeOrders.where((o) => o.orderType == OrderType.takeaway).length;
@@ -259,13 +276,40 @@ class _TriageScreenState extends State<TriageScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: PieButton.primary(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: PieColors.surface2,
-                          content: Text('تم تفعيل التحويل التلقائي للأوردرات الزائدة لأقرب فرع'),
-                        ),
+                    onPressed: () async {
+                      final targetBranch = allBranches.firstWhere(
+                        (b) => b.id != branch.id && b.isActive,
+                        orElse: () => branch,
                       );
+                      if (targetBranch.id == branch.id) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            backgroundColor: PieColors.surface2,
+                            content: Text('لا توجد فروع بديلة نشطة متاحة للتحويل'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final count = delayedOrders.length;
+                      for (final order in delayedOrders) {
+                        await ordersRepo?.rerouteOrder(
+                          orderId: order.localId,
+                          targetBranchId: targetBranch.id,
+                        );
+                      }
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: PieColors.surface2,
+                            content: Text(
+                              'تم تحويل $count أوردر متأخر من ${branch.name} إلى ${targetBranch.name}',
+                            ),
+                          ),
+                        );
+                        setState(() {});
+                      }
                     },
                     label: 'إعادة توجيه طارئ',
                     accentColor: PieColors.managerAccent,

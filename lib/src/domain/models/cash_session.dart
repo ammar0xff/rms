@@ -23,6 +23,7 @@ class CashSession {
     this.closedAt,
     this.countedCash,
     this.expectedCash,
+    this.droppedCash = 0.0,
     this.status = CashSessionStatus.open,
     this.note,
     this.cashierUid,
@@ -39,6 +40,7 @@ class CashSession {
   DateTime? closedAt;
   double? countedCash;
   double? expectedCash;
+  double droppedCash;
   CashSessionStatus status;
   String? note;
   final String? cashierUid;
@@ -64,6 +66,7 @@ class CashSession {
         'closedAt': closedAt?.toIso8601String(),
         'countedCash': countedCash,
         'expectedCash': expectedCash,
+        'droppedCash': droppedCash,
         'status': status.name,
         'note': note,
         'cashierUid': cashierUid,
@@ -85,6 +88,7 @@ class CashSession {
             : DateTime.tryParse(record['closedAt'].toString()),
         countedCash: (record['countedCash'] as num?)?.toDouble(),
         expectedCash: (record['expectedCash'] as num?)?.toDouble(),
+        droppedCash: (record['droppedCash'] as num?)?.toDouble() ?? 0.0,
         status: () {
           final s = record['status'] as String?;
           if (s == null) return CashSessionStatus.open;
@@ -118,6 +122,7 @@ class CashSession {
     DateTime? closedAt,
     double? countedCash,
     double? expectedCash,
+    double? droppedCash,
     CashSessionStatus? status,
     String? note,
     String? cashierUid,
@@ -134,6 +139,7 @@ class CashSession {
         closedAt: closedAt ?? this.closedAt,
         countedCash: countedCash ?? this.countedCash,
         expectedCash: expectedCash ?? this.expectedCash,
+        droppedCash: droppedCash ?? this.droppedCash,
         status: status ?? this.status,
         note: note ?? this.note,
         cashierUid: cashierUid ?? this.cashierUid,

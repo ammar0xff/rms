@@ -10,11 +10,11 @@ import '../../domain/models/semantic_version.dart';
 abstract final class AppVersion {
   /// The version compiled into the binary. Overridden at runtime by
   /// [apply] from the installed package.
-  static const String compiledNumber = '0.36.0';
+  static const String compiledNumber = '0.39.0';
 
   /// The build number compiled into the binary. Overridden at runtime by
   /// [apply].
-  static const int compiledBuild = 37;
+  static const int compiledBuild = 40;
 
   /// The running version, e.g. `0.10.0`.
   ///

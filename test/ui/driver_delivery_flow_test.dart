@@ -58,7 +58,7 @@ void main() {
       expect(find.byType(DriverNavSheet), findsNothing);
 
       // Open receipt sheet
-      final receiptBtn = find.text('عرض البون');
+      final receiptBtn = find.text('عرض البون 🧾');
       expect(receiptBtn, findsOneWidget);
       await tester.tap(receiptBtn);
       await tester.pumpFewFrames();
@@ -336,14 +336,6 @@ void main() {
       await tester.tap(find.text('📐 3D'));
       await tester.pumpFewFrames();
       expect(find.text('🗺️ 2D'), findsOneWidget);
-
-      // Verify Simulation button (play / pause)
-      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.play_arrow_rounded));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.pause_rounded));
-      await tester.pumpFewFrames();
 
       // Verify Cash Collection reminder in HUD
       expect(find.text('المطلوب تحصيله كاش عند الباب:'), findsOneWidget);

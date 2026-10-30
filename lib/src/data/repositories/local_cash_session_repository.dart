@@ -321,7 +321,107 @@ class LocalCashSessionRepository implements CashSessionRepository {
       }
     }
 
+    final allDrops = await LocalStores.cashDrops.find(
+      txn,
+      finder: Finder(
+        filter: Filter.equals('sessionId', session.id),
+      ),
+    );
+    for (final snapshot in allDrops) {
+      final map = snapshot.value;
+      final atRaw = map['at'];
+      if (atRaw == null) continue;
+      final at = DateTime.tryParse(atRaw.toString());
+      if (at == null) continue;
+      final atUtc = at.toUtc();
+      if (!atUtc.isBefore(openedUtc) && !atUtc.isAfter(asOfUtc)) {
+        total -= (map['amount'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
     return total;
+  }
+
+  @override
+  Future<void> recordCashDrop(
+    String sessionId, {
+    required double amount,
+    required String type,
+    String? note,
+    String? cashierUid,
+    String? cashierName,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError.value(amount, 'amount', 'Drop amount must be greater than zero');
+    }
+    final now = _clock();
+    final dropId = _uuid.v4();
+
+    await _db.transaction((txn) async {
+      final sessionRecord = LocalStores.cashSessions.record(sessionId);
+      final sessionData = await sessionRecord.get(txn);
+      if (sessionData == null) {
+        throw StateError('Cash session $sessionId not found');
+      }
+
+      final session = CashSession.fromRecord(sessionData);
+      session.droppedCash += amount;
+      await sessionRecord.put(txn, session.toRecord());
+
+      final dropRecord = {
+        'id': dropId,
+        'sessionId': sessionId,
+        'amount': amount,
+        'type': type,
+        'note': note,
+        'at': now.toIso8601String(),
+        'cashierUid': cashierUid,
+        'cashierName': cashierName,
+      };
+      await LocalStores.cashDrops.record(dropId).put(txn, dropRecord);
+
+      await _outbox.append(
+        txn,
+        _entry(
+          entityId: dropId,
+          operationType: 'recordCashDrop',
+          createdAt: now,
+          payload: dropRecord,
+        ),
+      );
+
+      final actor = cashierName ?? cashierUid ?? 'cashier';
+      await _audit.append(
+        txn,
+        AuditEntry(
+          id: _uuid.v4(),
+          action: AuditAction.closeCashSession,
+          entityType: 'drawer_settlement',
+          entityId: dropId,
+          summary: 'تسوية درج: $type بمبلغ ${amount.toStringAsFixed(2)}${note != null && note.isNotEmpty ? ' ($note)' : ''}',
+          at: now,
+          actor: actor,
+          amount: amount,
+          createdOffline: true,
+        ),
+      );
+    });
+
+    await mirrorRecord(
+      _mirror,
+      entityType: 'cashDrop',
+      entityId: dropId,
+      snapshot: {
+        'id': dropId,
+        'sessionId': sessionId,
+        'amount': amount,
+        'type': type,
+        'note': note,
+        'at': now.toIso8601String(),
+        'cashierUid': cashierUid,
+        'cashierName': cashierName,
+      },
+    );
   }
 
   /// Marks a session as synced once its command is acknowledged.

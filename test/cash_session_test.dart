@@ -181,6 +181,46 @@ void main() {
     expect(mirror.writes[1].id, session.id);
     expect(mirror.writes[1].data['status'], 'closed');
   });
+
+  test('recordCashDrop deducts from expected cash and prevents false shortages (FIN-001)', () async {
+    final session = await repo.openSession(openingFloat: 500);
+
+    // Record cash payment of 1,000 EGP
+    await LocalStores.payments.record('pay_1').put(db.db, {
+      'id': 'pay_1',
+      'orderLocalId': 'ord_1',
+      'amount': 1000.0,
+      'method': PaymentMethod.cash.name,
+      'createdAt': now.toIso8601String(),
+    });
+
+    // Before drop: 500 float + 1000 cash = 1500 expected
+    final expectedBefore = await repo.expectedCash(session);
+    expect(expectedBefore, 1500.0);
+
+    // Cashier performs cash drop of 600 EGP to main safe
+    await repo.recordCashDrop(
+      session.id,
+      amount: 600.0,
+      type: 'توريد للخزينة الرئيسية',
+      note: 'safe transfer #42',
+      cashierName: 'Ammar',
+    );
+
+    // After drop: 1500 - 600 = 900 expected
+    final expectedAfter = await repo.expectedCash(session);
+    expect(expectedAfter, 900.0);
+
+    // Closing session with counted 900 results in exact 0.00 variance
+    final closed = await repo.closeSession(session.id, countedCash: 900.0);
+    expect(closed.expectedCash, 900.0);
+    expect(closed.variance, 0.0);
+    expect(closed.droppedCash, 600.0);
+
+    // Outbox must contain recordCashDrop
+    final outbox = await OutboxStore(db).all();
+    expect(outbox.any((e) => e.operationType == 'recordCashDrop'), isTrue);
+  });
 }
 
 class _RecordingMirror implements RecordMirror {

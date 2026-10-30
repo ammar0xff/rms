@@ -141,9 +141,12 @@ Future<AppServices> _resolveAuth(
   // mirror resolves Firestore lazily at call time, so this never touches
   // plugins during startup.
   final mirror = config.isConfigured ? FirestoreRecordMirror() : null;
+  final inventory = (database == null || outbox == null)
+      ? null
+      : LocalInventoryRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final orders = (database == null || outbox == null)
       ? null
-      : LocalOrderRepository(database, outbox: outbox, mirror: mirror);
+      : LocalOrderRepository(database, outbox: outbox, mirror: mirror, inventory: inventory);
   final menu = database == null ? null : LocalMenuRepository(database, mirror: mirror);
   final kitchen = database == null
       ? null
@@ -183,9 +186,6 @@ Future<AppServices> _resolveAuth(
           database: database,
           expectedSchemaVersion: AppVersion.localSchemaVersion,
         );
-  final inventory = (database == null || outbox == null)
-      ? null
-      : LocalInventoryRepository(database, outbox: outbox, audit: audit, mirror: mirror);
   final suppliers = (database == null || outbox == null)
       ? null
       : LocalSupplierRepository(database, outbox: outbox, audit: audit, mirror: mirror);
